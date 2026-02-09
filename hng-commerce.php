@@ -8,7 +8,7 @@
 
  * Description: Solução completa de e-commerce para WordPress focada no mercado brasileiro. Alternativa ao WooCommerce com integrações nativas de pagamento e frete brasileiros.
 
- * Version: 1.2.16
+ * Version: 1.2.17
  
  * Author: HNG Desenvolvimentos
 
@@ -44,7 +44,7 @@ if (!defined('ABSPATH')) {
 
 // Define constantes do plugin
 
-define('HNG_COMMERCE_VERSION', '1.2.16');
+define('HNG_COMMERCE_VERSION', '1.2.17');
 
 define('HNG_COMMERCE_FILE', __FILE__);
 
