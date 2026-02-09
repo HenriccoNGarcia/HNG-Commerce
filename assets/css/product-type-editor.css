@@ -1,0 +1,831 @@
+/**
+ * Product Type Editor Styles
+ * 
+ * Estilos para o editor de tipos de produto com UI/UX melhorada
+ */
+
+/* ==========================================================================
+   Reset & Base - High Specificity to Avoid Theme Conflicts
+   ========================================================================== */
+#poststuff .hng-product-data,
+.hng-product-data {
+    background: #fff;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#poststuff .hng-product-data *,
+.hng-product-data * {
+    box-sizing: border-box;
+}
+
+/* Ensure fields container is always visible */
+#poststuff .hng-type-fields-container,
+.hng-type-fields-container {
+    display: block !important;
+    visibility: visible !important;
+    padding: 20px;
+}
+
+/* Default: show all sections and fields (JS will hide what's not needed) */
+#poststuff .hng-fields-section,
+.hng-fields-section {
+    display: block;
+    margin-bottom: 30px;
+}
+
+#poststuff .hng-field-wrapper,
+.hng-field-wrapper {
+    display: block;
+    padding: 12px;
+    background: #f9f9f9;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    margin-bottom: 10px;
+}
+
+/* Hidden state controlled by JS */
+#poststuff .hng-field-wrapper.hng-hidden,
+.hng-field-wrapper.hng-hidden {
+    display: none !important;
+}
+
+#poststuff .hng-fields-section.hng-hidden,
+.hng-fields-section.hng-hidden {
+    display: none !important;
+}
+
+/* Type Selector Container */
+.hng-type-selector-container {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    margin: -12px -12px 0 -12px;
+}
+
+.hng-type-selector-container h3 {
+    margin: 0 0 15px 0;
+    color: #1a1a1a;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Type Cards Grid */
+.hng-type-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.hng-type-card {
+    position: relative;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: #333;
+}
+
+.hng-type-card:hover {
+    border-color: #0073aa;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.15);
+    transform: translateY(-2px);
+}
+
+.hng-type-card.active {
+    border-color: #0073aa;
+    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 115, 170, 0.3);
+}
+
+.hng-type-card input[type="radio"] {
+    display: none;
+}
+
+.hng-type-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.hng-type-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.hng-type-description {
+    display: block;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.hng-type-card.active .hng-type-description {
+    opacity: 0.95;
+}
+
+/* Dynamic Fields Container */
+.hng-type-fields-container {
+    padding: 20px;
+}
+
+.hng-fields-section {
+    margin-bottom: 30px;
+}
+
+.hng-section-title {
+    margin: 0 0 15px 0;
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #0073aa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hng-fields-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+/* Field Wrapper Hover */
+#poststuff .hng-field-wrapper:hover,
+.hng-field-wrapper:hover {
+    background: #fff;
+    border-color: #ddd;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+    transition: all 0.2s ease;
+}
+
+.hng-field-wrapper:hover {
+    background: #fff;
+    border-color: #ddd;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.hng-field-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #1a1a1a;
+}
+
+.hng-field-input {
+    margin-bottom: 6px;
+}
+
+.hng-input,
+.hng-textarea,
+.hng-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.hng-input:focus,
+.hng-textarea:focus,
+.hng-select:focus {
+    outline: none;
+    border-color: #0073aa;
+    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
+    background: #fff;
+}
+
+.hng-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.hng-field-help {
+    margin: 6px 0 0 0;
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* Notice Info */
+.hng-notice-info {
+    padding: 12px;
+    background: #d4e8f7;
+    border-left: 4px solid #0073aa;
+    color: #0073aa;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hng-type-cards {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    .hng-type-icon {
+        font-size: 28px;
+    }
+    
+    .hng-type-label {
+        font-size: 13px;
+    }
+    
+    .hng-type-description {
+        font-size: 11px;
+    }
+    
+    .hng-fields-group {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animation for field transitions */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hng-fields-section {
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Type-specific styling */
+.hng-field-wrapper[data-type="subscription"] {
+    border-left: 3px solid #0073aa;
+}
+
+.hng-field-wrapper[data-type="digital"] {
+    border-left: 3px solid #8b7aba;
+}
+
+.hng-field-wrapper[data-type="quote"] {
+    border-left: 3px solid #f39c12;
+}
+
+.hng-field-wrapper[data-type="appointment"] {
+    border-left: 3px solid #e74c3c;
+}
+
+.hng-field-wrapper[data-type="simple"] {
+    border-left: 3px solid #27ae60;
+}
+
+/* Better label/input layout for medium screens */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .hng-type-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .hng-fields-group {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Wide screen layout */
+@media (min-width: 1025px) {
+    .hng-type-cards {
+        grid-template-columns: repeat(5, 1fr);
+    }
+    
+    .hng-fields-group {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Focus states for accessibility */
+.hng-type-card:focus-within {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+}
+
+/* Loading state */
+.hng-product-type-editor.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.hng-product-type-editor.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+/* Notice field styles */
+.hng-notice {
+    padding: 12px 15px;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.hng-notice-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* Checkbox field styles */
+.hng-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.hng-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* File upload styles */
+.hng-file-upload {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.hng-upload-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.hng-file-name {
+    color: #555;
+    font-style: italic;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hng-remove-file {
+    color: #dc3232;
+}
+
+.hng-remove-file:hover {
+    color: #a00;
+}
+
+/* Repeater field styles */
+.hng-repeater {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.hng-repeater-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.hng-repeater-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hng-repeater-item-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    cursor: move;
+}
+
+.hng-repeater-handle {
+    color: #999;
+    margin-right: 10px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: grab;
+}
+
+.hng-repeater-handle:active {
+    cursor: grabbing;
+}
+
+.hng-repeater-title {
+    flex: 1;
+    font-weight: 600;
+    color: #333;
+}
+
+.hng-remove-repeater-item {
+    color: #dc3232;
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.hng-remove-repeater-item:hover {
+    color: #a00;
+}
+
+.hng-repeater-item-content {
+    padding: 15px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.hng-repeater-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.hng-repeater-field label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #555;
+}
+
+.hng-repeater-field input,
+.hng-repeater-field select,
+.hng-repeater-field textarea {
+    width: 100%;
+}
+
+.hng-add-repeater-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Sortable placeholder */
+.hng-repeater-item.ui-sortable-placeholder {
+    visibility: visible !important;
+    background: #f0f0f0;
+    border: 2px dashed #ccc;
+}
+
+.hng-repeater-item.ui-sortable-helper {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    opacity: 0.9;
+}
+
+/* Mobile responsive for repeater */
+@media (max-width: 768px) {
+    .hng-repeater-item-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Attributes Manager Styles */
+.hng-attributes-manager {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.hng-attributes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.hng-attribute-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.hng-attribute-name {
+    flex: 0 0 200px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.hng-attribute-values {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    min-height: 60px;
+    font-size: 12px;
+}
+
+.hng-remove-attribute {
+    flex: 0 0 auto;
+    background: #fff;
+    color: #dc3232;
+    border: 1px solid #dc3232;
+}
+
+.hng-add-attribute {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Variations Manager Styles */
+.hng-variations-manager {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.hng-variations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.hng-variation-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hng-variation-title {
+    margin: 0;
+    padding: 12px 15px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-arrow {
+    display: inline-block;
+    font-size: 14px;
+}
+
+.hng-variation-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hng-variation-title-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.hng-variation-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.hng-image-preview {
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.hng-image-preview img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.hng-image-preview button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #dc3232;
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.hng-variation-attribute {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.hng-remove-variation {
+    background: #fff;
+    color: #dc3232;
+    border: 1px solid #dc3232;
+}
+
+.hng-add-variation {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Quote Fields Builder Styles */
+.hng-quote-fields-builder {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.hng-quote-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.hng-quote-field-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.hng-quote-field-label {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.hng-quote-field-type {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    min-width: 150px;
+}
+
+.hng-quote-field-item label {
+    margin: 0;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.hng-quote-field-item label input {
+    margin-right: 5px;
+}
+
+.hng-remove-quote-field {
+    background: #fff;
+    color: #dc3232;
+    border: 1px solid #dc3232;
+}
+
+.hng-add-quote-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 768px) {
+    .hng-attribute-item,
+    .hng-quote-field-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .hng-attribute-name,
+    .hng-quote-field-label {
+        flex: auto;
+    }
+    
+    .hng-quote-field-item {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Professionals Manager Styles */
+.hng-professionals-manager {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.hng-professionals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.hng-professional-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.hng-professional-name,
+.hng-professional-email,
+.hng-professional-phone {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.hng-professionals-info {
+    background: #e7f3ff;
+    border: 1px solid #b3d9ff;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.hng-professionals-info p {
+    margin: 5px 0;
+}
+
+.hng-professionals-info ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.hng-professionals-info li {
+    margin: 4px 0;
+}
+
+.hng-remove-professional {
+    background: #fff;
+    color: #dc3232;
+    border: 1px solid #dc3232;
+    padding: 6px 10px;
+}
+
+.hng-add-professional {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 768px) {
+    .hng-professional-item {
+        grid-template-columns: 1fr;
+    }
+}

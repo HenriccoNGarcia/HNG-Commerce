@@ -1,0 +1,462 @@
+/**
+ * HNG Commerce - Roles Manager Styles
+ */
+
+.hng-roles-manager-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 0;
+    width: 100%;
+}
+
+.hng-mode-toggle {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 16px 20px;
+    width: fit-content;
+}
+
+.hng-mode-toggle label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #333;
+    font-size: 14px;
+}
+
+.hng-mode-toggle input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+    accent-color: #0073aa;
+}
+
+.hng-roles-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    min-height: calc(100vh - 340px);
+}
+
+.hng-settings-page .hng-roles-manager-wrapper {
+    width: 100%;
+}
+
+.hng-roles-list-panel,
+.hng-role-editor-panel {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.hng-role-editor-section,
+.hng-user-editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.hng-roles-list-panel h3,
+.hng-role-editor-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+    font-size: 16px;
+    color: #222;
+    flex-shrink: 0;
+}
+
+/* Lista de Funções */
+.hng-roles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.hng-users-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.hng-user-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px 12px;
+    align-items: end;
+    flex-shrink: 0;
+}
+
+.hng-form-group.hng-inline {
+    margin-bottom: 0;
+}
+
+.hng-form-group.hng-inline.narrow {
+    width: 140px;
+}
+
+.hng-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.hng-users-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hng-users-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.hng-users-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.hng-users-list::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.hng-user-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hng-user-item:hover {
+    background: #f5f5f5;
+    border-color: #d0d0d0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.hng-user-item.active {
+    background: #e8f4f8;
+    border-color: #0073aa;
+    box-shadow: inset 0 0 0 1px #0073aa;
+}
+
+.hng-user-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.hng-user-title {
+    font-weight: 600;
+    color: #333;
+}
+
+.hng-user-email {
+    color: #666;
+    font-size: 13px;
+}
+
+.hng-user-meta {
+    color: #444;
+    font-size: 12px;
+    min-width: 120px;
+    text-align: right;
+}
+
+.hng-roles-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hng-roles-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.hng-roles-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.hng-roles-list::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+
+.hng-role-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hng-role-item:hover {
+    background: #f5f5f5;
+    border-color: #d0d0d0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hng-role-item.active {
+    background: #e8f4f8;
+    border-color: #0073aa;
+    box-shadow: inset 0 0 0 1px #0073aa;
+}
+
+.hng-role-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.hng-role-name {
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+}
+
+.hng-badge-protected {
+    background: #ffecb3;
+    color: #f57f17;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.hng-role-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.hng-role-actions .button {
+    font-size: 12px;
+    padding: 4px 8px;
+    height: auto;
+}
+
+/* Form Groups */
+.hng-form-group {
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+
+.hng-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.hng-form-group input[type="text"],
+.hng-form-group select {
+    width: 100%;
+    max-width: 100%;
+}
+
+.hng-form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.required {
+    color: #d32f2f;
+}
+
+/* Role Editor Panel Content */
+#hng-role-editor {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    animation: slideIn 0.3s ease;
+}
+
+/* Capacidades Grid */
+.hng-capabilities-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.hng-capabilities-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hng-capabilities-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.hng-capabilities-grid::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.hng-capabilities-grid::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.hng-capability-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hng-capability-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.hng-capability-item label {
+    margin: 0;
+    cursor: pointer;
+    flex: 1;
+    font-weight: normal;
+    color: #333;
+}
+
+.hng-capability-item label:hover {
+    color: #0073aa;
+}
+
+/* Form Actions */
+.hng-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.hng-user-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.hng-user-summary .hng-user-name {
+    font-weight: 600;
+    color: #222;
+}
+
+.hng-user-summary .hng-user-email {
+    color: #666;
+    font-size: 13px;
+}
+
+.hng-form-actions .button {
+    flex: 1;
+}
+
+/* Empty State */
+.hng-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    color: #999;
+    text-align: center;
+    background: #f9f9f9;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.hng-loading {
+    color: #666;
+    font-size: 13px;
+    padding: 8px 0;
+}
+
+.hng-empty-state p {
+    margin: 0;
+}
+
+/* Hide/Show Editor */
+#hng-role-editor {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .hng-roles-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Notificações */
+.hng-notice {
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-left: 4px solid #d32f2f;
+    background: #ffebee;
+    color: #c62828;
+    border-radius: 4px;
+}
+
+.hng-notice.success {
+    border-left-color: #388e3c;
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.hng-notice.info {
+    border-left-color: #1976d2;
+    background: #e3f2fd;
+    color: #1565c0;
+}

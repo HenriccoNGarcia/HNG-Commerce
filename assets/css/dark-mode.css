@@ -1,0 +1,290 @@
+/**
+ * HNG Commerce - Dark Mode Styles
+ * Complete dark theme with smooth transitions
+ */
+
+/* Theme Transition */
+body.hng-theme-transitioning,
+body.hng-theme-transitioning * {
+    transition: background-color 0.3s ease, 
+                color 0.3s ease, 
+                border-color 0.3s ease,
+                box-shadow 0.3s ease !important;
+}
+
+/* Dark Theme Variables */
+body.hng-theme-dark {
+    --hng-primary: #818cf8;
+    --hng-primary-hover: #6366f1;
+    --hng-secondary: #94a3b8;
+    --hng-success: #34d399;
+    --hng-warning: #fbbf24;
+    --hng-danger: #f87171;
+    --hng-bg: #0f172a;
+    --hng-card-bg: #1e293b;
+    --hng-text-main: #f1f5f9;
+    --hng-text-muted: #94a3b8;
+    --hng-border: #334155;
+    --hng-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+}
+
+/* Dark Mode Background */
+body.hng-theme-dark,
+body.hng-theme-dark #wpcontent,
+body.hng-theme-dark #wpbody-content {
+    background-color: var(--hng-bg);
+    color: var(--hng-text-main);
+}
+
+/* Dark Mode Cards */
+body.hng-theme-dark .hng-card,
+body.hng-theme-dark .hng-stat-card,
+body.hng-theme-dark .hng-header,
+body.hng-theme-dark .postbox,
+body.hng-theme-dark .hng-gateway-card {
+    background-color: var(--hng-card-bg);
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+/* Dark Mode Tables */
+body.hng-theme-dark .hng-table th {
+    background-color: #0f172a;
+    color: var(--hng-text-muted);
+    border-color: var(--hng-border);
+}
+
+body.hng-theme-dark .hng-table td {
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .widefat th,
+body.hng-theme-dark .widefat td {
+    background-color: var(--hng-card-bg);
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .widefat tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Dark Mode Inputs */
+body.hng-theme-dark input[type="text"],
+body.hng-theme-dark input[type="number"],
+body.hng-theme-dark input[type="email"],
+body.hng-theme-dark input[type="password"],
+body.hng-theme-dark input[type="date"],
+body.hng-theme-dark select,
+body.hng-theme-dark textarea,
+body.hng-theme-dark .hng-input {
+    background-color: #0f172a;
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark input:focus,
+body.hng-theme-dark select:focus,
+body.hng-theme-dark textarea:focus {
+    border-color: var(--hng-primary);
+    box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
+}
+
+/* Dark Mode Buttons */
+body.hng-theme-dark .hng-btn-secondary {
+    background-color: var(--hng-card-bg);
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .hng-btn-secondary:hover {
+    background-color: #334155;
+    border-color: var(--hng-secondary);
+}
+
+body.hng-theme-dark .button {
+    background-color: var(--hng-card-bg);
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .button:hover,
+body.hng-theme-dark .button:focus {
+    background-color: #334155;
+    border-color: var(--hng-primary);
+}
+
+body.hng-theme-dark .button-primary {
+    background-color: var(--hng-primary);
+    border-color: var(--hng-primary);
+    color: #fff;
+}
+
+body.hng-theme-dark .button-primary:hover,
+body.hng-theme-dark .button-primary:focus {
+    background-color: var(--hng-primary-hover);
+    border-color: var(--hng-primary-hover);
+}
+
+/* Dark Mode Tabs */
+.hng-tabs-nav {
+    background-color: var(--hng-bg);
+}
+
+body.hng-theme-dark .hng-tabs-nav li.active {
+    background-color: var(--hng-card-bg);
+}
+
+body.hng-theme-dark .hng-tabs-nav a {
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .hng-tabs-content {
+    background-color: var(--hng-card-bg);
+}
+
+/* Dark Mode Modals */
+body.hng-theme-dark .hng-modal-content {
+    background-color: var(--hng-card-bg);
+    border-color: var(--hng-border);
+}
+
+body.hng-theme-dark .hng-modal-header {
+    border-color: var(--hng-border);
+}
+
+/* Dark Mode Notices */
+body.hng-theme-dark .notice {
+    background-color: var(--hng-card-bg);
+    border-left-color: var(--hng-primary);
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .notice-success {
+    border-left-color: var(--hng-success);
+}
+
+body.hng-theme-dark .notice-warning {
+    border-left-color: var(--hng-warning);
+}
+
+body.hng-theme-dark .notice-error {
+    border-left-color: var(--hng-danger);
+}
+
+/* Dark Mode WordPress Admin Elements */
+body.hng-theme-dark .wrap h1,
+body.hng-theme-dark .wrap h2 {
+    color: var(--hng-text-main);
+}
+
+body.hng-theme-dark .postbox-header h2,
+body.hng-theme-dark .hndle {
+    color: var(--hng-text-main);
+    background-color: #0f172a;
+}
+
+body.hng-theme-dark .inside {
+    background-color: var(--hng-card-bg);
+}
+
+/* Dark Mode Links */
+body.hng-theme-dark a {
+    color: var(--hng-primary);
+}
+
+body.hng-theme-dark a:hover {
+    color: var(--hng-primary-hover);
+}
+
+/* Dark Mode Badges */
+body.hng-theme-dark .hng-badge-success {
+    background-color: rgba(52, 211, 153, 0.1);
+    color: var(--hng-success);
+}
+
+body.hng-theme-dark .hng-badge-warning {
+    background-color: rgba(251, 191, 36, 0.1);
+    color: var(--hng-warning);
+}
+
+body.hng-theme-dark .hng-badge-danger {
+    background-color: rgba(248, 113, 113, 0.1);
+    color: var(--hng-danger);
+}
+
+body.hng-theme-dark .hng-badge-info {
+    background-color: rgba(129, 140, 248, 0.1);
+    color: var(--hng-primary);
+}
+
+/* Dark Mode Gateway Cards */
+body.hng-theme-dark .hng-gateway-card.active {
+    background-color: rgba(129, 140, 248, 0.1);
+    border-color: var(--hng-primary);
+}
+
+body.hng-theme-dark .gateway-fees {
+    background-color: #0f172a;
+}
+
+body.hng-theme-dark .method-badge {
+    background-color: #334155;
+    color: var(--hng-text-muted);
+}
+
+/* Dark Mode Stats */
+body.hng-theme-dark .hng-stat-label {
+    color: var(--hng-text-muted);
+}
+
+body.hng-theme-dark .hng-stat-value {
+    color: var(--hng-text-main);
+}
+
+/* Dark Mode Description Text */
+body.hng-theme-dark .description,
+body.hng-theme-dark p.description {
+    color: var(--hng-text-muted);
+}
+
+/* Dark Mode Chart Container */
+body.hng-theme-dark .hng-chart-container {
+    background-color: var(--hng-card-bg);
+}
+
+/* Theme Toggle Button Styles */
+.hng-theme-toggle {
+    position: relative;
+    padding: 0.5rem 1rem;
+}
+
+.hng-theme-toggle .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+}
+
+.hng-theme-toggle .hng-theme-text {
+    margin-left: 0.25rem;
+}
+
+/* Smooth scrollbar for dark mode */
+body.hng-theme-dark::-webkit-scrollbar {
+    width: 12px;
+}
+
+body.hng-theme-dark::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+body.hng-theme-dark::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 6px;
+}
+
+body.hng-theme-dark::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}

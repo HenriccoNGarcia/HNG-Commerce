@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HNG - Desenvolvimento Personalizado & Soluções Web</title>
+    
+    <meta name="description" content="Soluções completas para desenvolvimento web, WordPress personalizado, PHP, Node.js e Golang. Conheça o HNG Commerce.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-black': '#050505', // Fundo principal
+                        'brand-panel': '#0F0F0F', // Fundo secundário
+                        'neon-green': '#2AFFA3', // Destaque Primário
+                        'brand-blue': '#2984F1', // Destaque Secundário
+                        'accent-cyan': '#8DF3FE', // Detalhes
+                        'inter': '#FF7A00',
+                        'nubank': '#820AD1',
+                    },
+                    fontFamily: {
+                        sans: ['Rethink Sans', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    boxShadow: {
+                        'neon': '0 0 20px rgba(42, 255, 163, 0.4)',
+                        'neon-hover': '0 0 30px rgba(42, 255, 163, 0.6)',
+                        'blue-glow': '0 0 20px rgba(41, 132, 241, 0.3)',
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Estilos Globais e Utilitários */
+        body { background-color: #050505; color: #ffffff; }
+        
+        .glass-nav {
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+        }
+
+        .text-gradient {
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Padrão de Fundo Sutil */
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, #1f1f1f 1px, transparent 1px),
+            linear-gradient(to bottom, #1f1f1f 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 100%); 
+        }
+
+        /* Scrollbar Personalizada */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2AFFA3; }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden">
+
+    <header class="fixed w-full top-0 z-50 glass-nav transition-all duration-300">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="flex items-center group">
+                <span class="text-3xl font-extrabold tracking-tighter text-white group-hover:text-neon-green transition-colors">HNG</span>
+                <div class="h-6 w-px bg-white/20 mx-3"></div>
+                <span class="text-xs uppercase tracking-widest text-gray-400 font-medium">Desenvolvimento<br>Personalizado</span>
+            </a>
+
+            <nav class="hidden md:flex items-center space-x-8 font-medium text-sm">
+                <a href="#solucoes" class="text-gray-300 hover:text-neon-green transition-colors">Soluções</a>
+                <a href="#produtos" class="text-gray-300 hover:text-neon-green transition-colors">Plugins</a>
+                <a href="#portfolio" class="text-gray-300 hover:text-neon-green transition-colors">Portfólio</a>
+                <a href="#tecnologias" class="text-gray-300 hover:text-neon-green transition-colors">Tech Stack</a>
+            </nav>
+
+            <a href="#contato" class="hidden md:inline-flex items-center justify-center px-6 py-2 border border-transparent text-sm font-bold rounded-lg text-brand-black bg-neon-green hover:bg-white hover:shadow-neon transition-all duration-300 transform hover:-translate-y-0.5">
+                Solicitar Orçamento
+            </a>
+
+            <button class="md:hidden text-white">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <section class="relative min-h-screen flex items-center pt-20">
+        <div class="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none"></div>
+        <div class="absolute top-20 right-0 w-[500px] h-[500px] bg-brand-blue/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-neon-green/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+        <div class="container mx-auto px-6 relative z-10 grid lg:grid-cols-2 gap-12 items-center">
+            
+            <div class="space-y-8">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs font-mono text-neon-green">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-neon-green"></span>
+                    </span>
+                    Disponível para novos projetos
+                </div>
+
+                <h1 class="text-5xl lg:text-7xl font-bold leading-tight">
+                    Transformamos <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">Código em</span> <br>
+                    <span class="text-neon-green relative inline-block">
+                        Performance
+                        <svg class="absolute w-full h-3 -bottom-1 left-0 text-neon-green opacity-60" viewBox="0 0 100 10" preserveAspectRatio="none">
+                            <path d="M0 5 Q 50 10 100 5" stroke="currentColor" stroke-width="3" fill="none" />
+                        </svg>
+                    </span>
+                </h1>
+
+                <p class="text-xl text-gray-400 max-w-lg leading-relaxed">
+                    Especialistas em desenvolvimento Web High-End. Do WordPress blindado a aplicações complexas em Node.js e Golang.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="#produtos" class="px-8 py-4 bg-brand-blue text-white font-bold rounded-lg hover:bg-blue-600 transition shadow-blue-glow flex items-center justify-center gap-2">
+                        Conheça nossos Plugins
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                    </a>
+                    <a href="#portfolio" class="px-8 py-4 border border-white/20 text-white font-bold rounded-lg hover:border-neon-green hover:text-neon-green transition flex items-center justify-center">
+                        Ver Portfolio
+                    </a>
+                </div>
+            </div>
+
+            <div class="relative hidden lg:block animate-float">
+                <div class="relative z-10 glass-card rounded-2xl p-8 border-t border-l border-white/10 shadow-2xl">
+                    <div class="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="ml-4 text-xs text-gray-500 font-mono">HNG_Core_System.php</span>
+                    </div>
+                    <div class="font-mono text-sm leading-loose">
+                        <p><span class="text-purple-400">class</span> <span class="text-yellow-300">HNG_Solutions</span> {</p>
+                        <p class="pl-4"><span class="text-purple-400">public</span> $stack = [<span class="text-green-400">'PHP'</span>, <span class="text-green-400">'JS'</span>, <span class="text-green-400">'Go'</span>];</p>
+                        <p class="pl-4">&nbsp;</p>
+                        <p class="pl-4"><span class="text-purple-400">function</span> <span class="text-blue-400">optimize</span>($project) {</p>
+                        <p class="pl-8"><span class="text-purple-400">return</span> <span class="text-yellow-300">new</span> Performance($project);</p>
+                        <p class="pl-4">}</p>
+                        <p class="pl-4">&nbsp;</p>
+                        <p class="pl-4"><span class="text-gray-500">// Ready to scale your business</span></p>
+                        <p>}</p>
+                    </div>
+                </div>
+                
+                <div class="absolute -inset-4 bg-gradient-to-r from-neon-green to-brand-blue opacity-30 blur-2xl -z-10 rounded-full"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tecnologias" class="py-10 border-y border-white/5 bg-brand-panel">
+        <div class="container mx-auto px-6">
+            <p class="text-center text-xs uppercase tracking-widest text-gray-500 mb-8">Tecnologias que Dominamos</p>
+            <div class="flex flex-wrap justify-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#777BB4]">PHP 8</span></div>
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#F7DF1E]">JavaScript</span></div>
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#21759B]">WordPress</span></div>
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#339933]">Node.js</span></div>
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#00ADD8]">Golang</span></div>
+                <div class="flex items-center gap-2 font-bold text-xl"><span class="text-[#61DAFB]">React</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="solucoes" class="py-24 relative">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Nossas <span class="text-brand-blue">Soluções</span></h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">Não usamos templates prontos. Desenvolvemos arquiteturas pensadas para a necessidade do seu negócio.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 rounded-2xl hover:border-neon-green/50 transition-colors group">
+                    <div class="w-14 h-14 bg-brand-panel border border-white/10 rounded-lg flex items-center justify-center mb-6 text-neon-green group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Desenvolvimento Web</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">
+                        Sites institucionais e sistemas web complexos utilizando PHP Moderno, Node.js ou Golang. Foco total em código limpo e escalabilidade.
+                    </p>
+                </div>
+
+                <div class="glass-card p-8 rounded-2xl hover:border-brand-blue/50 transition-colors group">
+                    <div class="w-14 h-14 bg-brand-panel border border-white/10 rounded-lg flex items-center justify-center mb-6 text-brand-blue group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">WordPress Expert</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">
+                        Criação de temas e plugins do zero. Personalizamos o WordPress para que ele deixe de ser um blog e vire uma plataforma de negócios poderosa.
+                    </p>
+                </div>
+
+                <div class="glass-card p-8 rounded-2xl hover:border-accent-cyan/50 transition-colors group">
+                    <div class="w-14 h-14 bg-brand-panel border border-white/10 rounded-lg flex items-center justify-center mb-6 text-accent-cyan group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Segurança & Performance</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">
+                        Auditoria de código, remoção de malwares e otimização de velocidade (Core Web Vitals). Seu site rápido e blindado.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="produtos" class="py-24 bg-brand-panel relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-neon-green opacity-5 rounded-full blur-[100px] pointer-events-none"></div>
+
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-3xl md:text-5xl font-bold mb-4">HNG <span class="text-neon-green">Ecosystem</span></h2>
+                    <p class="text-gray-400">Ferramentas proprietárias desenvolvidas para resolver dores reais.</p>
+                </div>
+            </div>
+
+            <div class="bg-brand-black border border-white/10 rounded-3xl p-8 md:p-12 mb-12 relative overflow-hidden group hover:border-neon-green/30 transition-all duration-500">
+                <div class="absolute top-0 right-0 p-4">
+                    <span class="bg-neon-green text-brand-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Live v1.0.5</span>
+                </div>
+                
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="bg-neon-green/20 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-neon-green" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                            </div>
+                            <h3 class="text-3xl font-bold">HNG Commerce Brasil</h3>
+                        </div>
+                        <p class="text-lg text-gray-300 mb-6">
+                            A solução definitiva de e-commerce para o mercado brasileiro. Integrações nativas com PIX, Boletos e Correios sem taxas mensais abusivas.
+                        </p>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-8">
+                            <div class="flex items-center text-sm text-gray-400"><span class="w-1.5 h-1.5 bg-neon-green rounded-full mr-2"></span>Instalação Gratuita</div>
+                            <div class="flex items-center text-sm text-gray-400"><span class="w-1.5 h-1.5 bg-neon-green rounded-full mr-2"></span>Taxa por Transação</div>
+                            <div class="flex items-center text-sm text-gray-400"><span class="w-1.5 h-1.5 bg-neon-green rounded-full mr-2"></span>Checkout Transparente</div>
+                            <div class="flex items-center text-sm text-gray-400"><span class="w-1.5 h-1.5 bg-neon-green rounded-full mr-2"></span>PIX Automático</div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <a href="#" class="bg-white text-black font-bold py-3 px-6 rounded-lg hover:bg-neon-green transition-colors">Ver Demo</a>
+                            <a href="#" class="border border-white/20 text-white font-bold py-3 px-6 rounded-lg hover:border-white transition-colors">Documentação Técnica</a>
+                        </div>
+                    </div>
+
+                    <div class="bg-brand-panel/50 rounded-xl p-6 border border-white/5">
+                        <p class="text-xs text-center text-gray-500 mb-4 uppercase">Integrações Nativas</p>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="p-3 bg-brand-black rounded border border-white/10 text-xs text-gray-300">PagSeguro</div>
+                            <div class="p-3 bg-brand-black rounded border border-nubank/30 text-xs text-nubank font-bold">Nubank</div>
+                            <div class="p-3 bg-brand-black rounded border border-inter/30 text-xs text-inter font-bold">Inter</div>
+                            <div class="p-3 bg-brand-black rounded border border-white/10 text-xs text-gray-300">Cielo</div>
+                            <div class="p-3 bg-brand-black rounded border border-white/10 text-xs text-gray-300">PicPay</div>
+                            <div class="p-3 bg-brand-black rounded border border-white/10 text-xs text-gray-300">Correios</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-8 relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-brand-blue/20 rounded-full blur-[80px]"></div>
+                <div class="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <svg class="w-6 h-6 text-brand-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            <h3 class="text-2xl font-bold text-white">HNG Security Shield</h3>
+                        </div>
+                        <p class="text-gray-400 text-sm">Proteção em tempo real e firewall de aplicação para WordPress. <span class="text-brand-blue">Em breve.</span></p>
+                    </div>
+                    <button class="px-6 py-2 border border-brand-blue/30 text-brand-blue hover:bg-brand-blue hover:text-white rounded-lg transition text-sm font-bold">Entrar na Lista de Espera</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="portfolio" class="py-24">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl md:text-5xl font-bold mb-12 text-center">Quem confia na <span class="text-gradient">HNG</span></h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                <a href="https://eduardocaldeiraadv.com.br" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">eduardocaldeiraadv.com.br</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative overflow-hidden group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">Eduardo Caldeira Adv</h4>
+                            <div class="absolute inset-0 bg-brand-blue/10 scale-0 group-hover:scale-100 transition-transform duration-500 rounded-full blur-xl"></div>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">Eduardo Caldeira</h3>
+                            <p class="text-sm text-gray-400">Institucional / Advocacia</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="https://solariumimoveis.com" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">solariumimoveis.com</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">Solarium Imóveis</h4>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">Solarium</h3>
+                            <p class="text-sm text-gray-400">Portal Imobiliário</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="https://tricosetramas.com.br" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">tricosetramas.com.br</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">Tricos e Tramas</h4>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">Tricos e Tramas</h3>
+                            <p class="text-sm text-gray-400">E-commerce de Moda</p>
+                        </div>
+                    </div>
+                </a>
+
+                 <a href="https://photonracing.com.br" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">photonracing.com.br</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">Photon Racing</h4>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">Photon Racing</h3>
+                            <p class="text-sm text-gray-400">Esportes / Performance</p>
+                        </div>
+                    </div>
+                </a>
+
+                 <a href="https://lsconceptimoveisdeluxo.com.br" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">lsconcept.com.br</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">LS Concept</h4>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">LS Concept</h3>
+                            <p class="text-sm text-gray-400">Imóveis de Luxo</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="https://nevesefariaeng.com.br" target="_blank" class="group block">
+                    <div class="bg-brand-panel border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all duration-300 transform group-hover:-translate-y-2">
+                        <div class="bg-black/50 px-4 py-3 border-b border-white/5 flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                            <div class="ml-auto text-[10px] text-gray-600 font-mono">nevesefaria.com.br</div>
+                        </div>
+                        <div class="h-48 bg-gradient-to-br from-gray-800 to-black flex items-center justify-center relative group-hover:opacity-90 transition">
+                            <h4 class="text-xl font-bold text-gray-700 group-hover:text-white transition-colors z-10">Neves e Faria</h4>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="text-lg font-bold text-white mb-1">Neves e Faria</h3>
+                            <p class="text-sm text-gray-400">Engenharia Civil</p>
+                        </div>
+                    </div>
+                </a>
+
+            </div>
+            
+            <div class="text-center mt-12">
+                <p class="text-gray-500 text-sm">e muitos outros projetos entregues...</p>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contato" class="bg-brand-panel border-t border-white/5 pt-20 pb-10">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between gap-12 mb-16">
+                
+                <div class="max-w-xs">
+                    <span class="text-3xl font-extrabold text-white">HNG</span>
+                    <p class="mt-4 text-gray-400 text-sm">
+                        Desenvolvimento web de alto nível para quem não aceita o básico. Código limpo, segurança e performance.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-12">
+                    <div>
+                        <h4 class="font-bold text-white mb-4">Navegação</h4>
+                        <ul class="space-y-2 text-sm text-gray-400">
+                            <li><a href="#" class="hover:text-neon-green transition">Home</a></li>
+                            <li><a href="#solucoes" class="hover:text-neon-green transition">Soluções</a></li>
+                            <li><a href="#produtos" class="hover:text-neon-green transition">Plugins</a></li>
+                            <li><a href="#portfolio" class="hover:text-neon-green transition">Portfolio</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white mb-4">Legal</h4>
+                        <ul class="space-y-2 text-sm text-gray-400">
+                            <li><a href="#" class="hover:text-neon-green transition">Termos de Uso</a></li>
+                            <li><a href="#" class="hover:text-neon-green transition">Privacidade</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-white mb-4">Vamos Conversar?</h4>
+                    <p class="text-gray-400 text-sm mb-4">Tem um projeto em mente?</p>
+                    <a href="mailto:contato@hng.dev" class="inline-flex items-center text-neon-green font-bold hover:underline">
+                        contato@hng.dev
+                        <svg class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </a>
+                    <div class="flex gap-4 mt-6">
+                        <a href="#" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-neon-green hover:text-black transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        </a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-blue hover:text-white transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600">
+                <p>&copy; 2025 HNG Desenvolvimento. Todos os direitos reservados.</p>
+                <div class="mt-4 md:mt-0 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span>Systems Operational</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

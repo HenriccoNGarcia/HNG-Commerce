@@ -1,0 +1,86 @@
+/* HNG Commerce - Compatibilidade com temas/plugins populares */
+.hng-admin-panel .hng-wrap, 
+.hng-admin-panel .hng-header, 
+.hng-admin-panel .hng-card, 
+.hng-admin-panel .hng-table, 
+.hng-admin-panel .hng-header-actions, 
+.hng-admin-panel .hng-stat-card, 
+.hng-admin-panel .hng-breadcrumbs {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    background: var(--hng-bg, #f8fafc) !important;
+    color: var(--hng-text-main, #1e293b) !important;
+    border-radius: var(--hng-radius, 0.5rem) !important;
+    box-shadow: var(--hng-shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)) !important;
+}
+
+/* Corrige sobrescrita de botões de temas/plugins */
+.hng-admin-panel .button, .hng-admin-panel .button-primary, .hng-admin-panel .button-secondary {
+    font-family: inherit !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    background: var(--hng-primary, #6366f1) !important;
+    color: #fff !important;
+    border: none !important;
+    transition: background 0.2s;
+}
+.hng-admin-panel .button-secondary {
+    background: var(--hng-secondary, #64748b) !important;
+}
+
+/* Corrige tabelas do WP, WooCommerce, Elementor */
+.hng-admin-panel .hng-table, .hng-admin-panel .widefat {
+    background: #fff !important;
+    color: #1e293b !important;
+    border-radius: 8px !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Corrige conflitos de z-index de tooltips/modais */
+.hng-admin-panel .hng-modal, .hng-admin-panel .hng-notifications-container {
+    z-index: 999999 !important;
+}
+
+/* Corrige inputs sobrescritos por plugins de formulário */
+.hng-admin-panel input, .hng-admin-panel select, .hng-admin-panel textarea {
+    font-family: inherit !important;
+    border-radius: 6px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #fff !important;
+    color: #1e293b !important;
+}
+
+/* Corrige dark mode de temas populares */
+body.hng-theme-dark .hng-admin-panel .hng-wrap, 
+body.hng-theme-dark .hng-admin-panel .hng-header, 
+body.hng-theme-dark .hng-admin-panel .hng-card {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+/* Fallback visual para modo compatibilidade */
+.hng-admin-panel.compat-mode .hng-header, .hng-admin-panel.compat-mode .hng-card {
+    box-shadow: none !important;
+    border: 1px solid #bbb !important;
+}
+
+/* Ajustes para Astra, Hello Elementor, OceanWP, Storefront, Blocksy, Kadence */
+/* Scope theme var fallbacks to HNG admin pages only */
+body.hng-admin-panel[class*="astra"], body.hng-admin-panel[class*="elementor"], body.hng-admin-panel[class*="oceanwp"], body.hng-admin-panel[class*="storefront"], body.hng-admin-panel[class*="blocksy"], body.hng-admin-panel[class*="kadence"] {
+    --hng-bg: #f8fafc;
+    --hng-card-bg: #fff;
+    --hng-text-main: #1e293b;
+    --hng-border: #e2e8f0;
+}
+
+/* Corrige tooltips do Yoast/Elementor */
+.hng-admin-panel .yoast-tooltip, .hng-admin-panel .elementor-tooltip {
+    z-index: 999999 !important;
+    font-size: 13px !important;
+    background: #222 !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+}
+
+/* Hotfix para WP Rocket/Autoptimize: força assets do HNG a terem prioridade */
+
