@@ -1,0 +1,1486 @@
+/* --- HNG Admin UI/UX Overhaul: Responsividade, Acessibilidade, Foco, Hover, Isolamento --- */
+
+/* Foco e acessibilidade para cards, header, botões, tabelas */
+.hng-card:focus-within,
+.hng-gateway-card:focus-within,
+.hng-header:focus-within,
+.hng-btn:focus,
+.hng-table th:focus,
+.hng-table td:focus {
+    box-shadow: 0 0 0 2px var(--hng-primary, #6366f1);
+    border-color: var(--hng-primary, #6366f1);
+    outline: none;
+}
+
+/* Tabela: hover, foco, responsividade */
+.hng-table tbody tr {
+    transition: background 0.2s;
+}
+
+.hng-table tbody tr:hover {
+    background-color: rgba(99, 102, 241, 0.08);
+}
+
+.hng-table tbody tr:focus-within {
+    background-color: rgba(99, 102, 241, 0.15);
+}
+
+/* Responsividade geral */
+@media (max-width: 900px) {
+    .hng-wrap {
+        max-width: 98vw;
+        padding: 0 1vw;
+    }
+
+    .hng-header,
+    .hng-card,
+    .hng-modal-content {
+        padding: 1rem;
+    }
+
+    .hng-stats-grid,
+    .hng-gateway-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hng-tabs-nav {
+        width: 120px;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .hng-header,
+    .hng-card,
+    .hng-modal-content {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.5rem;
+    }
+
+    .hng-header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .hng-tabs-content {
+        padding: 10px;
+    }
+
+    .hng-tabs-nav {
+        width: 80px;
+    }
+}
+
+:root {
+    --hng-primary: #6366f1;
+    --hng-primary-hover: #4f46e5;
+    --hng-secondary: #64748b;
+    --hng-success: #10b981;
+    --hng-warning: #f59e0b;
+    --hng-danger: #ef4444;
+    --hng-bg: #f8fafc;
+    --hng-card-bg: #ffffff;
+    --hng-text-main: #1e293b;
+    --hng-text-muted: #64748b;
+    --hng-border: #e2e8f0;
+    --hng-radius: 0.5rem;
+    --hng-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Fallback: força box-sizing e padding para todo admin HNG */
+.hng-admin-panel *,
+.hng-admin-panel *:before,
+.hng-admin-panel *:after {
+    box-sizing: border-box !important;
+}
+
+/* Fallback: força max-width e padding mínimo */
+.hng-admin-panel .hng-wrap {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+
+.hng-admin-panel .hng-card,
+.hng-admin-panel .hng-header {
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+}
+
+.hng-admin-panel .hng-card {
+    min-width: 0;
+    min-height: 60px;
+}
+
+.hng-admin-panel .hng-header {
+    min-width: 0;
+    min-height: 56px;
+}
+
+.hng-admin-panel .hng-table th,
+.hng-admin-panel .hng-table td {
+    padding: 0.75rem 1rem;
+}
+
+.hng-admin-panel .hng-section-title {
+    margin: 24px 0 16px 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #334155;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--hng-border);
+}
+
+.hng-admin-panel .hng-meta-box {
+    padding: 1.5rem 2rem;
+    background: #fff;
+    border-radius: var(--hng-radius);
+    box-shadow: var(--hng-shadow);
+    border: 1px solid var(--hng-border);
+    margin-bottom: 2rem;
+}
+
+.hng-admin-panel input,
+.hng-admin-panel select,
+.hng-admin-panel textarea {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--hng-border);
+    background: #fff;
+    color: var(--hng-text-main);
+    font-size: 1rem;
+}
+
+/* Ajustes de UI/UX: normalizar campos em metabox e inputs específicos */
+.hng-admin-panel .hng-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--hng-text-main);
+}
+
+.hng-admin-panel .hng-field input,
+.hng-admin-panel .hng-field select,
+.hng-admin-panel .hng-field textarea {
+    width: 100%;
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Campos em linhas customizadas (rows) com display:flex: faz com que as colunas mantenham altura uniforme */
+.hng-admin-panel .hng-custom-field-row {
+    display: flex !important;
+    gap: 10px !important;
+    align-items: center !important;
+}
+
+.hng-admin-panel .hng-custom-field-row input[type="text"],
+.hng-admin-panel .hng-custom-field-row select {
+    min-height: 36px;
+}
+
+/* Checkboxes e radios não devem herdar min-height dos inputs de texto */
+.hng-admin-panel input[type="checkbox"],
+.hng-admin-panel input[type="radio"] {
+    width: auto !important;
+    height: auto !important;
+    min-width: initial !important;
+    min-height: initial !important;
+    padding: 0 !important;
+    margin: 0 6px 0 0 !important;
+    vertical-align: middle !important;
+    transform: none !important;
+}
+
+/* Compact product edit metabox to be more similar to WooCommerce layout */
+.hng-admin-panel .hng-meta-box.hng-product-data {
+    padding: 0.75rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    /* slightly stronger border for visibility */
+    margin-bottom: 1rem;
+}
+
+.hng-admin-panel .hng-product-data .hng-section-title {
+    margin: 8px 0 6px 0;
+    font-size: 0.95rem;
+}
+
+/* Reduce spacing between fields for a compact form */
+.hng-admin-panel .hng-grid .hng-field {
+    margin-bottom: 0.35rem;
+}
+
+/* Make Add Field button visible and float to the right on desktop */
+#hng-add-custom-field {
+    display: inline-block;
+    margin-top: 8px;
+    margin-left: 0;
+}
+
+.hng-admin-panel .hng-meta-box.hng-product-data #hng-add-custom-field {
+    float: right;
+    margin-top: -38px;
+}
+
+@media (max-width: 900px) {
+    .hng-admin-panel .hng-meta-box.hng-product-data #hng-add-custom-field {
+        float: none;
+        display: block;
+        margin: 8px 0 0 0;
+    }
+}
+
+/* Make custom field row columns have consistent relative widths (label, slug, type, options, role) */
+.hng-admin-panel .hng-custom-field-row input[name$="[label]"],
+.hng-admin-panel .hng-custom-field-row input[name$="[options]"] {
+    flex: 2 1 45%;
+}
+
+.hng-admin-panel .hng-custom-field-row input[name$="[slug]"],
+.hng-admin-panel .hng-custom-field-row select[name$="[type]"],
+.hng-admin-panel .hng-custom-field-row select[name$="[role]"] {
+    flex: 1 1 12%;
+}
+
+/* Allow rows to wrap when viewport is narrow, keeping fields usable */
+.hng-admin-panel .hng-custom-field-row {
+    flex-wrap: wrap !important;
+}
+
+/* Make the remove button less tall so rows are compact */
+.hng-admin-panel .hng-custom-field-row .hng-remove-custom-field {
+    height: 34px;
+    line-height: 1;
+    padding: 0 8px;
+}
+
+/* Sharper input borders for better contrast */
+.hng-admin-panel input,
+.hng-admin-panel select,
+.hng-admin-panel textarea {
+    border-color: #d1d5db;
+}
+
+/* Slightly narrower content area to mimic WooCommerce edit layout */
+.hng-admin-panel .hng-wrap {
+    max-width: 1100px;
+}
+
+/* Labels à esquerda (duas colunas) para edição de produto — similar ao WooCommerce */
+.hng-admin-panel .hng-product-data .hng-field {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+}
+
+.hng-admin-panel .hng-product-data p {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 12px 0;
+}
+
+.hng-admin-panel .hng-product-data p .description {
+    grid-column: 2 / 3;
+    margin-top: 4px;
+}
+
+/* Make sure standalone labels inside paragraphs don't add extra margin */
+.hng-admin-panel .hng-product-data p label {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Responsive: stack labels above fields on narrow screens */
+@media (max-width: 900px) {
+
+    .hng-admin-panel .hng-product-data .hng-field,
+    .hng-admin-panel .hng-product-data p {
+        display: block;
+    }
+
+    .hng-admin-panel .hng-product-data p .description {
+        margin-top: 6px;
+    }
+}
+
+/* Reduce vertical whitespace across product metabox controls */
+.hng-admin-panel .hng-product-data p,
+.hng-admin-panel .hng-product-data .hng-field {
+    margin-bottom: 6px;
+}
+
+/* Make labels slightly smaller and with consistent weight */
+.hng-admin-panel .hng-product-data label {
+    font-size: 0.95rem;
+    color: var(--hng-text-main);
+}
+
+/* Ensure inputs stretch fully in the field column */
+.hng-admin-panel .hng-product-data .hng-field input,
+.hng-admin-panel .hng-product-data .hng-field select,
+.hng-admin-panel .hng-product-data .hng-field textarea {
+    width: 100%;
+}
+
+/* Sidebar metabox (one-off) compact buttons */
+.hng-admin-panel #hng-oneoff-result,
+.hng-admin-panel #hng-oneoff-result-mb {
+    display: block;
+    margin-top: 8px;
+}
+
+.hng-admin-panel .hng-meta-box.side .button,
+.hng-admin-panel .hng-meta-box.side .button-primary {
+    margin: 6px 6px 6px 0;
+}
+
+/* Fix oversized checkbox visual in the screenshot: target WP's components */
+.hng-admin-panel .components-form-toggle__indicator,
+.hng-admin-panel .components-checkbox-control__input input[type="checkbox"] {
+    transform: scale(1) !important;
+    margin-right: 8px !important;
+}
+
+/* Corrigir ícones dentro de botões para alinhamento */
+.hng-admin-panel .hng-btn .dashicons,
+.hng-admin-panel .hng-btn .svg-icon {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    margin-right: 6px;
+}
+
+/* Botões do WP que herdam classes .button: alinhar ícone e texto */
+.hng-admin-panel .button .dashicons {
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+/* Reduzir padding vertical excessivo em inputs herdados que aparecem muito altos */
+.hng-admin-panel input[type="text"],
+.hng-admin-panel input[type="number"],
+.hng-admin-panel select,
+.hng-admin-panel textarea {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+.hng-admin-panel input:focus,
+.hng-admin-panel select:focus,
+.hng-admin-panel textarea:focus {
+    outline: 2px solid var(--hng-primary);
+    border-color: var(--hng-primary);
+}
+
+.hng-admin-panel .hng-mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+
+.hng-admin-panel .hng-mt-4 {
+    margin-top: 1.5rem !important;
+}
+
+.hng-admin-panel .hng-gap-4 {
+    gap: 1.5rem !important;
+}
+
+/* Fallback para conflitos: força visual mínimo */
+.hng-admin-panel .hng-card,
+.hng-admin-panel .hng-header,
+.hng-admin-panel .hng-meta-box {
+    background: var(--hng-card-bg, #fff) !important;
+    color: var(--hng-text-main, #1e293b) !important;
+    border-radius: var(--hng-radius, 0.5rem) !important;
+    box-shadow: var(--hng-shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)) !important;
+    border: 1px solid var(--hng-border, #e2e8f0) !important;
+}
+
+/* removed stray closing brace */
+
+/* Global Reset for HNG Pages */
+.toplevel_page_hng-commerce,
+.hng-commerce_page_hng-orders,
+.hng-commerce_page_hng-customers,
+.hng-commerce_page_hng-subscriptions,
+.hng-commerce_page_hng-financial,
+.hng-commerce_page_hng-shipping,
+.hng-commerce_page_hng-reports,
+.hng-commerce_page_hng-tools,
+.hng-commerce_page_hng-commerce-settings {
+    background-color: var(--hng-bg);
+}
+
+.hng-wrap {
+    max-width: 1200px;
+    margin: 20px auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--hng-text-main);
+}
+
+/* Header */
+.hng-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: var(--hng-card-bg);
+    padding: 1.5rem;
+    border-radius: var(--hng-radius);
+    box-shadow: var(--hng-shadow);
+    border: 1px solid var(--hng-border);
+}
+
+.hng-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--hng-text-main);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hng-header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Cards */
+.hng-card {
+    background: var(--hng-card-bg);
+    border-radius: var(--hng-radius);
+    box-shadow: var(--hng-shadow);
+    border: 1px solid var(--hng-border);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.hng-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--hng-border);
+    padding-bottom: 1rem;
+}
+
+.hng-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--hng-text-main);
+    margin: 0;
+}
+
+/* Stats Grid */
+.hng-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.hng-stat-card {
+    background: var(--hng-card-bg);
+    padding: 1.5rem;
+    border-radius: var(--hng-radius);
+    box-shadow: var(--hng-shadow);
+    border: 1px solid var(--hng-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.hng-stat-label {
+    font-size: 0.875rem;
+    color: var(--hng-text-muted);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.hng-stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--hng-text-main);
+}
+
+.hng-stat-trend {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.hng-trend-up {
+    color: var(--hng-success);
+}
+
+.hng-trend-down {
+    color: var(--hng-danger);
+}
+
+/* Buttons */
+.hng-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--hng-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    border: 1px solid transparent;
+    gap: 0.5rem;
+}
+
+.hng-btn-primary {
+    background-color: var(--hng-primary);
+    color: white;
+}
+
+/* Ensure HNG buttons are clickable even when other CSS may override pointer-events */
+.hng-card .button,
+.hng-card .button-primary,
+.hng-card .button-secondary {
+    pointer-events: auto !important;
+    z-index: 5 !important;
+}
+
+.hng-btn-primary:hover {
+    background-color: var(--hng-primary-hover);
+    color: white;
+}
+
+.hng-btn-secondary {
+    background-color: white;
+    border-color: var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+.hng-btn-secondary:hover {
+    background-color: var(--hng-bg);
+    border-color: var(--hng-text-muted);
+}
+
+/* Tables */
+.hng-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.hng-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--hng-text-muted);
+    background-color: var(--hng-bg);
+    border-bottom: 1px solid var(--hng-border);
+}
+
+.hng-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--hng-border);
+    color: var(--hng-text-main);
+}
+
+.hng-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badges */
+.hng-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.hng-badge-success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.hng-badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.hng-badge-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.hng-badge-info {
+    background-color: #e0f2fe;
+    color: #075985;
+}
+
+.hng-badge-secondary {
+    background-color: #e5e7eb;
+    color: #4b5563;
+}
+
+/* Utilities */
+.hng-flex {
+    display: flex;
+}
+
+.hng-items-center {
+    align-items: center;
+}
+
+.hng-justify-between {
+    justify-content: space-between;
+}
+
+.hng-gap-4 {
+    gap: 1rem;
+}
+
+.hng-mt-4 {
+    margin-top: 1rem;
+}
+
+.hng-mb-4 {
+    margin-bottom: 1rem;
+}
+
+/* Modal Styles */
+.hng-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    padding: 0;
+    border: 1px solid var(--hng-border);
+    width: 500px;
+    border-radius: var(--hng-radius);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    animation: hngModalFadeIn 0.3s;
+}
+
+@keyframes hngModalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hng-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--hng-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hng-modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--hng-text-main);
+}
+
+.hng-close-modal {
+    color: var(--hng-text-muted);
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.hng-close-modal:hover {
+    color: var(--hng-text-main);
+}
+
+.hng-modal-body {
+    padding: 1.5rem;
+}
+
+.hng-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.hng-form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--hng-text-main);
+}
+
+.hng-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--hng-border);
+    border-radius: var(--hng-radius);
+    font-size: 0.875rem;
+    color: var(--hng-text-main);
+}
+
+.hng-input:focus {
+    outline: none;
+    border-color: var(--hng-primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.hng-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* Product Edit Styles */
+.hng-admin-panel .postbox {
+    border: 1px solid var(--hng-border) !important;
+    border-radius: var(--hng-radius) !important;
+    box-shadow: var(--hng-shadow) !important;
+    background: var(--hng-card-bg) !important;
+}
+
+.hng-admin-panel .postbox-header {
+    border-bottom: 1px solid var(--hng-border) !important;
+    background: var(--hng-bg) !important;
+}
+
+.hng-admin-panel .postbox-header h2 {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: var(--hng-text-main) !important;
+}
+
+#hng_product_data .inside {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.hng-product-data-panel {
+    padding: 1.5rem;
+}
+
+.hng-field-row {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+}
+
+.hng-field-col {
+    flex: 1;
+}
+
+.hng-field-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--hng-text-main);
+}
+
+.hng-field-description {
+    font-size: 0.75rem;
+    color: var(--hng-text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Product Data Tabs */
+.hng-product-data-wrapper {
+    display: flex;
+    min-height: 300px;
+}
+
+.hng-tabs-nav {
+    width: 200px;
+    background: #f8fafc;
+    border-right: 1px solid var(--hng-border);
+}
+
+/* Ensure tabs are clickable even if 3rd-party CSS overlays cause issues */
+.hng-tabs-wrapper .hng-payment-tab {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 9999;
+}
+
+.hng-tabs-nav ul {
+    margin: 0;
+    padding: 0;
+}
+
+.hng-tabs-nav li {
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--hng-border);
+}
+
+.hng-tabs-nav li.active {
+    background: #fff;
+    border-right: 1px solid transparent;
+    margin-right: -1px;
+}
+
+.hng-tabs-nav a {
+    display: block;
+    padding: 15px;
+    text-decoration: none;
+    color: var(--hng-text-main);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.hng-tabs-nav a:hover {
+    background: #f1f5f9;
+    color: var(--hng-primary);
+}
+
+.hng-tabs-nav li.active a {
+    color: var(--hng-primary);
+    font-weight: 600;
+}
+
+.hng-tabs-nav .dashicons {
+    margin-right: 8px;
+    color: var(--hng-text-muted);
+}
+
+.hng-tabs-nav li.active .dashicons {
+    color: var(--hng-primary);
+}
+
+.hng-tabs-content {
+    flex: 1;
+    padding: 20px;
+    background: #fff;
+}
+
+.hng-tab-pane {
+    display: none;
+}
+
+.hng-tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+/* Payment Settings Grid */
+.hng-gateway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.hng-gateway-card {
+    background: #fff;
+    border: 1px solid var(--hng-border);
+    border-radius: var(--hng-radius);
+    padding: 20px;
+    transition: all 0.2s;
+    position: relative;
+    cursor: pointer;
+}
+
+.hng-gateway-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hng-shadow);
+    border-color: var(--hng-primary);
+}
+
+.hng-gateway-card.active {
+    border: 2px solid var(--hng-primary);
+    background: #f0f9ff;
+}
+
+.hng-gateway-card input[type="radio"] {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.gateway-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.gateway-icon {
+    font-size: 24px;
+}
+
+.gateway-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.gateway-description {
+    color: var(--hng-text-muted);
+    font-size: 13px;
+    margin-bottom: 15px;
+    min-height: 40px;
+}
+
+.gateway-methods {
+    margin-bottom: 15px;
+}
+
+.method-badge {
+    display: inline-block;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--hng-text-muted);
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.gateway-fees {
+    font-size: 12px;
+    color: var(--hng-text-muted);
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.gateway-fees ul {
+    margin: 5px 0 0 0;
+    padding-left: 15px;
+}
+
+/* Fix: ensure gateway config forms fit inside the card and inputs don't overflow */
+.gateway-config-form {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.gateway-config-form-inner {
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.gateway-config-form-inner .regular-text,
+.gateway-config-form-inner select,
+.gateway-config-form-inner textarea.large-text {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.gateway-config-form-inner p {
+    margin-bottom: 0.75rem;
+}
+
+.gateway-config-form .test-result {
+    overflow-wrap: anywhere;
+}
+
+/* Product edit meta box improvements */
+.hng-meta-box {
+    padding: 8px 0;
+}
+
+.hng-meta-box .hng-section-title {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    margin: 18px 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #333;
+}
+
+.hng-meta-box label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--hng-text-main);
+}
+
+.hng-meta-box .description {
+    color: var(--hng-text-muted);
+    font-size: 12px;
+}
+
+.hng-grid {
+    display: grid;
+    gap: 10px;
+    align-items: start;
+}
+
+.hng-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.hng-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.hng-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.hng-field input[type="text"],
+.hng-field input[type="number"],
+.hng-field select,
+.hng-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.hng-field {
+    display: block;
+}
+
+.hng-hidden {
+    display: none !important;
+}
+
+.hng-custom-field-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: flex-end;
+}
+
+.hng-custom-field-row input,
+.hng-custom-field-row select {
+    box-sizing: border-box;
+}
+
+.hng-custom-field-row .button {
+    margin-left: 6px;
+}
+
+/* Size helpers for dynamic custom fields */
+.hng-custom-field-row .hng-cf-large {
+    flex: 2;
+    min-width: 0;
+}
+
+.hng-custom-field-row .hng-cf-medium {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+
+    .hng-grid-2,
+    .hng-grid-3,
+    .hng-grid-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.gateway-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.gateway-status.pending {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+
+
+.hng-field-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--hng-text-main);
+}
+
+.hng-field-description {
+    font-size: 0.75rem;
+    color: var(--hng-text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Product Data Tabs */
+.hng-product-data-wrapper {
+    display: flex;
+    min-height: 300px;
+}
+
+.hng-tabs-nav {
+    width: 200px;
+    background: #f8fafc;
+    border-right: 1px solid var(--hng-border);
+}
+
+/* Ensure tabs are clickable even if 3rd-party CSS overlays cause issues */
+.hng-tabs-wrapper .hng-payment-tab {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 9999;
+}
+
+.hng-tabs-nav ul {
+    margin: 0;
+    padding: 0;
+}
+
+.hng-tabs-nav li {
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--hng-border);
+}
+
+.hng-tabs-nav li.active {
+    background: #fff;
+    border-right: 1px solid transparent;
+    margin-right: -1px;
+}
+
+.hng-tabs-nav a {
+    display: block;
+    padding: 15px;
+    text-decoration: none;
+    color: var(--hng-text-main);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.hng-tabs-nav a:hover {
+    background: #f1f5f9;
+    color: var(--hng-primary);
+}
+
+.hng-tabs-nav li.active a {
+    color: var(--hng-primary);
+    font-weight: 600;
+}
+
+.hng-tabs-nav .dashicons {
+    margin-right: 8px;
+    color: var(--hng-text-muted);
+}
+
+.hng-tabs-nav li.active .dashicons {
+    color: var(--hng-primary);
+}
+
+.hng-tabs-content {
+    flex: 1;
+    padding: 20px;
+    background: #fff;
+}
+
+.hng-tab-pane {
+    display: none;
+}
+
+.hng-tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+/* Payment Settings Grid */
+.hng-gateway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.hng-gateway-card {
+    background: #fff;
+    border: 1px solid var(--hng-border);
+    border-radius: var(--hng-radius);
+    padding: 20px;
+    transition: all 0.2s;
+    position: relative;
+    cursor: pointer;
+}
+
+.hng-gateway-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hng-shadow);
+    border-color: var(--hng-primary);
+}
+
+.hng-gateway-card.active {
+    border: 2px solid var(--hng-primary);
+    background: #f0f9ff;
+}
+
+.hng-gateway-card input[type="radio"] {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.gateway-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.gateway-icon {
+    font-size: 24px;
+}
+
+.gateway-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.gateway-description {
+    color: var(--hng-text-muted);
+    font-size: 13px;
+    margin-bottom: 15px;
+    min-height: 40px;
+}
+
+.gateway-methods {
+    margin-bottom: 15px;
+}
+
+.method-badge {
+    display: inline-block;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--hng-text-muted);
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.gateway-fees {
+    font-size: 12px;
+    color: var(--hng-text-muted);
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.gateway-fees ul {
+    margin: 5px 0 0 0;
+    padding-left: 15px;
+}
+
+.gateway-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.gateway-status.pending {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.gateway-status.success {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.hng-payment-tab {
+    width: 100%;
+    margin-top: 15px !important;
+}
+
+/* Submenu - sem ícones customizados */
+
+/* Product Edit Layout Helpers */
+.hng-field-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+    align-items: flex-start;
+}
+
+.hng-field-col {
+    flex: 1;
+    min-width: 0;
+    /* Prevent flex items from overflowing */
+}
+
+.hng-field-col label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--hng-text-main);
+}
+
+.hng-field-col input[type="text"],
+.hng-field-col input[type="number"],
+.hng-field-col select,
+.hng-field-col textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    border: 1px solid var(--hng-border);
+    border-radius: 4px;
+}
+
+.hng-field-description {
+    font-size: 12px;
+    color: var(--hng-text-muted);
+    margin-top: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hng-product-data-wrapper {
+        flex-direction: column;
+    }
+
+    .hng-tabs-nav {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--hng-border);
+        overflow-x: auto;
+    }
+
+    .hng-tabs-nav ul {
+        display: flex;
+    }
+
+    .hng-tabs-nav li {
+        flex: 0 0 auto;
+        border-bottom: none;
+        border-right: 1px solid var(--hng-border);
+    }
+
+    .hng-field-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* One-off Payment Link Meta Box */
+.hng-oneoff-container {
+    padding: 10px;
+}
+
+.hng-oneoff-inputs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.hng-oneoff-inputs input[type="number"] {
+    flex: 1;
+    min-width: 100px;
+    width: 100%;
+}
+
+.hng-oneoff-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hng-oneoff-actions .button {
+    width: 100%;
+    justify-content: center;
+}
+
+#hng-oneoff-result-mb {
+    display: block;
+    word-break: break-all;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.hng-oneoff-link {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+/* Toggle Switch for Gateways */
+.hng-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.hng-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.hng-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.hng-slider:before {
+    position: absolute;
+    content: '''';
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .hng-slider {
+    background-color: #10b981;
+}
+
+input:focus + .hng-slider {
+    box-shadow: 0 0 1px #10b981;
+}
+
+input:checked + .hng-slider:before {
+    transform: translateX(24px);
+}
+
+.hng-slider.round {
+    border-radius: 24px;
+}
+
+.hng-slider.round:before {
+    border-radius: 50%;
+}
+
+/* Fix menu background */
+#adminmenu .toplevel_page_hng-commerce,
+#adminmenu .hng-commerce_page_hng-orders,
+#adminmenu .hng-commerce_page_hng-customers,
+#adminmenu .hng-commerce_page_hng-subscriptions,
+#adminmenu .hng-commerce_page_hng-financial,
+#adminmenu .hng-commerce_page_hng-gateways,
+#adminmenu .hng-commerce_page_hng-shipping,
+#adminmenu .hng-commerce_page_hng-reports,
+#adminmenu .hng-commerce_page_hng-tools,
+#adminmenu .hng-commerce_page_hng-commerce-settings {
+    background-color: transparent !important;
+}
+
+#adminmenu li.toplevel_page_hng-commerce .wp-submenu-wrap {
+    background-color: #1d2327 !important;
+}

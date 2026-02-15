@@ -1,0 +1,257 @@
+/**
+ * HNG Commerce - Popup Cart Layout
+ * Ícone flutuante com popup de carrinho ao clicar
+ * 
+ * Features:
+ * - Ícone fixo no canto
+ * - Popup elegante ao lado do ícone
+ * - Badge de quantidade animado
+ * - Responsivo em mobile
+ */
+
+.hng-cart-popup {
+    position: fixed;
+    /* Popup aparece ACIMA do botão trigger - o botão é posicionado separadamente */
+    bottom: auto;
+    top: auto;
+    right: 20px;
+    z-index: 99998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* O popup content é posicionado em relação ao trigger */
+
+.hng-cart-popup.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Ícone flutuante */
+.hng-cart-floating-icon {
+    /* Herda posição do .hng-cart-trigger */
+    z-index: 99990;
+}
+
+/* ==========================================================================
+   Popup Position: Left Side
+   ========================================================================== */
+.hng-cart-popup.hng-cart-position-left {
+    left: 20px;
+    right: auto;
+}
+
+.hng-cart-popup.hng-cart-position-left .hng-cart-popup-content {
+    right: auto;
+    left: 20px;
+}
+
+.hng-cart-popup.hng-cart-position-left .hng-cart-popup-content::after {
+    right: auto;
+    left: 28px;
+}
+
+/* Container do popup */
+.hng-cart-popup-content {
+    position: fixed;
+    bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + var(--hng-cart-button-height, 60px) + 12px);
+    right: 20px;
+    background: var(--hng-cart-surface, #fff);
+    border-radius: var(--hng-cart-radius, 12px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    width: 380px;
+    max-height: 70vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: scaleUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 99998;
+}
+
+/* When chat is disabled or on different side */
+body.hng-chat-disabled .hng-cart-popup-content,
+body.hng-chat-left .hng-cart-popup-content {
+    bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + var(--hng-cart-button-height, 60px) + 12px);
+}
+
+/* Ajuste para admin bar do WordPress */
+body.admin-bar .hng-cart-popup-content {
+    bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + var(--hng-cart-button-height, 60px) + 12px + 32px);
+}
+
+body.admin-bar.hng-chat-disabled .hng-cart-popup-content,
+body.admin-bar.hng-chat-left .hng-cart-popup-content {
+    bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + var(--hng-cart-button-height, 60px) + 12px + 32px);
+}
+
+@media screen and (max-width: 782px) {
+    body.admin-bar .hng-cart-popup-content {
+        bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + var(--hng-cart-button-height, 60px) + 12px + 46px);
+    }
+    
+    body.admin-bar.hng-chat-disabled .hng-cart-popup-content,
+    body.admin-bar.hng-chat-left .hng-cart-popup-content {
+        bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + var(--hng-cart-button-height, 60px) + 12px + 46px);
+    }
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.85) translateY(10px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Seta apontando para o botão */
+.hng-cart-popup-content::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    right: 28px;
+    width: 14px;
+    height: 14px;
+    background: var(--hng-cart-surface, #fff);
+    border-radius: 0 0 3px 0;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
+    transform: rotate(45deg);
+}
+
+/* Header */
+.hng-cart-popup-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--hng-cart-border, #e5e7eb);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--hng-cart-header-bg, #f9fafb);
+    border-radius: var(--hng-cart-radius, 12px) var(--hng-cart-radius, 12px) 0 0;
+}
+
+.hng-cart-popup-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--hng-cart-text, #1f2937);
+}
+
+/* Body com scroll */
+.hng-cart-popup-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    min-height: 120px;
+    max-height: 300px;
+    background: var(--hng-cart-surface, #fff);
+}
+
+.hng-cart-popup-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hng-cart-popup-body::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.hng-cart-popup-body::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.hng-cart-popup-body::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Footer */
+.hng-cart-popup-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--hng-cart-border, #e5e7eb);
+    background: var(--hng-cart-surface, #fff);
+    flex-shrink: 0;
+    border-radius: 0 0 var(--hng-cart-radius, 12px) var(--hng-cart-radius, 12px);
+}
+
+/* Totals dentro do popup */
+.hng-cart-popup-footer .hng-cart-totals {
+    background: transparent;
+    padding: 0;
+    border: none;
+    margin-bottom: 12px;
+}
+
+/* Botão de checkout no popup */
+.hng-cart-popup-footer .btn-block {
+    width: 100%;
+}
+
+/* Close button */
+.hng-cart-popup-header .hng-cart-close {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: #9ca3af;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.hng-cart-popup-header .hng-cart-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #1f2937;
+}
+
+/* Empty state */
+.hng-cart-popup-body .hng-empty-cart {
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px 20px;
+    font-size: 14px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .hng-cart-popup-content {
+        width: 90vw;
+        max-width: 360px;
+        right: 5vw;
+    }
+    
+    .hng-cart-popup.hng-cart-position-left .hng-cart-popup-content {
+        right: auto;
+        left: 5vw;
+    }
+}
+
+@media (max-width: 480px) {
+    .hng-cart-popup-content {
+        right: 10px;
+        left: auto;
+        width: calc(100vw - 20px);
+        max-width: none;
+        max-height: 60vh;
+    }
+    
+    .hng-cart-popup.hng-cart-position-left .hng-cart-popup-content {
+        left: 10px;
+        right: auto;
+    }
+    
+    .hng-cart-popup-content::after {
+        right: 18px;
+    }
+    
+    .hng-cart-popup.hng-cart-position-left .hng-cart-popup-content::after {
+        right: auto;
+        left: 18px;
+    }
+}

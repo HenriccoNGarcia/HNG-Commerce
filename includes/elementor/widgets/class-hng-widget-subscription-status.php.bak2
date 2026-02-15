@@ -1,0 +1,527 @@
+<?php
+if (!defined('ABSPATH')) { exit; }
+
+class HNG_Widget_Subscription_Status extends HNG_Commerce_Elementor_Widget_Base {
+    public function get_name() { return 'hng_subscription_status'; }
+    public function get_title() { return __('Status de Assinatura', 'hng-commerce'); }
+    public function get_icon() { return 'eicon-lock-user'; }
+
+    protected function register_controls() {
+                // Títulos, descrições e placeholders editáveis
+                $this->start_controls_section(
+                    'labels_section',
+                    [
+                        'label' => __('Textos e Placeholders', 'hng-commerce'),
+                        'tab' => \Elementor\Controls_Manager::TAB_CONTENT,
+                    ]
+                );
+                $this->add_control('label_subscription_title', [ 'label' => __('Título da Assinatura', 'hng-commerce'), 'type' => \Elementor\Controls_Manager::TEXT, 'default' => __('Status da Assinatura', 'hng-commerce') ]);
+                $this->add_control('label_status', [ 'label' => __('Texto Status', 'hng-commerce'), 'type' => \Elementor\Controls_Manager::TEXT, 'default' => __('Status:', 'hng-commerce') ]);
+                $this->add_control('label_next_payment', [ 'label' => __('Texto Próxima Cobrança', 'hng-commerce'), 'type' => \Elementor\Controls_Manager::TEXT, 'default' => __('Próxima cobrança:', 'hng-commerce') ]);
+                $this->add_control('label_empty', [ 'label' => __('Mensagem Assinatura Não Encontrada', 'hng-commerce'), 'type' => \Elementor\Controls_Manager::TEXT, 'default' => __('Assinatura não encontrada.', 'hng-commerce') ]);
+                $this->end_controls_section();
+
+                // Variaá¯Â¿Â½á¯Â¿Â½o de layout (compacto/detalhado)
+                $this->start_controls_section(
+                    'layout_section',
+                    [
+                        'label' => __('Layout', 'hng-commerce'),
+                        'tab' => \Elementor\Controls_Manager::TAB_CONTENT,
+                    ]
+                );
+                $this->add_control('subscription_status_layout', [
+                    'label' => __('Layout do Status', 'hng-commerce'),
+                    'type' => \Elementor\Controls_Manager::SELECT,
+                    'options' => [
+                        'compact' => __('Compacto', 'hng-commerce'),
+                        'detailed' => __('Detalhado', 'hng-commerce'),
+                    ],
+                    'default' => 'detailed',
+                ]);
+                $this->end_controls_section();
+        // Content Section
+        $this->start_controls_section(
+            'content_section',
+            [
+                'label' => __('Configurações', 'hng-commerce'),
+                'tab' => \Elementor\Controls_Manager::TAB_CONTENT,
+            ]
+        );
+
+        $this->add_control(
+            'subscription_id',
+            [
+                'label' => __('ID da Assinatura', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::NUMBER,
+                'default' => 0,
+                'description' => __('Deixe 0 para usar a assinatura da URL', 'hng-commerce'),
+            ]
+        );
+
+        $this->add_control(
+            'show_next_payment',
+            [
+                'label' => __('Mostrar Prá¯Â¿Â½xima Cobraná¯Â¿Â½a', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::SWITCHER,
+                'default' => 'yes',
+            ]
+        );
+
+        $this->add_control(
+            'show_actions',
+            [
+                'label' => __('Mostrar Botá¯Â¿Â½es de Aá¯Â¿Â½á¯Â¿Â½o', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::SWITCHER,
+                'default' => 'yes',
+            ]
+        );
+
+        $this->end_controls_section();
+
+        // Container Style
+        $this->start_controls_section(
+            'container_style_section',
+            [
+                'label' => __('Container', 'hng-commerce'),
+                'tab' => \Elementor\Controls_Manager::TAB_STYLE,
+            ]
+        );
+
+        $this->add_control(
+            'container_background',
+            [
+                'label' => __('Cor de Fundo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-subscription-card' => 'background-color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_group_control(
+            \Elementor\Group_Control_Border::get_type(),
+            [
+                'name' => 'container_border',
+                'selector' => '{{WRAPPER}} .hng-subscription-card',
+            ]
+        );
+
+        $this->add_responsive_control(
+            'container_border_radius',
+            [
+                'label' => __('Border Radius', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::DIMENSIONS,
+                'size_units' => ['px', '%'],
+                'selectors' => [
+                    '{{WRAPPER}} .hng-subscription-card' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        $this->add_responsive_control(
+            'container_padding',
+            [
+                'label' => __('Padding', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::DIMENSIONS,
+                'size_units' => ['px', 'em'],
+                'selectors' => [
+                    '{{WRAPPER}} .hng-subscription-card' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        $this->end_controls_section();
+
+        // Status Badge Style
+        $this->start_controls_section(
+            'status_style_section',
+            [
+                'label' => __('Status Badge', 'hng-commerce'),
+                'tab' => \Elementor\Controls_Manager::TAB_STYLE,
+            ]
+        );
+
+        $this->add_control(
+            'status_active_color',
+            [
+                'label' => __('Cor Ativo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-status.active' => 'color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'status_active_background',
+            [
+                'label' => __('Fundo Ativo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-status.active' => 'background-color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'status_inactive_color',
+            [
+                'label' => __('Cor Inativo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-status.inactive' => 'color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'status_inactive_background',
+            [
+                'label' => __('Fundo Inativo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-status.inactive' => 'background-color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_group_control(
+            \Elementor\Group_Control_Typography::get_type(),
+            [
+                'name' => 'status_typography',
+                'selector' => '{{WRAPPER}} .hng-sub-status',
+            ]
+        );
+
+        $this->end_controls_section();
+
+        // Button Style
+        $this->start_controls_section(
+            'button_style_section',
+            [
+                'label' => __('Botá¯Â¿Â½es', 'hng-commerce'),
+                'tab' => \Elementor\Controls_Manager::TAB_STYLE,
+            ]
+        );
+
+        $this->start_controls_tabs('button_tabs');
+
+        $this->start_controls_tab(
+            'button_normal_tab',
+            [
+                'label' => __('Normal', 'hng-commerce'),
+            ]
+        );
+
+        $this->add_control(
+            'button_color',
+            [
+                'label' => __('Cor do Texto', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button' => 'color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'button_background',
+            [
+                'label' => __('Cor de Fundo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button' => 'background-color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->end_controls_tab();
+
+        $this->start_controls_tab(
+            'button_hover_tab',
+            [
+                'label' => __('Hover', 'hng-commerce'),
+            ]
+        );
+
+        $this->add_control(
+            'button_hover_color',
+            [
+                'label' => __('Cor do Texto', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button:hover' => 'color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->add_control(
+            'button_hover_background',
+            [
+                'label' => __('Cor de Fundo', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button:hover' => 'background-color: {{VALUE}};',
+                ],
+            ]
+        );
+
+        $this->end_controls_tab();
+
+        $this->end_controls_tabs();
+
+        $this->add_group_control(
+            \Elementor\Group_Control_Typography::get_type(),
+            [
+                'name' => 'button_typography',
+                'selector' => '{{WRAPPER}} .hng-sub-action-button',
+                'separator' => 'before',
+            ]
+        );
+
+        $this->add_group_control(
+            \Elementor\Group_Control_Border::get_type(),
+            [
+                'name' => 'button_border',
+                'selector' => '{{WRAPPER}} .hng-sub-action-button',
+            ]
+        );
+
+        $this->add_responsive_control(
+            'button_border_radius',
+            [
+                'label' => __('Border Radius', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::DIMENSIONS,
+                'size_units' => ['px', '%'],
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        $this->add_responsive_control(
+            'button_padding',
+            [
+                'label' => __('Padding', 'hng-commerce'),
+                'type' => \Elementor\Controls_Manager::DIMENSIONS,
+                'size_units' => ['px', 'em'],
+                'selectors' => [
+                    '{{WRAPPER}} .hng-sub-action-button' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        $this->end_controls_section();
+    }
+
+    protected function render() {
+        $settings = $this->get_settings_for_display();
+        $subscription_id = intval($settings['subscription_id']);
+        $is_edit_mode = \Elementor\Plugin::$instance->editor->is_edit_mode();
+        
+        // Se não especificou ID, tenta pegar da URL
+        if ($subscription_id === 0) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only GET parameter for subscription display in widget, no data modification
+            $subscription_id = isset($_GET['subscription_id']) ? intval($_GET['subscription_id']) : 0;
+        }
+        
+        // Modo de edição: buscar a assinatura mais recente
+        if ($subscription_id === 0 && $is_edit_mode) {
+            $recent_subs = get_posts([
+                'post_type' => 'hng_subscription',
+                'numberposts' => 1,
+                'post_status' => 'any',
+                'orderby' => 'date',
+                'order' => 'DESC'
+            ]);
+            if (!empty($recent_subs)) {
+                $subscription_id = $recent_subs[0]->ID;
+            }
+        }
+
+        if ($subscription_id === 0 || !class_exists('HNG_Subscription')) {
+            echo '<div class="hng-subscription-placeholder elementor-alert elementor-alert-warning">';
+            if ($is_edit_mode) {
+                echo '<p>' . esc_html__('Informe um ID de assinatura nas configurações ou crie uma assinatura para visualizar.', 'hng-commerce') . '</p>';
+            } else {
+                echo '<p>' . esc_html__('Nenhuma assinatura selecionada.', 'hng-commerce') . '</p>';
+            }
+            echo '</div>';
+            return;
+        }
+
+        $subscription = new HNG_Subscription($subscription_id);
+        
+        if (!$subscription->get_id()) {
+            echo '<div class="hng-subscription-placeholder elementor-alert elementor-alert-danger">';
+            echo '<p>' . esc_html__('Assinatura não encontrada. ID: ', 'hng-commerce') . esc_html($subscription_id) . '</p>';
+            echo '</div>';
+            return;
+        }
+
+        $status = $subscription->get_status();
+        $status_class = $status === 'active' ? 'active' : 'inactive';
+        ?>
+        <div class="hng-subscription-card">
+            <div class="hng-sub-header">
+                <?php /* translators: %s: subscription id */ ?>
+                <h3><?php printf( esc_html__( 'Assinatura #%s', 'hng-commerce' ), esc_html( $subscription_id ) ); ?></h3>
+                <span class="hng-sub-status <?php echo esc_attr($status_class); ?>">
+                    <?php echo esc_html($status); ?>
+                </span>
+            </div>
+
+            <div class="hng-sub-info">
+                <div class="hng-sub-info-row">
+                    <span class="label"><?php esc_html_e('Produto:', 'hng-commerce'); ?></span>
+                    <span class="value"><?php echo esc_html($subscription->get_product_name()); ?></span>
+                </div>
+
+                <div class="hng-sub-info-row">
+                    <span class="label"><?php esc_html_e('Valor:', 'hng-commerce'); ?></span>
+                    <span class="value"><?php echo esc_html(hng_price($subscription->get_amount())); ?></span>
+                </div>
+
+                <div class="hng-sub-info-row">
+                    <span class="label"><?php esc_html_e('Frequá¯Â¿Â½ncia:', 'hng-commerce'); ?></span>
+                    <span class="value"><?php echo esc_html($subscription->get_billing_interval_text()); ?></span>
+                </div>
+
+                <?php if ($settings['show_next_payment'] === 'yes' && $status === 'active') : ?>
+                    <div class="hng-sub-info-row highlight">
+                        <span class="label"><?php esc_html_e('Prá¯Â¿Â½xima Cobraná¯Â¿Â½a:', 'hng-commerce'); ?></span>
+                        <span class="value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($subscription->get_next_payment_date()))); ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <div class="hng-sub-info-row">
+                    <span class="label"><?php esc_html_e('Iná¯Â¿Â½cio:', 'hng-commerce'); ?></span>
+                    <span class="value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($subscription->get_start_date()))); ?></span>
+                </div>
+
+                <div class="hng-sub-info-row">
+                    <span class="label"><?php esc_html_e('Má¯Â¿Â½todo de Pagamento:', 'hng-commerce'); ?></span>
+                    <span class="value"><?php echo esc_html($subscription->get_payment_method_title()); ?></span>
+                </div>
+            </div>
+
+            <?php if ($settings['show_actions'] === 'yes' && $status === 'active') : ?>
+                <div class="hng-sub-actions">
+                    <button class="hng-sub-action-button hng-pause-subscription" data-subscription-id="<?php echo esc_attr($subscription_id); ?>">
+                        <?php esc_html_e('Pausar Assinatura', 'hng-commerce'); ?>
+                    </button>
+                    <button class="hng-sub-action-button hng-cancel-subscription" data-subscription-id="<?php echo esc_attr($subscription_id); ?>">
+                        <?php esc_html_e('Cancelar Assinatura', 'hng-commerce'); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <style>
+            {{WRAPPER}} .hng-sub-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #eee;
+            }
+            {{WRAPPER}} .hng-sub-header h3 {
+                margin: 0;
+            }
+            {{WRAPPER}} .hng-sub-status {
+                display: inline-block;
+                padding: 5px 15px;
+                border-radius: 20px;
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 12px;
+            }
+            {{WRAPPER}} .hng-sub-info {
+                margin-bottom: 20px;
+            }
+            {{WRAPPER}} .hng-sub-info-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 12px 0;
+                border-bottom: 1px solid #f5f5f5;
+            }
+            {{WRAPPER}} .hng-sub-info-row.highlight {
+                background: #f8f9fa;
+                padding: 12px 15px;
+                margin: 10px -15px;
+                border-radius: 4px;
+                border-bottom: none;
+            }
+            {{WRAPPER}} .hng-sub-info-row .label {
+                font-weight: 600;
+            }
+            {{WRAPPER}} .hng-sub-actions {
+                display: flex;
+                gap: 10px;
+                margin-top: 20px;
+            }
+            {{WRAPPER}} .hng-sub-action-button {
+                flex: 1;
+                cursor: pointer;
+                border: none;
+                transition: all 0.3s ease;
+            }
+        </style>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('.hng-pause-subscription').on('click', function() {
+                if (!confirm('<?php esc_html_e('Tem certeza que deseja pausar esta assinatura?', 'hng-commerce'); ?>')) {
+                    return;
+                }
+
+                var subscriptionId = $(this).data('subscription-id');
+                
+                $.ajax({
+                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'hng_pause_subscription',
+                        subscription_id: subscriptionId,
+                        nonce: '<?php echo esc_attr(wp_create_nonce('hng-subscription')); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert(response.data.message || '<?php esc_html_e('Erro ao pausar assinatura', 'hng-commerce'); ?>');
+                        }
+                    }
+                });
+            });
+
+            $('.hng-cancel-subscription').on('click', function() {
+                if (!confirm('<?php esc_html_e('Tem certeza que deseja cancelar esta assinatura? Esta aá¯Â¿Â½á¯Â¿Â½o ná¯Â¿Â½o pode ser desfeita.', 'hng-commerce'); ?>')) {
+                    return;
+                }
+
+                var subscriptionId = $(this).data('subscription-id');
+                
+                $.ajax({
+                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'hng_cancel_subscription',
+                        subscription_id: subscriptionId,
+                        nonce: '<?php echo esc_attr(wp_create_nonce('hng-subscription')); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert(response.data.message || '<?php esc_html_e('Erro ao cancelar assinatura', 'hng-commerce'); ?>');
+                        }
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
+    }
+}

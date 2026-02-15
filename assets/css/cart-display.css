@@ -1,0 +1,598 @@
+/**
+ * HNG Commerce - Cart Display Base Styles
+ * Estilos base para todos os layouts de carrinho
+ */
+
+/* ==========================================================================
+   CSS Variables for Dynamic Positioning
+   ========================================================================== */
+:root {
+    /* Chat button dimensions (used to calculate cart position) */
+    --hng-chat-button-size: 60px;
+    --hng-chat-button-gap: 12px;
+    --hng-chat-base-offset: 20px;
+    
+    /* Cart button calculated position when chat is enabled */
+    --hng-cart-bottom-with-chat: calc(var(--hng-chat-base-offset) + var(--hng-chat-button-size) + var(--hng-chat-button-gap));
+    
+    /* Cart button position when chat is disabled */
+    --hng-cart-bottom-no-chat: 20px;
+}
+
+/* ==========================================================================
+   Trigger Button Base
+   ========================================================================== */
+.hng-cart-trigger {
+    background: linear-gradient(135deg, var(--hng-cart-primary, #2AFFA3) 0%, var(--hng-cart-primary-dark, #1dd49a) 100%);
+    color: var(--hng-cart-contrast, #050505);
+    border: none;
+    border-radius: var(--hng-cart-button-radius, 50%);
+    width: var(--hng-cart-button-width, 60px);
+    height: var(--hng-cart-button-height, 60px);
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: fixed;
+    /* Default: assume chat is enabled and on same side */
+    bottom: var(--hng-cart-bottom-with-chat, 92px);
+    right: 20px;
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(42, 255, 163, 0.3);
+    z-index: 99990;
+    opacity: 1 !important;
+}
+
+/* When chat is disabled or on different side, move cart to bottom */
+body.hng-chat-disabled .hng-cart-trigger,
+body.hng-chat-left .hng-cart-trigger {
+    bottom: var(--hng-cart-bottom-no-chat, 20px);
+}
+
+/* When cart is positioned left and chat is on right, move cart to bottom */
+.hng-cart-trigger.hng-cart-position-left {
+    left: 20px;
+    right: auto;
+    bottom: var(--hng-cart-bottom-no-chat, 20px);
+}
+
+/* When both cart and chat are on left side */
+body.hng-chat-left .hng-cart-trigger.hng-cart-position-left {
+    bottom: var(--hng-cart-bottom-with-chat, 92px);
+}
+
+/* Botão floating do popup - herda posicionamento do trigger */
+.hng-cart-trigger.hng-cart-floating-icon {
+    /* Herda do .hng-cart-trigger */
+}
+
+.hng-cart-trigger:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 20px rgba(42, 255, 163, 0.4);
+}
+
+.hng-cart-trigger:active {
+    transform: scale(0.95);
+}
+
+/* ==========================================================================
+   Hover Text Label for Floating Buttons
+   ========================================================================== */
+
+/* Label text hidden by default */
+.hng-cart-trigger .hng-cart-label,
+.hng-cart-sticky-button .hng-cart-label {
+    display: none;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Botão trigger com efeito hover que expande e mostra texto */
+.hng-cart-trigger-container:not(.hng-no-hover-text) .hng-cart-trigger,
+.hng-cart-sticky:not(.hng-no-hover-text) .hng-cart-sticky-button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hng-cart-trigger-container:not(.hng-no-hover-text) .hng-cart-trigger:hover,
+.hng-cart-sticky:not(.hng-no-hover-text) .hng-cart-sticky-button:hover {
+    width: auto;
+    min-width: 120px;
+    max-width: 180px;
+    border-radius: 28px;
+    justify-content: flex-start;
+    padding-left: 14px;
+    padding-right: 18px;
+    gap: 10px;
+    transform: translateY(-2px);
+}
+
+.hng-cart-trigger-container:not(.hng-no-hover-text) .hng-cart-trigger:hover .hng-cart-label,
+.hng-cart-sticky:not(.hng-no-hover-text) .hng-cart-sticky-button:hover .hng-cart-label {
+    display: inline-block;
+}
+
+/* Badge adjustment when expanded */
+.hng-cart-trigger-container:not(.hng-no-hover-text) .hng-cart-trigger:hover .hng-cart-badge,
+.hng-cart-sticky:not(.hng-no-hover-text) .hng-cart-sticky-button:hover .hng-cart-badge {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-left: auto;
+}
+
+/* Container for floating trigger buttons */
+.hng-cart-trigger-container {
+    position: fixed;
+    bottom: var(--hng-cart-bottom-with-chat, 92px);
+    right: 20px;
+    z-index: 99990;
+}
+
+body.hng-chat-disabled .hng-cart-trigger-container,
+body.hng-chat-left .hng-cart-trigger-container {
+    bottom: var(--hng-cart-bottom-no-chat, 20px);
+}
+
+.hng-cart-trigger-container .hng-cart-trigger {
+    position: relative;
+    bottom: auto;
+    right: auto;
+}
+
+/* When hover text is disabled, keep default behavior */
+.hng-no-hover-text .hng-cart-trigger:hover,
+.hng-no-hover-text .hng-cart-sticky-button:hover {
+    transform: scale(1.1);
+}
+
+/* Cart Icon */
+.hng-cart-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.hng-cart-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: currentColor;
+}
+
+/* Cart Badge (quantidade) */
+.hng-cart-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--hng-cart-accent, #FF7A00);
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    border: 2px solid var(--hng-cart-contrast, #050505);
+    animation: pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Close Button */
+.hng-cart-close {
+    background: transparent;
+    border: none;
+    color: currentColor;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.hng-cart-close:hover {
+    transform: rotate(90deg);
+}
+
+/* Empty Cart */
+.hng-empty-cart {
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px 20px;
+    font-style: italic;
+    background: var(--hng-cart-surface, #fff);
+}
+
+/* Cart Totals - base styles */
+.hng-cart-totals {
+    padding: 0;
+    background: transparent;
+}
+
+.hng-cart-totals > div {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.hng-cart-subtotal span,
+.hng-cart-shipping span {
+    color: var(--hng-cart-muted, #6b7280);
+}
+
+.hng-cart-total {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    border-top: 1px solid var(--hng-cart-border-strong, #d1d5db);
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 16px;
+    border-radius: var(--hng-cart-radius, 8px);
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--hng-cart-primary, #2AFFA3) 0%, var(--hng-cart-primary-dark, #1dd49a) 100%);
+    color: var(--hng-cart-contrast, #050505);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(42, 255, 163, 0.3);
+}
+
+.btn-secondary {
+    background: var(--hng-cart-surface-soft, #f3f4f6);
+    color: var(--hng-cart-text, #1f2937);
+}
+
+.btn-secondary:hover {
+    background: var(--hng-cart-border, #e5e7eb);
+}
+
+/* Typography and base colors */
+.hng-cart-sidebar,
+.hng-cart-drawer,
+.hng-cart-modal,
+.hng-cart-modal-content,
+.hng-cart-popup,
+.hng-cart-sticky,
+.hng-cart-trigger {
+    font-family: var(--hng-cart-font-family, inherit);
+    font-size: var(--hng-cart-font-size, 14px);
+    color: var(--hng-cart-text, #1f2937);
+}
+
+.btn-block {
+    width: 100%;
+    display: block;
+}
+
+/* Footer button alignment */
+.hng-cart-popup-footer {
+    text-align: var(--hng-cart-button-align, center);
+}
+
+.hng-cart-popup-footer .btn-block {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Animations */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    :root {
+        /* Smaller chat button on mobile */
+        --hng-chat-button-size: 52px;
+        --hng-chat-button-gap: 10px;
+    }
+    
+    .hng-cart-trigger {
+        /* Use CSS variables for responsive sizing */
+        width: var(--hng-cart-button-width, 52px);
+        height: var(--hng-cart-button-height, 52px);
+    }
+
+    .hng-cart-badge {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+    
+    /* Adjust icon size on mobile */
+    .hng-cart-icon {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+/* ==========================================================================
+   Button Size Modifiers
+   ========================================================================== */
+   
+/* Small button (matches chat settings option) */
+.hng-cart-trigger.hng-cart-size-small {
+    --hng-cart-button-width: 40px;
+    --hng-cart-button-height: 40px;
+}
+
+.hng-cart-trigger.hng-cart-size-small .hng-cart-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.hng-cart-trigger.hng-cart-size-small .hng-cart-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+    top: -4px;
+    right: -4px;
+}
+
+/* Medium button (default) */
+.hng-cart-trigger.hng-cart-size-medium {
+    --hng-cart-button-width: 52px;
+    --hng-cart-button-height: 52px;
+}
+
+.hng-cart-trigger.hng-cart-size-medium .hng-cart-icon {
+    width: 22px;
+    height: 22px;
+}
+
+/* Large button (matches chat button size) */
+.hng-cart-trigger.hng-cart-size-large {
+    --hng-cart-button-width: 60px;
+    --hng-cart-button-height: 60px;
+}
+
+.hng-cart-trigger.hng-cart-size-large .hng-cart-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.hng-cart-trigger.hng-cart-size-large .hng-cart-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+}
+
+/* ==========================================================================
+   Button Style Modifiers
+   ========================================================================== */
+   
+.hng-cart-trigger.hng-cart-style-square {
+    border-radius: 0;
+}
+
+.hng-cart-trigger.hng-cart-style-rounded {
+    border-radius: 12px;
+}
+
+.hng-cart-trigger.hng-cart-style-pill {
+    border-radius: 50%;
+}
+
+/* ==========================================================================
+   Shipping Calculator in Cart - Compact Layout
+   ========================================================================== */
+
+/* CEP Row - Inline compact */
+.hng-cart-cep-row {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.hng-cart-cep-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--hng-cart-border, #d1d5db);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--hng-cart-surface, #fff);
+    color: var(--hng-cart-text, #1f2937);
+    max-width: 100px;
+}
+
+.hng-cart-cep-input:focus {
+    outline: none;
+    border-color: var(--hng-cart-primary, #2AFFA3);
+}
+
+.hng-calc-shipping-btn {
+    padding: 6px 12px;
+    background: var(--hng-cart-primary, #2AFFA3);
+    color: var(--hng-cart-contrast, #050505);
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.hng-calc-shipping-btn:hover {
+    background: var(--hng-cart-primary-dark, #1dd49a);
+}
+
+.hng-calc-shipping-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.hng-calc-shipping-btn .hng-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: hng-spin 0.8s linear infinite;
+}
+
+@keyframes hng-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Shipping Options - Compact list */
+.hng-shipping-options {
+    margin: 8px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hng-shipping-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--hng-cart-border, #e5e7eb);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+    background: var(--hng-cart-surface, #fff);
+}
+
+.hng-shipping-option:hover {
+    border-color: var(--hng-cart-primary, #2AFFA3);
+}
+
+.hng-shipping-option.selected,
+.hng-shipping-option:has(input:checked) {
+    border-color: var(--hng-cart-primary, #2AFFA3);
+    background: rgba(42, 255, 163, 0.08);
+}
+
+.hng-shipping-option input[type="radio"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--hng-cart-primary, #2AFFA3);
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.hng-shipping-option .shipping-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hng-shipping-option .shipping-label {
+    font-weight: 600;
+    color: var(--hng-cart-text, #1f2937);
+}
+
+.hng-shipping-option .shipping-time {
+    font-size: 10px;
+    color: var(--hng-cart-muted, #6b7280);
+}
+
+.hng-shipping-option .shipping-price {
+    font-weight: 700;
+    color: var(--hng-cart-primary, #2AFFA3);
+    flex-shrink: 0;
+}
+
+/* Shipping value pending state */
+.hng-shipping-pending {
+    color: var(--hng-cart-muted, #6b7280);
+    font-weight: 400;
+    font-size: 12px;
+}
+
+/* Messages */
+.hng-shipping-error {
+    padding: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 4px;
+    color: #dc2626;
+    font-size: 11px;
+    margin-top: 6px;
+}
+
+.hng-shipping-message {
+    padding: 8px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 4px;
+    color: #2563eb;
+    font-size: 11px;
+    margin-top: 6px;
+}
+

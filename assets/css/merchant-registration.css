@@ -1,0 +1,167 @@
+.hng-merchant-registration {
+    max-width: 800px;
+}
+
+.hng-intro {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-left: 4px solid #2271b1;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.hng-intro h3 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.hng-intro ul {
+    list-style: none;
+    margin-left: 0;
+}
+
+.hng-intro ul li {
+    padding: 5px 0;
+    font-size: 14px;
+}
+
+.hng-registration-form form {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.hng-connection-status {
+    margin-top: 20px;
+}
+
+.hng-status-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 0;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.hng-status-success {
+    border-left: 4px solid #00a32a;
+}
+
+.hng-status-warning {
+    border-left: 4px solid #dba617;
+}
+
+.hng-status-error {
+    border-left: 4px solid #d63638;
+}
+
+.hng-status-header {
+    padding: 20px;
+    border-bottom: 1px solid #c3c4c7;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hng-status-header .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #00a32a;
+}
+
+.hng-status-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.hng-status-body {
+    padding: 20px;
+}
+
+.hng-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.hng-status-row:last-child {
+    border-bottom: none;
+}
+
+.hng-label {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.hng-value {
+    color: #646970;
+}
+
+.hng-value code {
+    background: #f0f0f1;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.hng-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.hng-badge-success {
+    background: #d5f4e6;
+    color: #00693e;
+}
+
+.hng-badge-warning {
+    background: #f7e8b5;
+    color: #846200;
+}
+
+.hng-badge-error {
+    background: #f5d7d9;
+    color: #b32d2e;
+}
+
+.hng-status-actions {
+    padding: 20px;
+    border-top: 1px solid #c3c4c7;
+    background: #f6f7f7;
+    display: flex;
+    gap: 10px;
+}
+
+.hng-status-actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.hng-status-actions .dashicons.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+#hng-connection-result {
+    margin-top: 15px;
+}
+
+#hng-connection-result .notice {
+    margin: 0;
+}

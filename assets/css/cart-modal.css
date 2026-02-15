@@ -1,0 +1,687 @@
+/**
+ * HNG Commerce - Modal Cart Layout
+ * Pop-up centralizado elegante com overlay
+ * 
+ * Features:
+ * - Modal centralizado com overlay semitransparente
+ * - Animação de fade + escala
+ * - Design elegante e moderno
+ * - Totalmente responsivo em desktop, tablets e mobile
+ */
+
+.hng-cart-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99998;
+    opacity: 0;
+    pointer-events: none;
+    padding: 20px;
+    background: rgba(0, 0, 0, var(--hng-cart-overlay-opacity, 0.5));
+    transition: opacity 0.3s ease;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+/* Sem overlay - fundo transparente */
+.hng-cart-modal.no-overlay {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.hng-cart-modal.no-overlay .hng-cart-modal-content {
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+}
+
+/* Ajuste para admin bar do WordPress */
+body.admin-bar .hng-cart-modal {
+    top: 32px;
+}
+
+@media screen and (max-width: 782px) {
+    body.admin-bar .hng-cart-modal {
+        top: 46px;
+    }
+}
+
+.hng-cart-modal.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Overlay escuro */
+.hng-cart-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    transition: opacity 0.3s;
+}
+
+/* Container do modal - Desktop */
+.hng-cart-modal-content {
+    position: relative !important;
+    background: var(--hng-cart-surface, #fff);
+    border-radius: var(--hng-cart-radius, 16px);
+    width: 100% !important;
+    max-width: 420px !important;
+    max-height: 75vh !important;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.1);
+    animation: modalSlideIn 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header elegante */
+.hng-cart-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--hng-cart-border, #e5e7eb);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    background: linear-gradient(to bottom, var(--hng-cart-surface, #fff), var(--hng-cart-header-bg, #f9fafb));
+    border-radius: var(--hng-cart-radius, 16px) var(--hng-cart-radius, 16px) 0 0;
+}
+
+.hng-cart-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--hng-cart-text, #1f2937);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hng-cart-modal-header h2::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(to bottom, var(--hng-cart-primary, #2AFFA3), var(--hng-cart-primary-dark, #1dd49a));
+    border-radius: 2px;
+}
+
+/* Botão de fechar - suporta ambas as classes */
+.hng-cart-modal-close,
+.hng-cart-modal-header .hng-cart-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    line-height: 1;
+    padding: 0;
+}
+
+.hng-cart-modal-close:hover,
+.hng-cart-modal-header .hng-cart-close:hover {
+    background: #e5e7eb;
+    color: #1f2937;
+    transform: rotate(90deg);
+}
+
+/* Conteúdo principal */
+.hng-cart-modal-body {
+    flex: 1;
+    padding: 12px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 80px;
+    max-height: 35vh;
+    background: var(--hng-cart-surface, #fff);
+}
+
+/* Garantir que cart-items não cause overflow */
+.hng-cart-modal-body .hng-cart-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hng-cart-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hng-cart-modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.hng-cart-modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.hng-cart-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Item no modal */
+.hng-modal-item {
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--hng-cart-border, #e5e7eb);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    transition: all 0.2s;
+}
+
+.hng-modal-item:hover {
+    border-color: var(--hng-cart-primary, #2AFFA3);
+    box-shadow: 0 2px 8px rgba(42, 255, 163, 0.1);
+}
+
+.hng-modal-item-image {
+    width: 50px;
+    height: 50px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.hng-modal-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hng-modal-item-content {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.hng-modal-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.hng-modal-item-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--hng-cart-text, #1f2937);
+    line-height: 1.3;
+    max-width: calc(100% - 30px);
+}
+
+.hng-modal-item-remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.hng-modal-item-remove:hover {
+    color: #dc2626;
+    text-decoration: underline;
+}
+
+.hng-modal-item-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hng-modal-item-price {
+    font-size: 13px;
+    color: var(--hng-cart-muted, #6b7280);
+}
+
+.hng-modal-item-quantity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+/* Estado vazio */
+.hng-cart-modal-empty {
+    text-align: center;
+    padding: 30px 16px;
+    color: #9ca3af;
+}
+
+.hng-cart-modal-empty-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.hng-cart-modal-empty p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Footer com resumo e botões */
+.hng-cart-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--hng-cart-border, #e5e7eb);
+    background: var(--hng-cart-surface, #fff);
+    flex-shrink: 0;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Container .hng-cart-totals dentro do footer do modal */
+.hng-cart-modal-footer .hng-cart-totals {
+    background: transparent;
+    padding: 0;
+    border: none;
+    margin-bottom: 12px;
+}
+
+/* Compactar calculadora de frete no modal */
+.hng-cart-modal-footer .hng-cart-cep-row {
+    margin: 6px 0;
+}
+
+.hng-cart-modal-footer .hng-shipping-options {
+    margin: 6px 0;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+/* Container .hng-cart-actions dentro do footer do modal */
+.hng-cart-modal-footer .hng-cart-actions {
+    display: flex;
+    gap: 8px;
+    flex-direction: row;
+}
+
+.hng-cart-modal-footer .hng-cart-actions .btn {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: var(--hng-cart-radius, 6px);
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hng-cart-modal-footer .hng-cart-actions .btn-primary {
+    background: linear-gradient(135deg, var(--hng-cart-primary, #2AFFA3) 0%, var(--hng-cart-primary-dark, #1dd49a) 100%);
+    color: var(--hng-cart-contrast, #050505);
+    border: none;
+}
+
+.hng-cart-modal-footer .hng-cart-actions .btn-secondary {
+    background: var(--hng-cart-border, #e5e7eb);
+    color: var(--hng-cart-text, #1f2937);
+    border: none;
+    cursor: pointer;
+}
+
+.hng-cart-modal-footer .hng-cart-actions .btn-primary:hover {
+    box-shadow: 0 8px 16px rgba(42, 255, 163, 0.3);
+    transform: translateY(-2px);
+}
+
+.hng-cart-modal-footer .hng-cart-actions .btn-secondary:hover {
+    background: #d1d5db;
+}
+
+/* Resumo do carrinho */
+.hng-modal-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.hng-modal-summary-row {
+    display: flex;
+    justify-content: space-between;
+    color: var(--hng-cart-muted, #6b7280);
+}
+
+.hng-modal-summary-row.total {
+    color: var(--hng-cart-text, #1f2937);
+    font-weight: 700;
+    font-size: 14px;
+    padding-top: 8px;
+    border-top: 1px solid var(--hng-cart-border, #e5e7eb);
+}
+
+/* Botões de ação */
+.hng-modal-actions {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+    align-items: var(--hng-cart-button-align-flex, center);
+}
+
+.hng-modal-actions .btn {
+    padding: 10px 14px;
+    font-size: 13px;
+}
+
+.hng-modal-actions .btn-primary {
+    background: linear-gradient(135deg, var(--hng-cart-primary, #2AFFA3) 0%, var(--hng-cart-primary-dark, #1dd49a) 100%);
+    color: var(--hng-cart-contrast, #050505);
+}
+
+.hng-modal-actions .btn-secondary {
+    background: var(--hng-cart-border, #e5e7eb);
+    color: var(--hng-cart-text, #1f2937);
+}
+
+.hng-modal-actions .btn-primary:hover {
+    box-shadow: 0 8px 16px rgba(42, 255, 163, 0.3);
+    transform: translateY(-2px);
+}
+
+.hng-modal-actions .btn-secondary:hover {
+    background: #d1d5db;
+}
+
+/* Animations */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ==========================================================================
+   Tablet Styles (768px - 1024px)
+   ========================================================================== */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .hng-cart-modal {
+        padding: 24px;
+    }
+
+    .hng-cart-modal-content {
+        max-width: 400px !important;
+        max-height: 70vh !important;
+    }
+
+    .hng-cart-modal-header {
+        padding: 16px 20px;
+    }
+
+    .hng-cart-modal-header h2 {
+        font-size: 17px;
+    }
+
+    .hng-cart-modal-body {
+        padding: 16px 20px;
+        max-height: 40vh;
+    }
+
+    .hng-cart-modal-footer {
+        padding: 16px 20px;
+    }
+
+    .hng-modal-item {
+        grid-template-columns: 65px 1fr;
+        gap: 14px;
+        padding: 12px;
+    }
+
+    .hng-modal-item-image {
+        width: 65px;
+        height: 65px;
+    }
+}
+
+/* ==========================================================================
+   Tablet Portrait (768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .hng-cart-modal {
+        padding: 16px;
+        align-items: flex-end;
+    }
+
+    .hng-cart-modal-content {
+        max-width: 100% !important;
+        max-height: 85vh !important;
+        border-radius: var(--hng-cart-radius, 16px) var(--hng-cart-radius, 16px) 0 0 !important;
+        animation: modalSlideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    @keyframes modalSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .hng-cart-modal-header {
+        padding: 18px 20px;
+        border-radius: var(--hng-cart-radius, 16px) var(--hng-cart-radius, 16px) 0 0;
+    }
+
+    .hng-cart-modal-header h2 {
+        font-size: 17px;
+    }
+
+    .hng-cart-modal-body {
+        padding: 16px 20px;
+        max-height: 50vh;
+    }
+
+    .hng-cart-modal-footer {
+        padding: 16px 20px;
+        border-radius: 0;
+    }
+
+    .hng-modal-item {
+        grid-template-columns: 70px 1fr;
+        gap: 12px;
+        padding: 14px;
+        border-radius: 10px;
+    }
+
+    .hng-modal-item-image {
+        width: 70px;
+        height: 70px;
+        border-radius: 8px;
+    }
+
+    .hng-modal-item-name {
+        font-size: 14px;
+    }
+
+    .hng-cart-modal-footer .hng-cart-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .hng-cart-modal-footer .hng-cart-actions .btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 15px;
+    }
+}
+
+/* ==========================================================================
+   Mobile Styles (max-width: 480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+    .hng-cart-modal {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .hng-cart-modal-content {
+        max-width: 100% !important;
+        max-height: 90vh !important;
+        border-radius: 20px 20px 0 0 !important;
+        width: 100% !important;
+    }
+
+    .hng-cart-modal-header {
+        padding: 20px;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .hng-cart-modal-header h2 {
+        font-size: 18px;
+    }
+
+    .hng-cart-modal-close,
+    .hng-cart-modal-header .hng-cart-close {
+        width: 36px;
+        height: 36px;
+        font-size: 22px;
+    }
+
+    .hng-cart-modal-body {
+        padding: 16px;
+        max-height: calc(90vh - 200px);
+    }
+
+    .hng-cart-modal-footer {
+        padding: 16px;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .hng-modal-item {
+        grid-template-columns: 60px 1fr;
+        gap: 12px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: 12px;
+        background: var(--hng-cart-header-bg, #f9fafb);
+        border: none;
+    }
+
+    .hng-modal-item:hover {
+        border-color: transparent;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .hng-modal-item-image {
+        width: 60px;
+        height: 60px;
+        border-radius: 10px;
+    }
+
+    .hng-modal-item-name {
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .hng-modal-item-price {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--hng-cart-text, #1f2937);
+    }
+
+    .hng-modal-summary-row {
+        font-size: 14px;
+        padding: 4px 0;
+    }
+
+    .hng-modal-summary-row.total {
+        font-size: 16px;
+        padding-top: 12px;
+        margin-top: 8px;
+    }
+
+    .hng-modal-actions {
+        gap: 12px;
+    }
+
+    .hng-modal-actions .btn,
+    .hng-cart-modal-footer .hng-cart-actions .btn {
+        padding: 16px;
+        font-size: 16px;
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .hng-cart-modal-footer .hng-cart-actions .btn-primary {
+        box-shadow: 0 4px 16px rgba(42, 255, 163, 0.3);
+    }
+}
+
+/* ==========================================================================
+   Very Small Screens (max-width: 360px)
+   ========================================================================== */
+@media (max-width: 360px) {
+    .hng-cart-modal-header {
+        padding: 16px;
+    }
+
+    .hng-cart-modal-header h2 {
+        font-size: 16px;
+    }
+
+    .hng-cart-modal-body {
+        padding: 12px;
+    }
+
+    .hng-cart-modal-footer {
+        padding: 12px;
+    }
+
+    .hng-modal-item {
+        grid-template-columns: 50px 1fr;
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .hng-modal-item-image {
+        width: 50px;
+        height: 50px;
+    }
+
+    .hng-modal-item-name {
+        font-size: 13px;
+    }
+
+    .hng-modal-actions .btn,
+    .hng-cart-modal-footer .hng-cart-actions .btn {
+        padding: 14px;
+        font-size: 15px;
+    }
+}
