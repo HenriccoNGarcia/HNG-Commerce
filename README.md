@@ -19,31 +19,6 @@ Plugin de e-commerce para WordPress focado no mercado brasileiro, com recursos d
 2. Ative o plugin no painel WordPress.
 3. Configure as opções em `HNG Commerce` no admin.
 
-## Desenvolvimento
-
-### Validar sintaxe PHP
-
-```bash
-find . -name "*.php" -print0 | xargs -0 -n1 php -l
-```
-
-### Composer (opcional)
-
-```bash
-composer install
-```
-
-## Publicar no GitHub
-
-No diretório do plugin, execute:
-
-```bash
-git add .
-git commit -m "chore: init hng-commerce github project"
-git remote add origin https://github.com/SEU_USUARIO/hng-commerce.git
-git push -u origin main
-```
-
 ## Licença
 
 GPL-2.0-or-later (ver `LICENSE.txt`).
