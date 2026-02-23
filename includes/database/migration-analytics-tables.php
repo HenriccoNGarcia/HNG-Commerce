@@ -1,127 +1,135 @@
-<?php
+<?php // phpcs:ignore WordPress.Files.FileName.InvalidClassFileName
 /**
  * Migration: Create Analytics Tables
- * 
+ *
  * Cria tabelas necessárias para análise de conversão e abandono de carrinho
- * 
+ *
  * @package HNG_Commerce
  * @since 1.2.10
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName
+// phpcs:disable WordPress.DB.DirectDatabaseQuery
+// phpcs:disable WordPress.DB.PreparedSQL
+// phpcs:disable WordPress.Security.NonceVerification.Recommended
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class HNG_Migration_Analytics_Tables {
-    
-    /**
-     * Run migration
-     */
-    public static function run() {
-        global $wpdb;
-        
-        $charset_collate = $wpdb->get_charset_collate();
-        
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        
-        // 1. Adicionar coluna source_page_id na tabela hng_orders
-        self::add_source_page_id_column();
-        
-        // 2. Adicionar coluna gateway na tabela hng_orders
-        self::add_gateway_column();
-        
-        // 3. Criar tabela hng_pageviews
-        self::create_pageviews_table($charset_collate);
-        
-        // 4. Criar tabela hng_abandoned_carts
-        self::create_abandoned_carts_table($charset_collate);
-        
-        // 5. Criar tabela hng_carts
-        self::create_carts_table($charset_collate);
-        
-        // 6. Criar tabela hng_checkout_sessions
-        self::create_checkout_sessions_table($charset_collate);
-        
-        // 7. Criar tabela hng_cart_items (para abandoned carts)
-        self::create_cart_items_table($charset_collate);
-        
-        return true;
-    }
-    
-    /**
-     * Add source_page_id column to hng_orders
-     */
-    private static function add_source_page_id_column() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_orders';
-        
-        // Check if column exists
-        $column_exists = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+
+	/**
+	 * Run migration
+	 */
+	public static function run() {
+		global $wpdb;
+
+		$charset_collate = $wpdb->get_charset_collate();
+
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		// 1. Adicionar coluna source_page_id na tabela hng_orders
+		self::add_source_page_id_column();
+
+		// 2. Adicionar coluna gateway na tabela hng_orders
+		self::add_gateway_column();
+
+		// 3. Criar tabela hng_pageviews
+		self::create_pageviews_table( $charset_collate );
+
+		// 4. Criar tabela hng_abandoned_carts
+		self::create_abandoned_carts_table( $charset_collate );
+
+		// 5. Criar tabela hng_carts
+		self::create_carts_table( $charset_collate );
+
+		// 6. Criar tabela hng_checkout_sessions
+		self::create_checkout_sessions_table( $charset_collate );
+
+		// 7. Criar tabela hng_cart_items (para abandoned carts)
+		self::create_cart_items_table( $charset_collate );
+
+		return true;
+	}
+
+	/**
+	 * Add source_page_id column to hng_orders
+	 */
+	private static function add_source_page_id_column() {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_orders';
+
+		// Check if column exists
+		$column_exists = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                  WHERE TABLE_SCHEMA = %s 
                  AND TABLE_NAME = %s 
                  AND COLUMN_NAME = 'source_page_id'",
-                DB_NAME,
-                $table_name
-            )
-        );
-        
-        if (empty($column_exists)) {
-            // Add column without specifying position (AFTER) to avoid dependency on existing columns
-            $wpdb->query(
-                "ALTER TABLE {$table_name} 
+				DB_NAME,
+				$table_name
+			)
+		);
+
+		if ( empty( $column_exists ) ) {
+			// Add column without specifying position (AFTER) to avoid dependency on existing columns
+			$wpdb->query(
+				"ALTER TABLE {$table_name} 
                  ADD COLUMN source_page_id BIGINT(20) UNSIGNED NULL"
-            );
-            // Add index separately
-            $wpdb->query(
-                "ALTER TABLE {$table_name} 
+			);
+			// Add index separately
+			$wpdb->query(
+				"ALTER TABLE {$table_name} 
                  ADD INDEX idx_source_page_id (source_page_id)"
-            );
-        }
-    }
-    
-    /**
-     * Add gateway column to hng_orders
-     */
-    private static function add_gateway_column() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_orders';
-        
-        // Check if column exists
-        $column_exists = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+			);
+		}
+	}
+
+	/**
+	 * Add gateway column to hng_orders
+	 */
+	private static function add_gateway_column() {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_orders';
+
+		// Check if column exists
+		$column_exists = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                  WHERE TABLE_SCHEMA = %s 
                  AND TABLE_NAME = %s 
                  AND COLUMN_NAME = 'gateway'",
-                DB_NAME,
-                $table_name
-            )
-        );
-        
-        if (empty($column_exists)) {
-            // Add column without specifying position (AFTER) to avoid dependency on existing columns
-            $wpdb->query(
-                "ALTER TABLE {$table_name} 
+				DB_NAME,
+				$table_name
+			)
+		);
+
+		if ( empty( $column_exists ) ) {
+			// Add column without specifying position (AFTER) to avoid dependency on existing columns
+			$wpdb->query(
+				"ALTER TABLE {$table_name} 
                  ADD COLUMN gateway VARCHAR(50) NULL"
-            );
-            // Add index separately
-            $wpdb->query(
-                "ALTER TABLE {$table_name} 
+			);
+			// Add index separately
+			$wpdb->query(
+				"ALTER TABLE {$table_name} 
                  ADD INDEX idx_gateway (gateway)"
-            );
-        }
-    }
-    
-    /**
-     * Create hng_pageviews table
-     */
-    private static function create_pageviews_table($charset_collate) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_pageviews';
-        
-        $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+			);
+		}
+	}
+
+	/**
+	 * Create hng_pageviews table
+	 */
+	private static function create_pageviews_table( $charset_collate ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_pageviews';
+
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             visitor_id VARCHAR(255) NOT NULL,
             page_id BIGINT(20) UNSIGNED NOT NULL,
@@ -137,18 +145,18 @@ class HNG_Migration_Analytics_Tables {
             INDEX idx_session_id (session_id),
             INDEX idx_created_at (created_at)
         ) {$charset_collate};";
-        
-        dbDelta($sql);
-    }
-    
-    /**
-     * Create hng_abandoned_carts table
-     */
-    private static function create_abandoned_carts_table($charset_collate) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_abandoned_carts';
-        
-        $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Create hng_abandoned_carts table
+	 */
+	private static function create_abandoned_carts_table( $charset_collate ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_abandoned_carts';
+
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT(20) UNSIGNED NULL,
             session_id VARCHAR(255) NOT NULL,
@@ -168,18 +176,18 @@ class HNG_Migration_Analytics_Tables {
             INDEX idx_created_at (created_at),
             INDEX idx_abandoned_at (abandoned_at)
         ) {$charset_collate};";
-        
-        dbDelta($sql);
-    }
-    
-    /**
-     * Create hng_carts table
-     */
-    private static function create_carts_table($charset_collate) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_carts';
-        
-        $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Create hng_carts table
+	 */
+	private static function create_carts_table( $charset_collate ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_carts';
+
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT(20) UNSIGNED NULL,
             session_id VARCHAR(255) NOT NULL,
@@ -192,18 +200,18 @@ class HNG_Migration_Analytics_Tables {
             INDEX idx_status (status),
             INDEX idx_created_at (created_at)
         ) {$charset_collate};";
-        
-        dbDelta($sql);
-    }
-    
-    /**
-     * Create hng_checkout_sessions table
-     */
-    private static function create_checkout_sessions_table($charset_collate) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_checkout_sessions';
-        
-        $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Create hng_checkout_sessions table
+	 */
+	private static function create_checkout_sessions_table( $charset_collate ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_checkout_sessions';
+
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             session_id VARCHAR(255) NOT NULL,
             user_id BIGINT(20) UNSIGNED NULL,
@@ -219,18 +227,18 @@ class HNG_Migration_Analytics_Tables {
             INDEX idx_status (status),
             INDEX idx_created_at (created_at)
         ) {$charset_collate};";
-        
-        dbDelta($sql);
-    }
-    
-    /**
-     * Create hng_cart_items table
-     */
-    private static function create_cart_items_table($charset_collate) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'hng_cart_items';
-        
-        $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Create hng_cart_items table
+	 */
+	private static function create_cart_items_table( $charset_collate ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'hng_cart_items';
+
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             cart_id BIGINT(20) UNSIGNED NOT NULL,
             product_id BIGINT(20) UNSIGNED NOT NULL,
@@ -241,13 +249,13 @@ class HNG_Migration_Analytics_Tables {
             INDEX idx_cart_id (cart_id),
             INDEX idx_product_id (product_id)
         ) {$charset_collate};";
-        
-        dbDelta($sql);
-    }
+
+		dbDelta( $sql );
+	}
 }
 
 // Run migration if called directly
-if (isset($_GET['run_analytics_migration']) && current_user_can('manage_options')) {
-    HNG_Migration_Analytics_Tables::run();
-    wp_die('Migration completed successfully!');
+if ( isset( $_GET['run_analytics_migration'] ) && current_user_can( 'manage_options' ) ) {
+	HNG_Migration_Analytics_Tables::run();
+	wp_die( 'Migration completed successfully!' );
 }

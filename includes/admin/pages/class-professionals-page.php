@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:ignore WordPress.Files.FileName.InvalidClassFileName
 /**
  * HNG Admin - Professionals Page
  *
@@ -9,406 +9,392 @@
  * @since 1.2.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class HNG_Admin_Professionals_Page {
-    
-    /**
 
-     * Renderizar página
+	/**
 
-     */
+	 * Renderizar página
+	 */
+	public static function render() {
 
-    public static function render() {
+		// Enqueue scripts and styles
 
-        // Enqueue scripts and styles
+		self::enqueue_scripts();
 
-        self::enqueue_scripts();
+		echo '<div class="hng-wrap">';
 
-        
+		self::render_header();
 
-        echo '<div class="hng-wrap">';
+		self::render_modal();
 
-        self::render_header();
+		self::render_table();
 
-        self::render_modal();
+		echo '</div>';
+	}
 
-        self::render_table();
 
-        echo '</div>';
 
-    }
+	/**
 
-    
+	 * Enqueue scripts and styles
+	 */
+	private static function enqueue_scripts() {
 
-    /**
+		wp_enqueue_script( 'jquery' );
 
-     * Enqueue scripts and styles
+		wp_enqueue_script(
+			'hng-admin-professionals',
+			HNG_COMMERCE_URL . 'assets/js/admin-professionals.js',
+			array( 'jquery' ),
+			HNG_COMMERCE_VERSION,
+			true
+		);
 
-     */
+		wp_localize_script(
+			'hng-admin-professionals',
+			'hngProfessionalsPage',
+			array(
 
-    private static function enqueue_scripts() {
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 
-        wp_enqueue_script('jquery');
+				'nonce'   => wp_create_nonce( 'hng-commerce-admin' ),
 
-        wp_enqueue_script('hng-admin-professionals', 
+				'i18n'    => array(
 
-            HNG_COMMERCE_URL . 'assets/js/admin-professionals.js',
+					'newProfessional'  => __( 'Novo Profissional', 'hng-commerce' ),
 
-            ['jquery'],
+					'editProfessional' => __( 'Editar Profissional', 'hng-commerce' ),
 
-            HNG_COMMERCE_VERSION,
+					'noProfessionals'  => __( 'Nenhum profissional cadastrado ainda.', 'hng-commerce' ),
 
-            true
+					'saving'           => __( 'Salvando...', 'hng-commerce' ),
 
-        );
+					'save'             => __( 'Salvar', 'hng-commerce' ),
 
-        
+					'cancel'           => __( 'Cancelar', 'hng-commerce' ),
 
-        wp_localize_script('hng-admin-professionals', 'hngProfessionalsPage', [
+					'delete'           => __( 'Excluir', 'hng-commerce' ),
 
-            'ajaxUrl' => admin_url('admin-ajax.php'),
+					'edit'             => __( 'Editar', 'hng-commerce' ),
 
-            'nonce' => wp_create_nonce('hng-commerce-admin'),
+					'active'           => __( 'Ativo', 'hng-commerce' ),
 
-            'i18n' => [
+					'inactive'         => __( 'Inativo', 'hng-commerce' ),
 
-                'newProfessional' => __('Novo Profissional', 'hng-commerce'),
+					/* translators: %s: professional name */
 
-                'editProfessional' => __('Editar Profissional', 'hng-commerce'),
+					'deleteConfirm'    => __( 'Tem certeza que deseja excluir "%s"?', 'hng-commerce' ),
 
-                'noProfessionals' => __('Nenhum profissional cadastrado ainda.', 'hng-commerce'),
+					'error'            => __( 'Erro ao processar a solicitação.', 'hng-commerce' ),
 
-                'saving' => __('Salvando...', 'hng-commerce'),
+					'invalidEmail'     => __( 'E-mail inválido.', 'hng-commerce' ),
 
-                'save' => __('Salvar', 'hng-commerce'),
+				),
 
-                'cancel' => __('Cancelar', 'hng-commerce'),
+			)
+		);
+	}
 
-                'delete' => __('Excluir', 'hng-commerce'),
 
-                'edit' => __('Editar', 'hng-commerce'),
 
-                'active' => __('Ativo', 'hng-commerce'),
+	/**
 
-                'inactive' => __('Inativo', 'hng-commerce'),
+	 * Render page header
+	 */
+	private static function render_header() {
 
-                /* translators: %s: professional name */
+		?>
 
-                'deleteConfirm' => __('Tem certeza que deseja excluir "%s"?', 'hng-commerce'),
+		<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
 
-                'error' => __('Erro ao processar a solicitação.', 'hng-commerce'),
+			<h1 style="display: inline-flex; align-items: center;"><?php esc_html_e( 'Profissionais', 'hng-commerce' ); ?>
+				<?php
+				if ( function_exists( 'hng_admin_tooltip' ) ) {
+					echo wp_kses_post(
+						hng_admin_tooltip(
+							'👨‍💼 Gestão de Profissionais',
+							array(
+								array(
+									'title'   => 'O que é?',
+									'content' => 'Cadastro central de profissionais para serviços e agendamentos. Esta lista aparece na seleção de profissional dos produtos de agendamento.',
+								),
+								array(
+									'title'   => '📋 Dados do Profissional',
+									'content' => 'Nome, e-mail, telefone e anotações internas. Vínculo opcional com usuário WordPress e status ativo/inativo para controle de disponibilidade.',
+								),
+								array(
+									'title'   => '⚙️ Como Funciona',
+									'content' => 'Associe profissionais aos produtos do tipo Agendamento. Somente profissionais ativos aparecem para o cliente. Desativar mantém o histórico sem apagar o cadastro.',
+								),
+							),
+							array(
+								'title' => '💡 Dica',
+								'items' => array(
+									array(
+										'label' => 'Passo 1',
+										'text'  => 'Cadastre os profissionais aqui',
+									),
+									array(
+										'label' => 'Passo 2',
+										'text'  => 'Vincule nos produtos de agendamento',
+									),
+								),
+							)
+						)
+					);
+				}
+				?>
+			</h1>
 
-                'invalidEmail' => __('E-mail inválido.', 'hng-commerce'),
+			<button id="hng-new-professional-btn" class="button button-primary" style="font-size: 14px; padding: 8px 16px;">
 
-            ]
+				<?php esc_html_e( '+ Novo Profissional', 'hng-commerce' ); ?>
 
-        ]);
+			</button>
 
-    }
+		</div>
 
-    
+		<div id="hng-alert-container"></div>
 
-    /**
+		<?php
+	}
 
-     * Render page header
 
-     */
 
-    private static function render_header() {
+	/**
 
-        ?>
+	 * Render table
+	 */
+	private static function render_table() {
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+		?>
 
-            <h1 style="display: inline-flex; align-items: center;"><?php esc_html_e('Profissionais', 'hng-commerce'); ?>
-                <?php 
-                if (function_exists('hng_admin_tooltip')) {
-                    echo hng_admin_tooltip(
-                        '👨‍💼 Gestão de Profissionais',
-                        [
-                            [
-                                'title' => 'O que é?',
-                                'content' => 'Cadastro central de profissionais para serviços e agendamentos. Esta lista aparece na seleção de profissional dos produtos de agendamento.'
-                            ],
-                            [
-                                'title' => '📋 Dados do Profissional',
-                                'content' => 'Nome, e-mail, telefone e anotações internas. Vínculo opcional com usuário WordPress e status ativo/inativo para controle de disponibilidade.'
-                            ],
-                            [
-                                'title' => '⚙️ Como Funciona',
-                                'content' => 'Associe profissionais aos produtos do tipo Agendamento. Somente profissionais ativos aparecem para o cliente. Desativar mantém o histórico sem apagar o cadastro.'
-                            ]
-                        ],
-                        [
-                            'title' => '💡 Dica',
-                            'items' => [
-                                ['label' => 'Passo 1', 'text' => 'Cadastre os profissionais aqui'],
-                                ['label' => 'Passo 2', 'text' => 'Vincule nos produtos de agendamento'],
-                            ]
-                        ]
-                    );
-                }
-                ?>
-            </h1>
+		<table class="wp-list-table widefat striped">
 
-            <button id="hng-new-professional-btn" class="button button-primary" style="font-size: 14px; padding: 8px 16px;">
+			<thead>
 
-                <?php esc_html_e('+ Novo Profissional', 'hng-commerce'); ?>
+				<tr>
 
-            </button>
+					<th><?php esc_html_e( 'ID', 'hng-commerce' ); ?></th>
 
-        </div>
+					<th><?php esc_html_e( 'Nome', 'hng-commerce' ); ?></th>
 
-        <div id="hng-alert-container"></div>
+					<th><?php esc_html_e( 'E-mail', 'hng-commerce' ); ?></th>
 
-        <?php
+					<th><?php esc_html_e( 'Usuário WordPress', 'hng-commerce' ); ?></th>
 
-    }
+					<th><?php esc_html_e( 'Telefone', 'hng-commerce' ); ?></th>
 
-    
+					<th><?php esc_html_e( 'Status', 'hng-commerce' ); ?></th>
 
-    /**
+					<th><?php esc_html_e( 'Ações', 'hng-commerce' ); ?></th>
 
-     * Render table
+				</tr>
 
-     */
+			</thead>
 
-    private static function render_table() {
+			<tbody id="hng-professionals-tbody">
 
-        ?>
+				<tr><td colspan="7" style="text-align: center; padding: 20px;"><?php esc_html_e( 'Carregando...', 'hng-commerce' ); ?></td></tr>
 
-        <table class="wp-list-table widefat striped">
+			</tbody>
 
-            <thead>
+		</table>
 
-                <tr>
+		<?php
 
-                    <th><?php esc_html_e('ID', 'hng-commerce'); ?></th>
+		self::render_modal();
+	}
 
-                    <th><?php esc_html_e('Nome', 'hng-commerce'); ?></th>
 
-                    <th><?php esc_html_e('E-mail', 'hng-commerce'); ?></th>
 
-                    <th><?php esc_html_e('Usuário WordPress', 'hng-commerce'); ?></th>
+	/**
 
-                    <th><?php esc_html_e('Telefone', 'hng-commerce'); ?></th>
+	 * Render modal for create/edit professional
+	 */
+	private static function render_modal() {
 
-                    <th><?php esc_html_e('Status', 'hng-commerce'); ?></th>
+		?>
 
-                    <th><?php esc_html_e('Ações', 'hng-commerce'); ?></th>
+		<div id="hng-modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;"></div>
 
-                </tr>
+		
 
-            </thead>
+		<div id="hng-new-professional-modal" class="hng-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000; min-width: 500px; max-height: 90vh; overflow-y: auto;">
 
-            <tbody id="hng-professionals-tbody">
+			<div class="modal-header" style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
 
-                <tr><td colspan="7" style="text-align: center; padding: 20px;"><?php esc_html_e('Carregando...', 'hng-commerce'); ?></td></tr>
+				<h2 style="margin: 0;"><?php esc_html_e( 'Novo Profissional', 'hng-commerce' ); ?></h2>
 
-            </tbody>
+				<button type="button" class="hng-modal-close" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
 
-        </table>
+			</div>
 
-        <?php
+			
 
-        self::render_modal();
+			<div class="modal-body" style="padding: 20px;">
 
-    }
+				<form id="hng-new-professional-form">
 
-    
+					<input type="hidden" id="hng-prof-id" name="id" value="">
 
-    /**
+					
 
-     * Render modal for create/edit professional
+					<div style="margin-bottom: 15px;">
 
-     */
+						<label for="hng-prof-name" style="display: block; margin-bottom: 5px; font-weight: 500;">
 
-    private static function render_modal() {
+							<?php esc_html_e( 'Nome *', 'hng-commerce' ); ?>
 
-        ?>
+						</label>
 
-        <div id="hng-modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;"></div>
+						<input type="text" id="hng-prof-name" name="name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 
-        
+					</div>
 
-        <div id="hng-new-professional-modal" class="hng-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10000; min-width: 500px; max-height: 90vh; overflow-y: auto;">
+					
 
-            <div class="modal-header" style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+					<div style="margin-bottom: 15px;">
 
-                <h2 style="margin: 0;"><?php esc_html_e('Novo Profissional', 'hng-commerce'); ?></h2>
+						<label for="hng-prof-email" style="display: block; margin-bottom: 5px; font-weight: 500;">
 
-                <button type="button" class="hng-modal-close" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+							<?php esc_html_e( 'E-mail *', 'hng-commerce' ); ?>
 
-            </div>
+						</label>
 
-            
+						<input type="email" id="hng-prof-email" name="email" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 
-            <div class="modal-body" style="padding: 20px;">
+					</div>
 
-                <form id="hng-new-professional-form">
+					
 
-                    <input type="hidden" id="hng-prof-id" name="id" value="">
+					<div style="margin-bottom: 15px;">
 
-                    
+						<label for="hng-prof-phone" style="display: block; margin-bottom: 5px; font-weight: 500;">
 
-                    <div style="margin-bottom: 15px;">
+							<?php esc_html_e( 'Telefone', 'hng-commerce' ); ?>
 
-                        <label for="hng-prof-name" style="display: block; margin-bottom: 5px; font-weight: 500;">
+						</label>
 
-                            <?php esc_html_e('Nome *', 'hng-commerce'); ?>
+						<input type="tel" id="hng-prof-phone" name="phone" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 
-                        </label>
+					</div>
 
-                        <input type="text" id="hng-prof-name" name="name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+					
 
-                    </div>
+					<div style="margin-bottom: 15px;">
 
-                    
+						<label for="hng-prof-wp-user" style="display: block; margin-bottom: 5px; font-weight: 500;">
 
-                    <div style="margin-bottom: 15px;">
+							<?php esc_html_e( 'Usuário WordPress', 'hng-commerce' ); ?>
 
-                        <label for="hng-prof-email" style="display: block; margin-bottom: 5px; font-weight: 500;">
+						</label>
 
-                            <?php esc_html_e('E-mail *', 'hng-commerce'); ?>
+						<select id="hng-prof-wp-user" name="wp_user_id" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 
-                        </label>
+							<option value=""><?php esc_html_e( '-- Nenhum usuário --', 'hng-commerce' ); ?></option>
 
-                        <input type="email" id="hng-prof-email" name="email" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+							<?php self::render_wordpress_users_options(); ?>
 
-                    </div>
+						</select>
 
-                    
+					</div>
 
-                    <div style="margin-bottom: 15px;">
+					
 
-                        <label for="hng-prof-phone" style="display: block; margin-bottom: 5px; font-weight: 500;">
+					<div style="margin-bottom: 15px;">
 
-                            <?php esc_html_e('Telefone', 'hng-commerce'); ?>
+						<label for="hng-prof-notes" style="display: block; margin-bottom: 5px; font-weight: 500;">
 
-                        </label>
+							<?php esc_html_e( 'Anotações', 'hng-commerce' ); ?>
 
-                        <input type="tel" id="hng-prof-phone" name="phone" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+						</label>
 
-                    </div>
+						<textarea id="hng-prof-notes" name="notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
 
-                    
+					</div>
 
-                    <div style="margin-bottom: 15px;">
+					
 
-                        <label for="hng-prof-wp-user" style="display: block; margin-bottom: 5px; font-weight: 500;">
+					<div style="margin-bottom: 15px;">
 
-                            <?php esc_html_e('Usuário WordPress', 'hng-commerce'); ?>
+						<label style="display: flex; align-items: center; font-weight: 500;">
 
-                        </label>
+							<input type="checkbox" id="hng-prof-active" name="active" checked style="margin-right: 8px;">
 
-                        <select id="hng-prof-wp-user" name="wp_user_id" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+							<?php esc_html_e( 'Ativo', 'hng-commerce' ); ?>
 
-                            <option value=""><?php esc_html_e('-- Nenhum usuário --', 'hng-commerce'); ?></option>
+						</label>
 
-                            <?php self::render_wordpress_users_options(); ?>
+					</div>
 
-                        </select>
+					
 
-                    </div>
+					<div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
 
-                    
+						<button type="button" class="button" id="hng-modal-cancel-btn" style="cursor: pointer;">
 
-                    <div style="margin-bottom: 15px;">
+							<?php esc_html_e( 'Cancelar', 'hng-commerce' ); ?>
 
-                        <label for="hng-prof-notes" style="display: block; margin-bottom: 5px; font-weight: 500;">
+						</button>
 
-                            <?php esc_html_e('Anotações', 'hng-commerce'); ?>
+						<button type="submit" class="button button-primary" style="cursor: pointer;">
 
-                        </label>
+							<?php esc_html_e( 'Salvar Profissional', 'hng-commerce' ); ?>
 
-                        <textarea id="hng-prof-notes" name="notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+						</button>
 
-                    </div>
+					</div>
 
-                    
+				</form>
 
-                    <div style="margin-bottom: 15px;">
+			</div>
 
-                        <label style="display: flex; align-items: center; font-weight: 500;">
+		</div>
 
-                            <input type="checkbox" id="hng-prof-active" name="active" checked style="margin-right: 8px;">
+		
 
-                            <?php esc_html_e('Ativo', 'hng-commerce'); ?>
+		<script>
 
-                        </label>
+		jQuery(function($) {
 
-                    </div>
+			$('#hng-modal-cancel-btn').on('click', function() {
 
-                    
+				$('#hng-new-professional-modal').fadeOut();
 
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+				$('#hng-modal-backdrop').fadeOut();
 
-                        <button type="button" class="button" id="hng-modal-cancel-btn" style="cursor: pointer;">
+			});
 
-                            <?php esc_html_e('Cancelar', 'hng-commerce'); ?>
+		});
 
-                        </button>
+		</script>
 
-                        <button type="submit" class="button button-primary" style="cursor: pointer;">
+		<?php
+	}
 
-                            <?php esc_html_e('Salvar Profissional', 'hng-commerce'); ?>
 
-                        </button>
 
-                    </div>
+	/**
 
-                </form>
+	 * Render WordPress users options
+	 */
+	private static function render_wordpress_users_options() {
 
-            </div>
+		$users = get_users( array( 'role__not_in' => 'subscriber' ) );
 
-        </div>
+		foreach ( $users as $user ) {
 
-        
+			echo '<option value="' . intval( $user->ID ) . '">' . esc_html( $user->display_name ) . ' (' . esc_html( $user->user_email ) . ')</option>';
 
-        <script>
-
-        jQuery(function($) {
-
-            $('#hng-modal-cancel-btn').on('click', function() {
-
-                $('#hng-new-professional-modal').fadeOut();
-
-                $('#hng-modal-backdrop').fadeOut();
-
-            });
-
-        });
-
-        </script>
-
-        <?php
-
-    }
-
-    
-
-    /**
-
-     * Render WordPress users options
-
-     */
-
-    private static function render_wordpress_users_options() {
-
-        $users = get_users(['role__not_in' => 'subscriber']);
-
-        
-
-        foreach ($users as $user) {
-
-            echo '<option value="' . intval($user->ID) . '">' . esc_html($user->display_name) . ' (' . esc_html($user->user_email) . ')</option>';
-
-        }
-
-    }
-
+		}
+	}
 }
 

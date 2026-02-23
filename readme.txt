@@ -10,7 +10,7 @@ Tested up to: 6.9
 
 Requires PHP: 7.4
 
-Stable tag: 1.2.23
+Stable tag: 1.2.32
 
 License: GPLv2 or later
 
@@ -597,7 +597,7 @@ Go to 'HNG Commerce > Settings > Payments' and enter the keys/credentials for th
 == Changelog ==
 
 = 1.2.23 - 2026-02-10 =
-* **NEW**: Carrinho Padrão - Opção para usar o carrinho nativo do tema/WooCommerce
+* **NEW**: Carrinho Padrão - Opção para usar o carrinho nativo do tema
 * **NEW**: Configuração de Overlay - Admin pode escolher se deseja fundo escuro ao abrir carrinho
 * **ENHANCEMENT**: Melhorias na detecção de cliques no modal (sem fechar ao clicar dentro do conteúdo)
 * **ENHANCEMENT**: Remoção do overlay HTML separado, integrado ao container do modal

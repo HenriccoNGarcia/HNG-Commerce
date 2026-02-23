@@ -1,26 +1,20 @@
 <?php
-
 /**
-
  * Configurações de Pagamento - Gateways
-
  *
-
  * @package HNG_Commerce
-
  * @subpackage Admin
-
  * @since 1.0.0
-
  */
 
+// phpcs:disable Squiz.Commenting
 
 
 // Exit if accessed directly
 
 if ( ! defined( 'ABSPATH' ) ) {
 
-    exit;
+	exit;
 
 }
 
@@ -29,1486 +23,1389 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
 
  * HNG Payment Settings Class
-
  */
 
 class HNG_Payment_Settings {
 
 
 
-    /**
+	/**
 
-     * Singleton instance
+	 * Singleton instance
+	 */
 
-     */
+	private static $instance = null;
 
-    private static $instance = null;
 
 
+	/**
 
-    /**
+	 * Constructor
+	 */
+	private function __construct() {
 
-     * Constructor
+		$this->register_gateways();
 
-     */
+		add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
 
-    private function __construct() {
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
 
-        $this->register_gateways();
+		add_action( 'wp_ajax_test_gateway_connection', array( $this, 'ajax_test_gateway_connection' ) );
+	}
 
-        add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
 
-        add_action( 'admin_init', array( $this, 'register_settings' ) );
 
-        add_action( 'wp_ajax_test_gateway_connection', array( $this, 'ajax_test_gateway_connection' ) );
+	/**
 
-    }
+	 * Get singleton instance
+	 */
+	public static function get_instance() {
 
+		if ( is_null( self::$instance ) ) {
 
+			self::$instance = new self();
 
-    /**
+		}
 
-     * Get singleton instance
+		return self::$instance;
+	}
 
-     */
 
-    public static function get_instance() {
 
-        if ( is_null( self::$instance ) ) {
+	/**
 
-            self::$instance = new self();
+	 * Available gateways
+	 */
+	public function get_available_gateways() {
 
-        }
+		return array(
 
-        return self::$instance;
+			'asaas'       => array(
 
-    }
+				'name'        => 'Asaas',
 
+				'description' => 'Gateway de pagamento brasileiro competitivo',
 
+				'icon'        => 'cc',
 
-    /**
+				'methods'     => array( 'boleto', 'credit_card', 'pix' ),
 
-     * Available gateways
+				'fields'      => array(
 
-     */
+					'api_key'     => array(
 
-    public function get_available_gateways() {
+						'label'       => 'API Key',
 
-        return array(
+						'type'        => 'password',
 
-            'asaas' => array(
+						'description' => 'Chave API do Asaas (encontre em Conta → Integrações → API)',
 
-                'name' => 'Asaas',
+					),
 
-                'description' => 'Gateway de pagamento brasileiro competitivo',
+					'environment' => array(
 
-                'icon' => 'cc',
+						'label'   => 'Ambiente',
 
-                'methods' => array( 'boleto', 'credit_card', 'pix' ),
+						'type'    => 'select',
 
-                'fields' => array(
+						'options' => array(
 
-                    'api_key' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'API Key',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Chave API do Asaas (encontre em Conta → Integrações → API)',
+					),
 
-                    ),
+				),
 
-                    'environment' => array(
+			),
 
-                        'label' => 'Ambiente',
+			'mercadopago' => array(
 
-                        'type' => 'select',
+				'name'        => 'Mercado Pago',
 
-                        'options' => array(
+				'description' => 'Solução completa de pagamentos na América Latina',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'icon'        => 'cc',
 
-                            'production' => 'Produção',
+				'methods'     => array( 'boleto', 'credit_card', 'pix' ),
 
-                        ),
+				'fields'      => array(
 
-                    ),
+					'public_key'   => array(
 
-                ),
+						'label'       => 'Public Key',
 
-            ),
+						'type'        => 'text',
 
-            'mercadopago' => array(
+						'description' => 'Chave pública do Mercado Pago',
 
-                'name' => 'Mercado Pago',
+					),
 
-                'description' => 'Solução completa de pagamentos na América Latina',
+					'access_token' => array(
 
-                'icon' => 'cc',
+						'label'       => 'Access Token',
 
-                'methods' => array( 'boleto', 'credit_card', 'pix' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Token de acesso do Mercado Pago (encontre em Seu Negócio → Configurações → Credenciais)',
 
-                    'public_key' => array(
+					),
 
-                        'label' => 'Public Key',
+					'environment'  => array(
 
-                        'type' => 'text',
+						'label'   => 'Ambiente',
 
-                        'description' => 'Chave pública do Mercado Pago',
+						'type'    => 'select',
 
-                    ),
+						'options' => array(
 
-                    'access_token' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Access Token',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Token de acesso do Mercado Pago (encontre em Seu Negócio → Configurações → Credenciais)',
+					),
 
-                    ),
+				),
 
-                    'environment' => array(
+			),
 
-                        'label' => 'Ambiente',
+			'pagseguro'   => array(
 
-                        'type' => 'select',
+				'name'        => 'PagSeguro',
 
-                        'options' => array(
+				'description' => 'Processamento seguro de pagamentos pela Uol',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'icon'        => 'cc',
 
-                            'production' => 'Produção',
+				'methods'     => array( 'boleto', 'credit_card', 'pix' ),
 
-                        ),
+				'fields'      => array(
 
-                    ),
+					'email'       => array(
 
-                ),
+						'label'       => 'E-mail PagSeguro',
 
-            ),
+						'type'        => 'email',
 
-            'pagseguro' => array(
+						'description' => 'E-mail cadastrado no PagSeguro',
 
-                'name' => 'PagSeguro',
+					),
 
-                'description' => 'Processamento seguro de pagamentos pela Uol',
+					'token'       => array(
 
-                'icon' => 'cc',
+						'label'       => 'Token',
 
-                'methods' => array( 'boleto', 'credit_card', 'pix' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Token de integração do PagSeguro',
 
-                    'email' => array(
+					),
 
-                        'label' => 'E-mail PagSeguro',
+					'environment' => array(
 
-                        'type' => 'email',
+						'label'   => 'Ambiente',
 
-                        'description' => 'E-mail cadastrado no PagSeguro',
+						'type'    => 'select',
 
-                    ),
+						'options' => array(
 
-                    'token' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Token',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Token de integração do PagSeguro',
+					),
 
-                    ),
+				),
 
-                    'environment' => array(
+			),
 
-                        'label' => 'Ambiente',
+			'pagarme'     => array(
 
-                        'type' => 'select',
+				'name'        => 'Pagar.me',
 
-                        'options' => array(
+				'description' => 'Gateway Stone. Split nativo, receba em D+1',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'icon'        => 'cc',
 
-                            'production' => 'Produção',
+				'methods'     => array( 'pix', 'boleto', 'credit_card' ),
 
-                        ),
+				'fields'      => array(
 
-                    ),
+					'secret_key'  => array(
 
-                ),
+						'label'       => 'Secret Key',
 
-            ),
+						'type'        => 'password',
 
-            'pagarme' => array(
+						'description' => 'Chave secreta (Dashboard → Configurações → API)',
 
-                'name' => 'Pagar.me',
+					),
 
-                'description' => 'Gateway Stone. Split nativo, receba em D+1',
+					'public_key'  => array(
 
-                'icon' => 'cc',
+						'label'       => 'Public Key',
 
-                'methods' => array( 'pix', 'boleto', 'credit_card' ),
+						'type'        => 'text',
 
-                'fields' => array(
+						'description' => 'Chave pública para checkout',
 
-                    'secret_key' => array(
+					),
 
-                        'label' => 'Secret Key',
+					'environment' => array(
 
-                        'type' => 'password',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Chave secreta (Dashboard → Configurações → API)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'public_key' => array(
+							'test' => 'Test',
 
-                        'label' => 'Public Key',
+							'live' => 'Live',
 
-                        'type' => 'text',
+						),
 
-                        'description' => 'Chave pública para checkout',
+						'description' => 'Use Test para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'nubank'      => array(
 
-                        'options' => array(
+				'name'        => 'Nubank',
 
-                            'test' => 'Test',
+				'description' => 'Fintech Nubank. PIX instantâneo com taxas baixas',
 
-                            'live' => 'Live',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'credit_card' ),
 
-                        'description' => 'Use Test para homologação',
+				'fields'      => array(
 
-                    ),
+					'client_id'     => array(
 
-                ),
+						'label'       => 'Client ID',
 
-            ),
+						'type'        => 'text',
 
-            'nubank' => array(
+						'description' => 'Client ID da aplicação (Portal do Desenvolvedor)',
 
-                'name' => 'Nubank',
+					),
 
-                'description' => 'Fintech Nubank. PIX instantâneo com taxas baixas',
+					'client_secret' => array(
 
-                'icon' => 'cc',
+						'label'       => 'Client Secret',
 
-                'methods' => array( 'pix', 'credit_card' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Client Secret da aplicação',
 
-                    'client_id' => array(
+					),
 
-                        'label' => 'Client ID',
+					'cert_path'     => array(
 
-                        'type' => 'text',
+						'label'       => 'Caminho Certificado (.pem)',
 
-                        'description' => 'Client ID da aplicação (Portal do Desenvolvedor)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Caminho completo para o certificado: /path/to/cert.pem',
 
-                    'client_secret' => array(
+					),
 
-                        'label' => 'Client Secret',
+					'environment'   => array(
 
-                        'type' => 'password',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Client Secret da aplicação',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'cert_path' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Caminho Certificado (.pem)',
+							'production' => 'Produção',
 
-                        'type' => 'text',
+						),
 
-                        'description' => 'Caminho completo para o certificado: /path/to/cert.pem',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'cielo'       => array(
 
-                        'options' => array(
+				'name'        => 'Cielo',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Líder em cartões no Brasil. Aceite todas as bandeiras',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'credit_card', 'debit_card', 'pix' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'merchant_id'  => array(
 
-                ),
+						'label'       => 'Merchant ID',
 
-            ),
+						'type'        => 'text',
 
-            'cielo' => array(
+						'description' => 'ID do estabelecimento (EC Number)',
 
-                'name' => 'Cielo',
+					),
 
-                'description' => 'Líder em cartões no Brasil. Aceite todas as bandeiras',
+					'merchant_key' => array(
 
-                'icon' => 'cc',
+						'label'       => 'Merchant Key',
 
-                'methods' => array( 'credit_card', 'debit_card', 'pix' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Chave de acesso (Access Key)',
 
-                    'merchant_id' => array(
+					),
 
-                        'label' => 'Merchant ID',
+					'environment'  => array(
 
-                        'type' => 'text',
+						'label'       => 'Ambiente',
 
-                        'description' => 'ID do estabelecimento (EC Number)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'merchant_key' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Merchant Key',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Chave de acesso (Access Key)',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'picpay'      => array(
 
-                        'options' => array(
+				'name'        => 'PicPay',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Carteira digital. PIX e pagamento via app PicPay',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'digital_wallet' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'picpay_token' => array(
 
-                ),
+						'label'       => 'PicPay Token',
 
-            ),
+						'type'        => 'password',
 
-            'picpay' => array(
+						'description' => 'Token de E-commerce (Painel PicPay → Integrações)',
 
-                'name' => 'PicPay',
+					),
 
-                'description' => 'Carteira digital. PIX e pagamento via app PicPay',
+					'seller_token' => array(
 
-                'icon' => 'cc',
+						'label'       => 'Seller Token',
 
-                'methods' => array( 'pix', 'digital_wallet' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Token do vendedor (x-seller-token header)',
 
-                    'picpay_token' => array(
+					),
 
-                        'label' => 'PicPay Token',
+					'environment'  => array(
 
-                        'type' => 'password',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Token de E-commerce (Painel PicPay → Integrações)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'seller_token' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Seller Token',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Token do vendedor (x-seller-token header)',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'bb'          => array(
 
-                        'options' => array(
+				'name'        => 'Banco do Brasil',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Maior banco público do Brasil. PIX e boleto com certificado digital',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'boleto' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'developer_key'  => array(
 
-                ),
+						'label'       => 'Developer Application Key',
 
-            ),
+						'type'        => 'password',
 
-            'bb' => array(
+						'description' => 'Chave da aplicação (Portal Developers BB)',
 
-                'name' => 'Banco do Brasil',
+					),
 
-                'description' => 'Maior banco público do Brasil. PIX e boleto com certificado digital',
+					'client_id'      => array(
 
-                'icon' => 'cc',
+						'label'       => 'Client ID (Basic)',
 
-                'methods' => array( 'pix', 'boleto' ),
+						'type'        => 'text',
 
-                'fields' => array(
+						'description' => 'Client ID para OAuth 2.0',
 
-                    'developer_key' => array(
+					),
 
-                        'label' => 'Developer Application Key',
+					'client_secret'  => array(
 
-                        'type' => 'password',
+						'label'       => 'Client Secret (Basic)',
 
-                        'description' => 'Chave da aplicação (Portal Developers BB)',
+						'type'        => 'password',
 
-                    ),
+						'description' => 'Client Secret para OAuth 2.0',
 
-                    'client_id' => array(
+					),
 
-                        'label' => 'Client ID (Basic)',
+					'convenio'       => array(
 
-                        'type' => 'text',
+						'label'       => 'Número do Convênio',
 
-                        'description' => 'Client ID para OAuth 2.0',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Convênio de cobrança (7 dígitos)',
 
-                    'client_secret' => array(
+					),
 
-                        'label' => 'Client Secret (Basic)',
+					'agencia'        => array(
 
-                        'type' => 'password',
+						'label'       => 'Agência',
 
-                        'description' => 'Client Secret para OAuth 2.0',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da agência (4 dígitos)',
 
-                    'convenio' => array(
+					),
 
-                        'label' => 'Número do Convênio',
+					'conta'          => array(
 
-                        'type' => 'text',
+						'label'       => 'Conta Corrente',
 
-                        'description' => 'Convênio de cobrança (7 dígitos)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da conta (sem dígito)',
 
-                    'agencia' => array(
+					),
 
-                        'label' => 'Agência',
+					'gw_dev_app_key' => array(
 
-                        'type' => 'text',
+						'label'       => 'GW Dev App Key',
 
-                        'description' => 'Número da agência (4 dígitos)',
+						'type'        => 'password',
 
-                    ),
+						'description' => 'Chave do gateway de pagamento BB',
 
-                    'conta' => array(
+					),
 
-                        'label' => 'Conta Corrente',
+					'environment'    => array(
 
-                        'type' => 'text',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Número da conta (sem dígito)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'gw_dev_app_key' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'GW Dev App Key',
+							'production' => 'Produção',
 
-                        'type' => 'password',
+						),
 
-                        'description' => 'Chave do gateway de pagamento BB',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'bradesco'    => array(
 
-                        'options' => array(
+				'name'        => 'Bradesco',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Bradesco Shopfácil. PIX e boleto registrado com API REST',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'boleto', 'credit_card' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'merchant_id'  => array(
 
-                ),
+						'label'       => 'Merchant ID',
 
-            ),
+						'type'        => 'text',
 
-            'bradesco' => array(
+						'description' => 'ID do estabelecimento (Shopfácil)',
 
-                'name' => 'Bradesco',
+					),
 
-                'description' => 'Bradesco Shopfácil. PIX e boleto registrado com API REST',
+					'merchant_key' => array(
 
-                'icon' => 'cc',
+						'label'       => 'Merchant Key',
 
-                'methods' => array( 'pix', 'boleto', 'credit_card' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Chave de segurança da loja',
 
-                    'merchant_id' => array(
+					),
 
-                        'label' => 'Merchant ID',
+					'carteira'     => array(
 
-                        'type' => 'text',
+						'label'       => 'Carteira',
 
-                        'description' => 'ID do estabelecimento (Shopfácil)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da carteira de cobrança (ex: 26)',
 
-                    'merchant_key' => array(
+					),
 
-                        'label' => 'Merchant Key',
+					'agencia'      => array(
 
-                        'type' => 'password',
+						'label'       => 'Agência',
 
-                        'description' => 'Chave de segurança da loja',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da agência (4 dígitos)',
 
-                    'carteira' => array(
+					),
 
-                        'label' => 'Carteira',
+					'conta'        => array(
 
-                        'type' => 'text',
+						'label'       => 'Conta Corrente',
 
-                        'description' => 'Número da carteira de cobrança (ex: 26)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da conta (sem dígito)',
 
-                    'agencia' => array(
+					),
 
-                        'label' => 'Agência',
+					'environment'  => array(
 
-                        'type' => 'text',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Número da agência (4 dígitos)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'conta' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Conta Corrente',
+							'production' => 'Produção',
 
-                        'type' => 'text',
+						),
 
-                        'description' => 'Número da conta (sem dígito)',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'itau'        => array(
 
-                        'options' => array(
+				'name'        => 'Itaú',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Itaú Shopline. Boleto registrado e PIX via API REST',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'boleto' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'client_id'       => array(
 
-                ),
+						'label'       => 'Client ID',
 
-            ),
+						'type'        => 'text',
 
-            'itau' => array(
+						'description' => 'Client ID (Portal Desenvolvedor Itaú)',
 
-                'name' => 'Itaú',
+					),
 
-                'description' => 'Itaú Shopline. Boleto registrado e PIX via API REST',
+					'client_secret'   => array(
 
-                'icon' => 'cc',
+						'label'       => 'Client Secret',
 
-                'methods' => array( 'pix', 'boleto' ),
+						'type'        => 'password',
 
-                'fields' => array(
+						'description' => 'Client Secret OAuth 2.0',
 
-                    'client_id' => array(
+					),
 
-                        'label' => 'Client ID',
+					'chave_pix'       => array(
 
-                        'type' => 'text',
+						'label'       => 'Chave PIX',
 
-                        'description' => 'Client ID (Portal Desenvolvedor Itaú)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Chave PIX da conta (CPF/CNPJ/Email/Telefone)',
 
-                    'client_secret' => array(
+					),
 
-                        'label' => 'Client Secret',
+					'beneficiario_id' => array(
 
-                        'type' => 'password',
+						'label'       => 'ID do Beneficiário',
 
-                        'description' => 'Client Secret OAuth 2.0',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'ID do beneficiário no sistema Itaú',
 
-                    'chave_pix' => array(
+					),
 
-                        'label' => 'Chave PIX',
+					'agencia'         => array(
 
-                        'type' => 'text',
+						'label'       => 'Agência',
 
-                        'description' => 'Chave PIX da conta (CPF/CNPJ/Email/Telefone)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da agência (4 dígitos)',
 
-                    'beneficiario_id' => array(
+					),
 
-                        'label' => 'ID do Beneficiário',
+					'conta'           => array(
 
-                        'type' => 'text',
+						'label'       => 'Conta Corrente',
 
-                        'description' => 'ID do beneficiário no sistema Itaú',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da conta (com dígito)',
 
-                    'agencia' => array(
+					),
 
-                        'label' => 'Agência',
+					'environment'     => array(
 
-                        'type' => 'text',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Número da agência (4 dígitos)',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'conta' => array(
+							'sandbox'    => 'Sandbox (Testes)',
 
-                        'label' => 'Conta Corrente',
+							'production' => 'Produção',
 
-                        'type' => 'text',
+						),
 
-                        'description' => 'Número da conta (com dígito)',
+						'description' => 'Use Sandbox para homologação',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+			'santander'   => array(
 
-                        'options' => array(
+				'name'        => 'Santander',
 
-                            'sandbox' => 'Sandbox (Testes)',
+				'description' => 'Santander Getnet. Completo: PIX, boleto e cartões',
 
-                            'production' => 'Produção',
+				'icon'        => 'cc',
 
-                        ),
+				'methods'     => array( 'pix', 'boleto', 'credit_card', 'debit_card' ),
 
-                        'description' => 'Use Sandbox para homologação',
+				'fields'      => array(
 
-                    ),
+					'seller_id'     => array(
 
-                ),
+						'label'       => 'Seller ID (Getnet)',
 
-            ),
+						'type'        => 'text',
 
-            'santander' => array(
+						'description' => 'ID do vendedor na plataforma Getnet',
 
-                'name' => 'Santander',
+					),
 
-                'description' => 'Santander Getnet. Completo: PIX, boleto e cartões',
+					'client_id'     => array(
 
-                'icon' => 'cc',
+						'label'       => 'Client ID',
 
-                'methods' => array( 'pix', 'boleto', 'credit_card', 'debit_card' ),
+						'type'        => 'text',
 
-                'fields' => array(
+						'description' => 'Client ID OAuth (Portal Getnet)',
 
-                    'seller_id' => array(
+					),
 
-                        'label' => 'Seller ID (Getnet)',
+					'client_secret' => array(
 
-                        'type' => 'text',
+						'label'       => 'Client Secret',
 
-                        'description' => 'ID do vendedor na plataforma Getnet',
+						'type'        => 'password',
 
-                    ),
+						'description' => 'Client Secret para autenticação',
 
-                    'client_id' => array(
+					),
 
-                        'label' => 'Client ID',
+					'convenio'      => array(
 
-                        'type' => 'text',
+						'label'       => 'Código do Convênio',
 
-                        'description' => 'Client ID OAuth (Portal Getnet)',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Convênio de boleto Santander',
 
-                    'client_secret' => array(
+					),
 
-                        'label' => 'Client Secret',
+					'carteira'      => array(
 
-                        'type' => 'password',
+						'label'       => 'Carteira',
 
-                        'description' => 'Client Secret para autenticação',
+						'type'        => 'text',
 
-                    ),
+						'description' => 'Número da carteira de cobrança (ex: 102)',
 
-                    'convenio' => array(
+					),
 
-                        'label' => 'Código do Convênio',
+					'environment'   => array(
 
-                        'type' => 'text',
+						'label'       => 'Ambiente',
 
-                        'description' => 'Convênio de boleto Santander',
+						'type'        => 'select',
 
-                    ),
+						'options'     => array(
 
-                    'carteira' => array(
+							'sandbox'    => 'Sandbox (Testes - Homologação)',
 
-                        'label' => 'Carteira',
+							'production' => 'Produção',
 
-                        'type' => 'text',
+						),
 
-                        'description' => 'Número da carteira de cobrança (ex: 102)',
+						'description' => 'Use Sandbox para testes antes de ir para produção',
 
-                    ),
+					),
 
-                    'environment' => array(
+				),
 
-                        'label' => 'Ambiente',
+			),
 
-                        'type' => 'select',
+		);
+	}
 
-                        'options' => array(
 
-                            'sandbox' => 'Sandbox (Testes - Homologação)',
 
-                            'production' => 'Produção',
+	/**
 
-                        ),
+	 * Register gateways
+	 */
+	public function register_gateways() {
 
-                        'description' => 'Use Sandbox para testes antes de ir para produção',
+		$gateways = $this->get_available_gateways();
 
-                    ),
+		// Store in option for use elsewhere
 
-                ),
+		update_option( 'hng_available_payment_gateways', $gateways );
+	}
 
-            ),
 
-        );
 
-    }
+	/**
 
+	 * Add admin menu page
+	 */
+	public function add_menu_page() {
 
+		add_submenu_page(
+			'hng-commerce',
+			__( 'Configurações de Pagamento', 'hng-commerce' ),
+			__( 'Pagamentos', 'hng-commerce' ),
+			'manage_options',
+			'hng-payment-settings',
+			array( $this, 'render_page' )
+		);
+	}
 
-    /**
 
-     * Register gateways
 
-     */
+	/**
 
-    public function register_gateways() {
+	 * Register settings
+	 */
+	public function register_settings() {
 
-        $gateways = $this->get_available_gateways();
+		$gateways = $this->get_available_gateways();
 
-        // Store in option for use elsewhere
+		foreach ( $gateways as $gateway_id => $gateway ) {
 
-        update_option( 'hng_available_payment_gateways', $gateways );
+			if ( ! empty( $gateway['fields'] ) ) {
 
-    }
+				register_setting(
+					'hng_payment_settings',
+					"hng_{$gateway_id}_enabled",
+					array( 'sanitize_callback' => array( $this, 'sanitize_checkbox' ) )
+				);
 
+				// Registrar campo de status de teste
 
+				register_setting(
+					'hng_payment_settings',
+					"hng_{$gateway_id}_test_status",
+					array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+				);
 
-    /**
+				// Registrar campo de última data de teste
 
-     * Add admin menu page
+				register_setting(
+					'hng_payment_settings',
+					"hng_{$gateway_id}_test_date",
+					array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+				);
 
-     */
+				foreach ( $gateway['fields'] as $field_id => $field ) {
 
-    public function add_menu_page() {
+					register_setting(
+						'hng_payment_settings',
+						"hng_{$gateway_id}_{$field_id}",
+						array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+					);
 
-        add_submenu_page(
+				}
+			}
+		}
+	}
 
-            'hng-commerce',
 
-            __( 'Configurações de Pagamento', 'hng-commerce' ),
 
-            __( 'Pagamentos', 'hng-commerce' ),
+	/**
 
-            'manage_options',
+	 * Sanitize checkbox
+	 */
+	public function sanitize_checkbox( $val ) {
 
-            'hng-payment-settings',
+		return ( isset( $val ) && ! empty( $val ) && '1' === $val ) ? '1' : '0';
+	}
 
-            array( $this, 'render_page' )
 
-        );
 
-    }
+	/**
 
+	 * Sanitize text field
+	 */
+	public function sanitize_text_field( $val ) {
 
+		if ( ! isset( $val ) || empty( $val ) ) {
 
-    /**
+			return '';
 
-     * Register settings
+		}
 
-     */
+		return sanitize_text_field( (string) $val );
+	}
 
-    public function register_settings() {
 
-        $gateways = $this->get_available_gateways();
 
+	/**
 
+	 * Render page
+	 */
+	public function render_page() {
 
-        foreach ( $gateways as $gateway_id => $gateway ) {
+		?>
 
-            if ( ! empty( $gateway['fields'] ) ) {
+		<div class="wrap">
 
-                register_setting(
+			<h1><?php esc_html_e( 'Configurações de Pagamento', 'hng-commerce' ); ?></h1>
 
-                    'hng_payment_settings',
+			
 
-                    "hng_{$gateway_id}_enabled",
+			<form method="post" action="options.php">
 
-                    array( 'sanitize_callback' => array( $this, 'sanitize_checkbox' ) )
+				<?php settings_fields( 'hng_payment_settings' ); ?>
 
-                );
+				
 
+				<table class="form-table">
 
+					<?php
 
-                // Registrar campo de status de teste
+					$gateways = $this->get_available_gateways();
 
-                register_setting(
+					foreach ( $gateways as $gateway_id => $gateway ) {
 
-                    'hng_payment_settings',
+						$enabled = get_option( "hng_{$gateway_id}_enabled", false );
 
-                    "hng_{$gateway_id}_test_status",
+						$test_status = get_option( "hng_{$gateway_id}_test_status", '' );
 
-                    array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+						$test_date = get_option( "hng_{$gateway_id}_test_date", '' );
 
-                );
+						?>
 
+						<tr>
 
+							<th scope="row">
 
-                // Registrar campo de última data de teste
+								<label>
 
-                register_setting(
+									<input type="checkbox" 
 
-                    'hng_payment_settings',
+											name="hng_<?php echo esc_attr( $gateway_id ); ?>_enabled" 
 
-                    "hng_{$gateway_id}_test_date",
+											value="1" 
 
-                    array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+											<?php checked( $enabled, '1' ); ?> />
 
-                );
+									<?php echo esc_html( $gateway['name'] ); ?>
 
+								</label>
 
+								
 
-                foreach ( $gateway['fields'] as $field_id => $field ) {
+								<?php if ( ! empty( $test_status ) ) : ?>
 
-                    register_setting(
+									<br />
 
-                        'hng_payment_settings',
+									<span style="font-size: 12px; font-weight: normal;">
 
-                        "hng_{$gateway_id}_{$field_id}",
+										<?php if ( 'success' === $test_status ) : ?>
 
-                        array( 'sanitize_callback' => array( $this, 'sanitize_text_field' ) )
+											<span style="color: #46b450;">✓ Testado com sucesso</span>
 
-                    );
+										<?php elseif ( 'failed' === $test_status ) : ?>
 
-                }
+											<span style="color: #dc3232;">✗ Teste falhou</span>
 
-            }
+										<?php endif; ?>
 
-        }
+										<?php if ( ! empty( $test_date ) ) : ?>
 
-    }
+											<br /><span style="color: #666;">
 
+												<?php
 
+												echo esc_html(
+													sprintf(
+														/* translators: %s: test date and time */
+														__( 'Último teste: %s', 'hng-commerce' ),
+														date_i18n( 'd/m/Y H:i', strtotime( $test_date ) )
+													)
+												);
 
-    /**
+												?>
 
-     * Sanitize checkbox
+											</span>
 
-     */
+										<?php endif; ?>
 
-    public function sanitize_checkbox( $val ) {
+									</span>
 
-        return ( isset( $val ) && ! empty( $val ) && '1' === $val ) ? '1' : '0';
+								<?php endif; ?>
 
-    }
+							</th>
 
+							<td>
 
+								<p class="description"><?php echo esc_html( $gateway['description'] ?? '' ); ?></p>
 
-    /**
+								
 
-     * Sanitize text field
+								<?php if ( ! empty( $gateway['fields'] ) ) : ?>
 
-     */
+									<div style="margin-top: 15px;">
 
-    public function sanitize_text_field( $val ) {
+										<?php foreach ( $gateway['fields'] as $field_id => $field ) : ?>
 
-        if ( ! isset( $val ) || empty( $val ) ) {
+											<p>
 
-            return '';
+												<label>
 
-        }
+													<strong><?php echo esc_html( $field['label'] ?? '' ); ?></strong><br />
 
-        return sanitize_text_field( (string) $val );
+													<?php
 
-    }
+													$field_name = "hng_{$gateway_id}_{$field_id}";
 
+													$field_value = get_option( $field_name, '' );
 
+													$field_type = $field['type'] ?? 'text';
 
-    /**
+													if ( 'select' === $field_type ) :
 
-     * Render page
+														?>
 
-     */
+														<select name="<?php echo esc_attr( $field_name ); ?>">
 
-    public function render_page() {
+															<?php foreach ( $field['options'] ?? array() as $opt_key => $opt_label ) : ?>
 
-        ?>
+																<option value="<?php echo esc_attr( $opt_key ); ?>" 
 
-        <div class="wrap">
+																		<?php selected( $field_value, $opt_key ); ?>>
 
-            <h1><?php esc_html_e( 'Configurações de Pagamento', 'hng-commerce' ); ?></h1>
+																	<?php echo esc_html( $opt_label ); ?>
 
-            
+																</option>
 
-            <form method="post" action="options.php">
+															<?php endforeach; ?>
 
-                <?php settings_fields( 'hng_payment_settings' ); ?>
+														</select>
 
-                
+													<?php else : ?>
 
-                <table class="form-table">
+														<input type="<?php echo esc_attr( $field_type ); ?>" 
 
-                    <?php
+																name="<?php echo esc_attr( $field_name ); ?>" 
 
-                    $gateways = $this->get_available_gateways();
+																value="<?php echo esc_attr( $field_value ); ?>" 
 
-                    
+																class="regular-text" />
 
-                    foreach ( $gateways as $gateway_id => $gateway ) {
+													<?php endif; ?>
 
-                        $enabled = get_option( "hng_{$gateway_id}_enabled", false );
+													
 
-                        $test_status = get_option( "hng_{$gateway_id}_test_status", '' );
+													<?php if ( ! empty( $field['description'] ) ) : ?>
 
-                        $test_date = get_option( "hng_{$gateway_id}_test_date", '' );
+														<br /><span class="description"><?php echo esc_html( $field['description'] ); ?></span>
 
-                        ?>
+													<?php endif; ?>
 
-                        <tr>
+												</label>
 
-                            <th scope="row">
+											</p>
 
-                                <label>
+										<?php endforeach; ?>
 
-                                    <input type="checkbox" 
+										
 
-                                           name="hng_<?php echo esc_attr( $gateway_id ); ?>_enabled" 
+										<p>
 
-                                           value="1" 
+											<button type="button" 
 
-                                           <?php checked( $enabled, '1' ); ?> />
+													class="button test-gateway-btn" 
 
-                                    <?php echo esc_html( $gateway['name'] ); ?>
+													data-gateway="<?php echo esc_attr( $gateway_id ); ?>">
 
-                                </label>
+												<?php esc_html_e( 'Testar Conexão', 'hng-commerce' ); ?>
 
-                                
+											</button>
 
-                                <?php if ( ! empty( $test_status ) ) : ?>
+											<span class="spinner"></span>
 
-                                    <br />
+											<span class="test-result"></span>
 
-                                    <span style="font-size: 12px; font-weight: normal;">
+										</p>
 
-                                        <?php if ( 'success' === $test_status ) : ?>
+									</div>
 
-                                            <span style="color: #46b450;">✓ Testado com sucesso</span>
+								<?php endif; ?>
 
-                                        <?php elseif ( 'failed' === $test_status ) : ?>
+							</td>
 
-                                            <span style="color: #dc3232;">✗ Teste falhou</span>
+						</tr>
 
-                                        <?php endif; ?>
+						<?php
 
-                                        <?php if ( ! empty( $test_date ) ) : ?>
+					}
 
-                                            <br /><span style="color: #666;">
+					?>
 
-                                                <?php 
+				</table>
 
-                                                echo esc_html( 
+				
 
-                                                    sprintf( 
+				<?php submit_button(); ?>
 
-                                                        /* translators: %s: test date and time */
-                                                        __( 'Último teste: %s', 'hng-commerce' ), 
+			</form>
 
-                                                        date_i18n( 'd/m/Y H:i', strtotime( $test_date ) ) 
+		</div>
 
-                                                    ) 
+		
 
-                                                ); 
+		<style>
 
-                                                ?>
+			.test-gateway-btn { margin-right: 10px; }
 
-                                            </span>
+			.spinner { float: none; margin: 0 10px 0 0; }
 
-                                        <?php endif; ?>
+			.test-result { font-weight: bold; }
 
-                                    </span>
+			.test-result.success { color: #46b450; }
 
-                                <?php endif; ?>
+			.test-result.error { color: #dc3232; }
 
-                            </th>
+		</style>
 
-                            <td>
+		
 
-                                <p class="description"><?php echo esc_html( $gateway['description'] ?? '' ); ?></p>
+		<script>
 
-                                
+			jQuery(document).ready(function($) {
 
-                                <?php if ( ! empty( $gateway['fields'] ) ) : ?>
+				$('.test-gateway-btn').on('click', function() {
 
-                                    <div style="margin-top: 15px;">
+					var $btn = $(this);
 
-                                        <?php foreach ( $gateway['fields'] as $field_id => $field ) : ?>
+					var $spinner = $btn.next('.spinner');
 
-                                            <p>
+					var $result = $btn.siblings('.test-result');
 
-                                                <label>
+					var gatewayId = $btn.data('gateway');
 
-                                                    <strong><?php echo esc_html( $field['label'] ?? '' ); ?></strong><br />
+					var $statusLabel = $btn.closest('tr').find('th label');
 
-                                                    <?php
+					
 
-                                                    $field_name = "hng_{$gateway_id}_{$field_id}";
+					$spinner.addClass('is-active');
 
-                                                    $field_value = get_option( $field_name, '' );
+					$result.removeClass('success error').text('');
 
-                                                    $field_type = $field['type'] ?? 'text';
+					$btn.prop('disabled', true);
 
-                                                    
+					
 
-                                                    if ( 'select' === $field_type ) :
+					$.post(ajaxurl, {
 
-                                                        ?>
+						action: 'test_gateway_connection',
 
-                                                        <select name="<?php echo esc_attr( $field_name ); ?>">
+						gateway_id: gatewayId,
 
-                                                            <?php foreach ( $field['options'] ?? array() as $opt_key => $opt_label ) : ?>
+						nonce: '<?php echo esc_attr( wp_create_nonce( 'test_gateway_connection' ) ); ?>'
 
-                                                                <option value="<?php echo esc_attr( $opt_key ); ?>" 
+					}, function(response) {
 
-                                                                        <?php selected( $field_value, $opt_key ); ?>>
+						$spinner.removeClass('is-active');
 
-                                                                    <?php echo esc_html( $opt_label ); ?>
+						$btn.prop('disabled', false);
 
-                                                                </option>
+						
 
-                                                            <?php endforeach; ?>
+						if ( response.success ) {
 
-                                                        </select>
+							$result.addClass('success').text('✓ ' + ( response.data?.message || 'Conexão estabelecida com sucesso!' ));
 
-                                                    <?php else : ?>
+							
 
-                                                        <input type="<?php echo esc_attr( $field_type ); ?>" 
+							// Atualizar status visual na label
 
-                                                               name="<?php echo esc_attr( $field_name ); ?>" 
+							var currentDate = new Date().toLocaleString('pt-BR');
 
-                                                               value="<?php echo esc_attr( $field_value ); ?>" 
+							var existingStatus = $statusLabel.find('.gateway-test-status');
 
-                                                               class="regular-text" />
+							if (existingStatus.length) {
 
-                                                    <?php endif; ?>
+								existingStatus.remove();
 
-                                                    
+							}
 
-                                                    <?php if ( ! empty( $field['description'] ) ) : ?>
+							$statusLabel.append(
 
-                                                        <br /><span class="description"><?php echo esc_html( $field['description'] ); ?></span>
+								'<br><span class="gateway-test-status" style="font-size: 12px; font-weight: normal;">' +
 
-                                                    <?php endif; ?>
+								'<span style="color: #46b450;">✓ Testado com sucesso</span><br>' +
 
-                                                </label>
+								'<span style="color: #666;">Último teste: ' + currentDate + '</span>' +
 
-                                            </p>
+								'</span>'
 
-                                        <?php endforeach; ?>
+							);
 
-                                        
+						} else {
 
-                                        <p>
+							var errorMsg = response.data?.message || 'Conexão falhou';
 
-                                            <button type="button" 
+							$result.addClass('error').text('✗ Erro: ' + errorMsg);
 
-                                                    class="button test-gateway-btn" 
+							
 
-                                                    data-gateway="<?php echo esc_attr( $gateway_id ); ?>">
+							// Atualizar status visual na label
 
-                                                <?php esc_html_e( 'Testar Conexão', 'hng-commerce' ); ?>
+							var currentDate = new Date().toLocaleString('pt-BR');
 
-                                            </button>
+							var existingStatus = $statusLabel.find('.gateway-test-status');
 
-                                            <span class="spinner"></span>
+							if (existingStatus.length) {
 
-                                            <span class="test-result"></span>
+								existingStatus.remove();
 
-                                        </p>
+							}
 
-                                    </div>
+							$statusLabel.append(
 
-                                <?php endif; ?>
+								'<br><span class="gateway-test-status" style="font-size: 12px; font-weight: normal;">' +
 
-                            </td>
+								'<span style="color: #dc3232;">✗ Teste falhou</span><br>' +
 
-                        </tr>
+								'<span style="color: #666;">Último teste: ' + currentDate + '</span>' +
 
-                        <?php
+								'</span>'
 
-                    }
+							);
 
-                    ?>
+						}
 
-                </table>
+					}).fail(function() {
 
-                
+						$spinner.removeClass('is-active');
 
-                <?php submit_button(); ?>
+						$btn.prop('disabled', false);
 
-            </form>
+						$result.addClass('error').text('✗ Erro de comunicação');
 
-        </div>
+					});
 
-        
+				});
 
-        <style>
+			});
 
-            .test-gateway-btn { margin-right: 10px; }
+		</script>
 
-            .spinner { float: none; margin: 0 10px 0 0; }
+		<?php
+	}
 
-            .test-result { font-weight: bold; }
 
-            .test-result.success { color: #46b450; }
 
-            .test-result.error { color: #dc3232; }
+	/**
 
-        </style>
+	 * AJAX test gateway connection
+	 */
+	public function ajax_test_gateway_connection() {
 
-        
+		check_ajax_referer( 'test_gateway_connection', 'nonce' );
 
-        <script>
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-            jQuery(document).ready(function($) {
+			wp_send_json_error( array( 'message' => 'Sem permissão' ) );
 
-                $('.test-gateway-btn').on('click', function() {
+		}
 
-                    var $btn = $(this);
+		$gateway_id = isset( $_POST['gateway_id'] ) && is_string( $_POST['gateway_id'] )
 
-                    var $spinner = $btn.next('.spinner');
+			? sanitize_text_field( wp_unslash( $_POST['gateway_id'] ) )
 
-                    var $result = $btn.siblings('.test-result');
+			: '';
 
-                    var gatewayId = $btn.data('gateway');
+		if ( empty( $gateway_id ) ) {
 
-                    var $statusLabel = $btn.closest('tr').find('th label');
+			wp_send_json_error( array( 'message' => 'Gateway inválido' ) );
 
-                    
+		}
 
-                    $spinner.addClass('is-active');
+		// Verificar se o gateway está habilitado e tem credenciais
 
-                    $result.removeClass('success error').text('');
+		$enabled = get_option( "hng_{$gateway_id}_enabled", false );
 
-                    $btn.prop('disabled', true);
+		if ( ! $enabled ) {
 
-                    
+			update_option( "hng_{$gateway_id}_test_status", 'failed' );
 
-                    $.post(ajaxurl, {
+			update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
 
-                        action: 'test_gateway_connection',
+			wp_send_json_error( array( 'message' => 'Gateway não habilitado' ) );
 
-                        gateway_id: gatewayId,
+		}
 
-                        nonce: '<?php echo esc_attr(wp_create_nonce( 'test_gateway_connection' )); ?>'
+		// Obter configuração do gateway
 
-                    }, function(response) {
+		$gateways = $this->get_available_gateways();
 
-                        $spinner.removeClass('is-active');
+		if ( ! isset( $gateways[ $gateway_id ] ) ) {
 
-                        $btn.prop('disabled', false);
+			update_option( "hng_{$gateway_id}_test_status", 'failed' );
 
-                        
+			update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
 
-                        if ( response.success ) {
+			wp_send_json_error( array( 'message' => 'Gateway não encontrado' ) );
 
-                            $result.addClass('success').text('✓ ' + ( response.data?.message || 'Conexão estabelecida com sucesso!' ));
+		}
 
-                            
+		$gateway = $gateways[ $gateway_id ];
 
-                            // Atualizar status visual na label
+		// Verificar campos obrigatórios
 
-                            var currentDate = new Date().toLocaleString('pt-BR');
+		$missing_fields = array();
 
-                            var existingStatus = $statusLabel.find('.gateway-test-status');
+		if ( ! empty( $gateway['fields'] ) ) {
 
-                            if (existingStatus.length) {
+			foreach ( $gateway['fields'] as $field_id => $field ) {
 
-                                existingStatus.remove();
+				$field_value = get_option( "hng_{$gateway_id}_{$field_id}", '' );
 
-                            }
+				if ( empty( $field_value ) && 'environment' !== $field_id ) {
 
-                            $statusLabel.append(
+					$missing_fields[] = $field['label'];
 
-                                '<br><span class="gateway-test-status" style="font-size: 12px; font-weight: normal;">' +
+				}
+			}
+		}
 
-                                '<span style="color: #46b450;">✓ Testado com sucesso</span><br>' +
+		if ( ! empty( $missing_fields ) ) {
 
-                                '<span style="color: #666;">Último teste: ' + currentDate + '</span>' +
+			update_option( "hng_{$gateway_id}_test_status", 'failed' );
 
-                                '</span>'
+			update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
 
-                            );
+			wp_send_json_error(
+				array(
 
-                        } else {
+					'message' => 'Campos obrigatórios não preenchidos: ' . implode( ', ', $missing_fields ),
 
-                            var errorMsg = response.data?.message || 'Conexão falhou';
+				)
+			);
 
-                            $result.addClass('error').text('✗ Erro: ' + errorMsg);
+		}
 
-                            
+		// Teste básico - pode ser expandido para testes reais com cada gateway
 
-                            // Atualizar status visual na label
+		// Por enquanto, apenas valida se as credenciais foram preenchidas
 
-                            var currentDate = new Date().toLocaleString('pt-BR');
+		$test_success = true;
 
-                            var existingStatus = $statusLabel.find('.gateway-test-status');
+		$test_message = 'Credenciais configuradas. Gateway pronto para uso.';
 
-                            if (existingStatus.length) {
+		// Salvar resultado do teste
 
-                                existingStatus.remove();
+		update_option( "hng_{$gateway_id}_test_status", $test_success ? 'success' : 'failed' );
 
-                            }
+		update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
 
-                            $statusLabel.append(
+		if ( $test_success ) {
 
-                                '<br><span class="gateway-test-status" style="font-size: 12px; font-weight: normal;">' +
+			wp_send_json_success( array( 'message' => $test_message ) );
 
-                                '<span style="color: #dc3232;">✗ Teste falhou</span><br>' +
+		} else {
 
-                                '<span style="color: #666;">Último teste: ' + currentDate + '</span>' +
+			wp_send_json_error( array( 'message' => $test_message ) );
 
-                                '</span>'
-
-                            );
-
-                        }
-
-                    }).fail(function() {
-
-                        $spinner.removeClass('is-active');
-
-                        $btn.prop('disabled', false);
-
-                        $result.addClass('error').text('✗ Erro de comunicação');
-
-                    });
-
-                });
-
-            });
-
-        </script>
-
-        <?php
-
-    }
-
-
-
-    /**
-
-     * AJAX test gateway connection
-
-     */
-
-    public function ajax_test_gateway_connection() {
-
-        check_ajax_referer( 'test_gateway_connection', 'nonce' );
-
-        
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-
-            wp_send_json_error( array( 'message' => 'Sem permissão' ) );
-
-        }
-
-        
-
-        $gateway_id = isset( $_POST['gateway_id'] ) && is_string( $_POST['gateway_id'] ) 
-
-            ? sanitize_text_field( $_POST['gateway_id'] ) 
-
-            : '';
-
-        
-
-        if ( empty( $gateway_id ) ) {
-
-            wp_send_json_error( array( 'message' => 'Gateway inválido' ) );
-
-        }
-
-        
-
-        // Verificar se o gateway está habilitado e tem credenciais
-
-        $enabled = get_option( "hng_{$gateway_id}_enabled", false );
-
-        if ( ! $enabled ) {
-
-            update_option( "hng_{$gateway_id}_test_status", 'failed' );
-
-            update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
-
-            wp_send_json_error( array( 'message' => 'Gateway não habilitado' ) );
-
-        }
-
-        
-
-        // Obter configuração do gateway
-
-        $gateways = $this->get_available_gateways();
-
-        if ( ! isset( $gateways[ $gateway_id ] ) ) {
-
-            update_option( "hng_{$gateway_id}_test_status", 'failed' );
-
-            update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
-
-            wp_send_json_error( array( 'message' => 'Gateway não encontrado' ) );
-
-        }
-
-        
-
-        $gateway = $gateways[ $gateway_id ];
-
-        
-
-        // Verificar campos obrigatórios
-
-        $missing_fields = array();
-
-        if ( ! empty( $gateway['fields'] ) ) {
-
-            foreach ( $gateway['fields'] as $field_id => $field ) {
-
-                $field_value = get_option( "hng_{$gateway_id}_{$field_id}", '' );
-
-                if ( empty( $field_value ) && 'environment' !== $field_id ) {
-
-                    $missing_fields[] = $field['label'];
-
-                }
-
-            }
-
-        }
-
-        
-
-        if ( ! empty( $missing_fields ) ) {
-
-            update_option( "hng_{$gateway_id}_test_status", 'failed' );
-
-            update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
-
-            wp_send_json_error( array( 
-
-                'message' => 'Campos obrigatórios não preenchidos: ' . implode( ', ', $missing_fields ) 
-
-            ) );
-
-        }
-
-        
-
-        // Teste básico - pode ser expandido para testes reais com cada gateway
-
-        // Por enquanto, apenas valida se as credenciais foram preenchidas
-
-        $test_success = true;
-
-        $test_message = 'Credenciais configuradas. Gateway pronto para uso.';
-
-        
-
-        // Salvar resultado do teste
-
-        update_option( "hng_{$gateway_id}_test_status", $test_success ? 'success' : 'failed' );
-
-        update_option( "hng_{$gateway_id}_test_date", current_time( 'mysql' ) );
-
-        
-
-        if ( $test_success ) {
-
-            wp_send_json_success( array( 'message' => $test_message ) );
-
-        } else {
-
-            wp_send_json_error( array( 'message' => $test_message ) );
-
-        }
-
-    }
-
+		}
+	}
 }
 
 

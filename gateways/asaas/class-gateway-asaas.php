@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:disable WordPress.Files.FileName.InvalidClassFileName
 /**
  * Gateway de Pagamento Asaas
  *
@@ -9,1782 +9,1535 @@
  * @link https://docs.asaas.com/
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamComment
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable Squiz.Commenting.FunctionComment.ParamCommentFullStop
+// phpcs:disable Squiz.Commenting.VariableComment.MissingVar
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
+// phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+// phpcs:disable WordPress.PHP.StrictInArray.MissingTrueStrict
+// phpcs:disable Universal.Operators.DisallowShortTernary.Found
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class HNG_Gateway_Asaas extends HNG_Payment_Gateway {
-    
-    /**
 
-     * ID do gateway
+	/**
 
-     */
+	 * ID do gateway
+	 */
 
-    public $id = 'asaas';
+	public $id = 'asaas';
 
-    
 
-    /**
 
-     * Nome do gateway
+	/**
 
-     */
+	 * Nome do gateway
+	 */
 
-    public $title = 'Asaas';
+	public $title = 'Asaas';
 
-    
 
-    /**
 
-     * Descrição
+	/**
 
-     */
+	 * Descrição
+	 */
 
-    public $description = 'Aceite pagamentos via PIX, Boleto e Cartão de Crédito';
+	public $description = 'Aceite pagamentos via PIX, Boleto e Cartão de Crédito';
 
-    
 
-    /**
 
-     * API Key
+	/**
 
-     */
+	 * API Key
+	 */
 
-    public $api_key = '';
+	public $api_key = '';
 
-    
 
-    /**
 
-     * Ambiente (sandbox ou production)
+	/**
 
-     */
+	 * Ambiente (sandbox ou production)
+	 */
 
-    public $environment = 'sandbox';
+	public $environment = 'sandbox';
 
-    
 
 
-    /**
 
-     * URLs da API
+	/**
 
-     */
+	 * URLs da API
+	 */
 
-    protected $api_urls = [
+	protected $api_urls = array(
 
-        'sandbox' => 'https://sandbox.asaas.com/api/v3',
+		'sandbox'    => 'https://sandbox.asaas.com/api/v3',
 
-        'production' => 'https://api.asaas.com/v3',
+		'production' => 'https://api.asaas.com/v3',
 
-    ];
+	);
 
-    
 
-    /**
 
-     * Métodos de pagamento suportados
+	/**
 
-     */
+	 * Métodos de pagamento suportados
+	 */
 
-    public $supported_methods = ['pix', 'boleto', 'credit_card'];
+	public $supported_methods = array( 'pix', 'boleto', 'credit_card' );
 
 
 
-    /**
+	/**
 
-     * Capacidades padronizadas deste provider (usada pelo Capabilities Provider)
+	 * Capacidades padronizadas deste provider (usada pelo Capabilities Provider)
+	 */
+	public static function get_capabilities() {
 
-     */
+		return array(
 
-    public static function get_capabilities() {
+			'provider'     => 'asaas',
 
-        return [
+			'version'      => '1.0',
 
-            'provider' => 'asaas',
+			'capabilities' => array(
 
-            'version' => '1.0',
+				'pix'        => array(
 
-            'capabilities' => [
+					'supported'          => true,
 
-                'pix' => [
+					'dynamic_qr'         => true,
 
-                    'supported' => true,
+					'expiration_control' => true,
 
-                    'dynamic_qr' => true,
+					'status_map'         => array(
+						'PENDING'   => 'created',
+						'RECEIVED'  => 'paid',
+						'CONFIRMED' => 'paid',
+						'OVERDUE'   => 'expired',
+						'REFUNDED'  => 'refunded',
+					),
 
-                    'expiration_control' => true,
+				),
 
-                    'status_map' => [ 'PENDING' => 'created', 'RECEIVED' => 'paid', 'CONFIRMED' => 'paid', 'OVERDUE' => 'expired', 'REFUNDED' => 'refunded' ]
+				'boleto'     => array(
 
-                ],
+					'supported'       => true,
 
-                'boleto' => [
+					'registration'    => true,
 
-                    'supported' => true,
+					'automatic_baixa' => true,
 
-                    'registration' => true,
+				),
 
-                    'automatic_baixa' => true
+				'cartao'     => array(
 
-                ],
+					'supported'    => true,
 
-                'cartao' => [
+					'3ds'          => true,
 
-                    'supported' => true,
+					'antifraude'   => 'basico',
 
-                    '3ds' => true,
+					'installments' => true,
 
-                    'antifraude' => 'basico',
+				),
 
-                    'installments' => true
+				'split'      => array(
 
-                ],
+					'native' => true,
 
-                'split' => [
+					'mode'   => 'wallet',
 
-                    'native' => true,
+				),
 
-                    'mode' => 'wallet'
+				'webhook'    => array(
 
-                ],
+					'hmac'        => false, /* Asaas usa access_token + callback, sem HMAC */
 
-                'webhook' => [
+					'idempotency' => true,
 
-                    'hmac' => false, /* Asaas usa access_token + callback, sem HMAC */
+					'retry'       => true,
 
-                    'idempotency' => true,
+				),
 
-                    'retry' => true
+				'refund'     => array(
 
-                ],
+					'partial' => true,
 
-                'refund' => [
+					'pix'     => true,
 
-                    'partial' => true,
+					'cartao'  => true,
 
-                    'pix' => true,
+					'boleto'  => true,
 
-                    'cartao' => true,
+				),
 
-                    'boleto' => true
+				'settlement' => array(
 
-                ],
+					'pix'    => 'D+1',
 
-                'settlement' => [
+					'boleto' => 'D+1..D+3',
 
-                    'pix' => 'D+1',
+					'cartao' => 'D+28',
 
-                    'boleto' => 'D+1..D+3',
+				),
 
-                    'cartao' => 'D+28'
+			),
 
-                ]
+		);
+	}
 
-            ]
 
-        ];
 
-    }
+	/**
 
-    
+	 * Construtor
+	 */
+	public function __construct() {
 
-    /**
+		parent::__construct();
 
-     * Construtor
+		// Carregar configurações
 
-     */
+		$this->api_key = get_option( 'hng_asaas_api_key', '' );
 
-    public function __construct() {
+		$this->environment = get_option( 'hng_asaas_environment', 'sandbox' );
 
-        parent::__construct();
+		// Verificar ambos os nomes de opção para compatibilidade
 
-        
+		$this->enabled = get_option( 'hng_gateway_asaas_enabled', 'no' ) === 'yes' ||
 
-        // Carregar configurações
+						get_option( 'hng_asaas_enabled', 'no' ) === 'yes';
 
-        $this->api_key = get_option('hng_asaas_api_key', '');
+		// Hooks
 
-        $this->environment = get_option('hng_asaas_environment', 'sandbox');
+		add_action( 'wp_ajax_hng_check_payment_status', array( $this, 'ajax_check_payment_status' ) );
 
-        // Verificar ambos os nomes de opção para compatibilidade
+		add_action( 'wp_ajax_nopriv_hng_check_payment_status', array( $this, 'ajax_check_payment_status' ) );
+	}
 
-        $this->enabled = get_option('hng_gateway_asaas_enabled', 'no') === 'yes' || 
 
-                         get_option('hng_asaas_enabled', 'no') === 'yes';
 
+	/**
 
-        // Hooks
+	 * Integração avançada habilitada?
+	 */
+	private function is_advanced_enabled() {
 
-        add_action('wp_ajax_hng_check_payment_status', [$this, 'ajax_check_payment_status']);
+		return get_option( 'hng_asaas_advanced_integration', 'no' ) === 'yes';
+	}
 
-        add_action('wp_ajax_nopriv_hng_check_payment_status', [$this, 'ajax_check_payment_status']);
 
-    }
 
+	/**
 
+	 * Verificar se o gateway está configurado
+	 */
+	public function is_configured() {
 
-    /**
+		return ! empty( $this->api_key );
+	}
 
-     * Integração avançada habilitada?
 
-     */
 
-    private function is_advanced_enabled() {
+	/**
 
-        return get_option('hng_asaas_advanced_integration', 'no') === 'yes';
+	 * Obter URL da API
+	 */
+	protected function get_api_url() {
 
-    }
+		return $this->api_urls[ $this->environment ];
+	}
 
-    
 
-    /**
 
-     * Verificar se o gateway está configurado
+	/**
 
-     */
+	 * Fazer requisição à API
+	 *
+	 * @param string $endpoint
 
-    public function is_configured() {
+	 * @param array  $data
 
-        return !empty($this->api_key);
+	 * @param string $method GET, POST, PUT, DELETE
 
-    }
+	 * @return array|WP_Error
+	 */
+	protected function make_request( $endpoint, $data = array(), $method = 'POST' ) {
 
-    
+		$url = $this->get_api_url() . '/' . ltrim( $endpoint, '/' );
 
-    /**
+		$args = array(
 
-     * Obter URL da API
+			'method'  => $method,
 
-     */
+			'headers' => array(
 
-    protected function get_api_url() {
+				'access_token' => $this->api_key,
 
-        return $this->api_urls[$this->environment];
+				'Content-Type' => 'application/json',
 
-    }
+			),
 
-    
+			'timeout' => 30,
 
-    /**
+		);
 
-     * Fazer requisição à API
+		if ( ! empty( $data ) && in_array( $method, array( 'POST', 'PUT' ) ) ) {
 
-     * 
+			$args['body'] = wp_json_encode( $data );
 
-     * @param string $endpoint
+		}
 
-     * @param array $data
+		// Log da requisição
 
-     * @param string $method GET, POST, PUT, DELETE
+		$this->log(
+			'REQUEST',
+			array(
 
-     * @return array|WP_Error
+				'method' => $method,
 
-     */
+				'url'    => $url,
 
-    protected function make_request($endpoint, $data = [], $method = 'POST') {
+				'data'   => $data,
 
-        $url = $this->get_api_url() . '/' . ltrim($endpoint, '/');
+			)
+		);
 
-        
+		$response = wp_remote_request( $url, $args );
 
-        $args = [
+		if ( is_wp_error( $response ) ) {
 
-            'method' => $method,
+			$this->log( 'ERROR', $response->get_error_message() );
 
-            'headers' => [
+			return $response;
 
-                'access_token' => $this->api_key,
+		}
 
-                'Content-Type' => 'application/json',
+		$body = wp_remote_retrieve_body( $response );
 
-            ],
+		$code = wp_remote_retrieve_response_code( $response );
 
-            'timeout' => 30,
+		$decoded = json_decode( $body, true );
 
-        ];
+		// Log da resposta
 
-        
+		$this->log(
+			'RESPONSE',
+			array(
 
-        if (!empty($data) && in_array($method, ['POST', 'PUT'])) {
+				'code' => $code,
 
-            $args['body'] = wp_json_encode($data);
+				'body' => $decoded,
 
-        }
+			)
+		);
 
-        
+		if ( $code >= 400 ) {
 
-        // Log da requisição
+			$error_message = isset( $decoded['errors'][0]['description'] )
 
-        $this->log('REQUEST', [
+				? $decoded['errors'][0]['description']
 
-            'method' => $method,
+				: 'Erro ao processar pagamento';
 
-            'url' => $url,
+			return new WP_Error( 'asaas_error', $error_message, $decoded );
 
-            'data' => $data,
+		}
 
-        ]);
+		return $decoded;
+	}
 
-        
 
-        $response = wp_remote_request($url, $args);
 
-        
+	/**
 
-        if (is_wp_error($response)) {
+	 * Validar transação com API central ANTES de criar cobrança
+	 *
+	 * @param int    $order_id
 
-            $this->log('ERROR', $response->get_error_message());
+	 * @param float  $amount
 
-            return $response;
+	 * @param float  $expected_fee
 
-        }
+	 * @param string $payment_method
 
-        
+	 * @return array|WP_Error Array com wallet_id e auth_token, ou WP_Error se não autorizado
+	 */
+	protected function validate_transaction_with_api( $order_id, $amount, $expected_fee, $payment_method = 'pix' ) {
 
-        $body = wp_remote_retrieve_body($response);
+		if ( ! class_exists( 'HNG_Payment_Orchestrator' ) ) {
 
-        $code = wp_remote_retrieve_response_code($response);
+			require_once HNG_COMMERCE_PATH . 'includes/class-hng-payment-orchestrator.php';
 
-        $decoded = json_decode($body, true);
+		}
 
-        
+		if ( ! class_exists( 'HNG_Payment_Orchestrator' ) ) {
 
-        // Log da resposta
+			return new WP_Error( 'api_client_missing', 'Sistema de validação indisponível' );
 
-        $this->log('RESPONSE', [
+		}
 
-            'code' => $code,
+		$merchant_id = get_option( 'hng_merchant_id', '' );
 
-            'body' => $decoded,
+		$validation = HNG_Payment_Orchestrator::validate_transaction(
+			$amount,
+			$merchant_id,
+			'asaas',
+			$payment_method
+		);
 
-        ]);
+		if ( is_wp_error( $validation ) ) {
 
-        
+			return $validation;
 
-        if ($code >= 400) {
+		}
 
-            $error_message = isset($decoded['errors'][0]['description']) 
+		return array(
 
-                ? $decoded['errors'][0]['description'] 
+			'authorized' => true,
 
-                : 'Erro ao processar pagamento';
+			'auth_token' => $validation['auth_token'] ?? '',
 
-            
+			'wallet_id'  => $validation['wallet_id'] ?? '',
 
-            return new WP_Error('asaas_error', $error_message, $decoded);
+		);
+	}
 
-        }
 
-        
 
-        return $decoded;
+	/**
 
-    }
+	 * Criar cliente no Asaas
+	 *
+	 * @param array $customer_data
 
-    
+	 * @return array|WP_Error
+	 */
+	public function create_customer( $customer_data ) {
 
-    /**
+		// Verificar se cliente já existe
 
-     * Validar transação com API central ANTES de criar cobrança
+		$existing = $this->get_customer_by_cpf_cnpj( $customer_data['cpfCnpj'] );
 
-     * 
+		if ( ! is_wp_error( $existing ) && isset( $existing['id'] ) ) {
 
-     * @param int $order_id
+			return $existing;
 
-     * @param float $amount
+		}
 
-     * @param float $expected_fee
+		// Criar novo cliente
 
-     * @param string $payment_method
+		$data = array(
 
-     * @return array|WP_Error Array com wallet_id e auth_token, ou WP_Error se não autorizado
+			'name'                 => sanitize_text_field( $customer_data['name'] ),
 
-     */
+			'email'                => sanitize_email( $customer_data['email'] ),
 
-    protected function validate_transaction_with_api($order_id, $amount, $expected_fee, $payment_method = 'pix') {
+			'cpfCnpj'              => preg_replace( '/[^0-9]/', '', $customer_data['cpfCnpj'] ),
 
-        if (!class_exists('HNG_Payment_Orchestrator')) {
+			'mobilePhone'          => preg_replace( '/[^0-9]/', '', $customer_data['phone'] ?? '' ),
 
-            require_once HNG_COMMERCE_PATH . 'includes/class-hng-payment-orchestrator.php';
+			'postalCode'           => preg_replace( '/[^0-9]/', '', $customer_data['postalCode'] ?? '' ),
 
-        }
+			'address'              => sanitize_text_field( $customer_data['address'] ?? '' ),
 
+			'addressNumber'        => sanitize_text_field( $customer_data['addressNumber'] ?? '' ),
 
-        if (!class_exists('HNG_Payment_Orchestrator')) {
+			'complement'           => sanitize_text_field( $customer_data['complement'] ?? '' ),
 
-            return new WP_Error('api_client_missing', 'Sistema de validação indisponível');
+			'province'             => sanitize_text_field( $customer_data['province'] ?? '' ),
 
-        }
+			'notificationDisabled' => false,
 
+		);
 
-        $merchant_id = get_option('hng_merchant_id', '');
+		return $this->make_request( '/customers', $data, 'POST' );
+	}
 
-        $validation = HNG_Payment_Orchestrator::validate_transaction(
 
-            $amount,
 
-            $merchant_id,
+	/**
 
-            'asaas',
+	 * Criar assinatura no Asaas (recorrência mensal por padrão)
 
-            $payment_method
+	 * Requer integração avançada ativa.
+	 *
+	 * @param string $customer_id
 
-        );
+	 * @param array  $data ['amount'=>float,'next_due_date'=>Y-m-d,'cycle'=>'MONTHLY']
 
+	 * @return array|WP_Error
+	 */
+	public function create_subscription( $customer_id, $data = array() ) {
 
-        if (is_wp_error($validation)) {
+		if ( ! $this->is_advanced_enabled() ) {
 
-            return $validation;
+			return new WP_Error( 'hng_asaas_adv_off', __( 'Integração avançada desativada para Asaas.', 'hng-commerce' ) );
 
-        }
+		}
 
+		if ( empty( $customer_id ) ) {
 
-        return [
+			return new WP_Error( 'asaas_no_customer', __( 'Cliente inválido para criar assinatura.', 'hng-commerce' ) );
 
-            'authorized' => true,
+		}
 
-            'auth_token' => $validation['auth_token'] ?? '',
+		$amount = isset( $data['amount'] ) ? (float) $data['amount'] : 0.0;
 
-            'wallet_id' => $validation['wallet_id'] ?? ''
+		if ( $amount <= 0 ) {
 
-        ];
-    }
+			return new WP_Error( 'asaas_invalid_amount', __( 'Valor da assinatura inválido.', 'hng-commerce' ) );
 
-    
+		}
 
-    /**
+		$payload = array(
 
-     * Criar cliente no Asaas
+			'customer'    => $customer_id,
 
-     * 
+			'value'       => $amount,
 
-     * @param array $customer_data
+			'cycle'       => strtoupper( $data['cycle'] ?? 'MONTHLY' ),
 
-     * @return array|WP_Error
+			'description' => $data['description'] ?? __( 'Assinatura HNG Commerce', 'hng-commerce' ),
 
-     */
+			'nextDueDate' => isset( $data['next_due_date'] ) ? $data['next_due_date'] : gmdate( 'Y-m-d', strtotime( '+1 month' ) ),
 
-    public function create_customer($customer_data) {
+		);
 
-        // Verificar se cliente já existe
+		return $this->make_request( '/subscriptions', $payload, 'POST' );
+	}
 
-        $existing = $this->get_customer_by_cpf_cnpj($customer_data['cpfCnpj']);
 
-        
 
-        if (!is_wp_error($existing) && isset($existing['id'])) {
+	/**
 
-            return $existing;
+	 * Buscar cliente por CPF/CNPJ
+	 *
+	 * @param string $cpf_cnpj
 
-        }
+	 * @return array|WP_Error
+	 */
+	protected function get_customer_by_cpf_cnpj( $cpf_cnpj ) {
 
-        
+		$cpf_cnpj = preg_replace( '/[^0-9]/', '', $cpf_cnpj );
 
-        // Criar novo cliente
+		$response = $this->make_request( '/customers?cpfCnpj=' . $cpf_cnpj, array(), 'GET' );
 
-        $data = [
+		if ( is_wp_error( $response ) ) {
 
-            'name' => sanitize_text_field($customer_data['name']),
+			return $response;
 
-            'email' => sanitize_email($customer_data['email']),
+		}
 
-            'cpfCnpj' => preg_replace('/[^0-9]/', '', $customer_data['cpfCnpj']),
+		if ( isset( $response['data'][0] ) ) {
 
-            'mobilePhone' => preg_replace('/[^0-9]/', '', $customer_data['phone'] ?? ''),
+			return $response['data'][0];
 
-            'postalCode' => preg_replace('/[^0-9]/', '', $customer_data['postalCode'] ?? ''),
+		}
 
-            'address' => sanitize_text_field($customer_data['address'] ?? ''),
+		return new WP_Error( 'customer_not_found', 'Cliente não encontrado' );
+	}
 
-            'addressNumber' => sanitize_text_field($customer_data['addressNumber'] ?? ''),
 
-            'complement' => sanitize_text_field($customer_data['complement'] ?? ''),
 
-            'province' => sanitize_text_field($customer_data['province'] ?? ''),
+	/**
 
-            'notificationDisabled' => false,
+	 * Criar cobrança PIX
+	 *
+	 * @param int   $order_id
 
-        ];
+	 * @param array $payment_data
 
-        
+	 * @return array|WP_Error
+	 */
+	public function create_pix_payment( $order_id, $payment_data ) {
 
-        return $this->make_request('/customers', $data, 'POST');
+		$order = new HNG_Order( $order_id );
 
-    }
+		// Log para debug
 
+		error_log( 'HNG Asaas PIX: Iniciando criação de pagamento PIX para pedido #' . $order_id );
 
+		error_log( 'HNG Asaas PIX: Post ID do pedido: ' . $order->get_post_id() );
 
-    /**
+		error_log( 'HNG Asaas PIX: Total do pedido: ' . $order->get_total() );
 
-     * Criar assinatura no Asaas (recorrência mensal por padrão)
+		// Verificar se o order foi carregado corretamente
 
-     * Requer integração avançada ativa.
+		if ( ! $order->get_id() ) {
 
-     *
+			error_log( 'HNG Asaas PIX: ERRO - Pedido não encontrado: ' . $order_id );
 
-     * @param string $customer_id
+			return new WP_Error( 'order_not_found', __( 'Pedido não encontrado.', 'hng-commerce' ) );
 
-     * @param array $data ['amount'=>float,'next_due_date'=>Y-m-d,'cycle'=>'MONTHLY']
+		}
 
-     * @return array|WP_Error
+		// Criar ou obter cliente
 
-     */
+		$customer = $this->create_customer(
+			array(
 
-    public function create_subscription($customer_id, $data = []) {
+				'name'          => $order->get_customer_name(),
 
-        if (!$this->is_advanced_enabled()) {
+				'email'         => $order->get_customer_email(),
 
-            return new WP_Error('hng_asaas_adv_off', __('Integração avançada desativada para Asaas.', 'hng-commerce'));
+				'cpfCnpj'       => $payment_data['cpf'],
 
-        }
+				'phone'         => $order->get_billing_phone(),
 
-        if (empty($customer_id)) {
+				'postalCode'    => $order->get_billing_postcode(),
 
-            return new WP_Error('asaas_no_customer', __('Cliente inválido para criar assinatura.', 'hng-commerce'));
+				'address'       => $order->get_billing_address(),
 
-        }
+				'addressNumber' => $order->get_billing_number(),
 
-        $amount = isset($data['amount']) ? (float) $data['amount'] : 0.0;
+				'complement'    => $order->get_billing_complement(),
 
-        if ($amount <= 0) {
+				'province'      => $order->get_billing_neighborhood(),
 
-            return new WP_Error('asaas_invalid_amount', __('Valor da assinatura inválido.', 'hng-commerce'));
+			)
+		);
 
-        }
+		if ( is_wp_error( $customer ) ) {
 
-        $payload = [
+			return $customer;
 
-            'customer' => $customer_id,
+		}
 
-            'value' => $amount,
+		$customer_id = $customer['id'];
 
-            'cycle' => strtoupper($data['cycle'] ?? 'MONTHLY'),
+		// Calcular split (taxa do plugin)
 
-            'description' => $data['description'] ?? __('Assinatura HNG Commerce', 'hng-commerce'),
+		$plugin_fee_amount = 0;
 
-            'nextDueDate' => isset($data['next_due_date']) ? $data['next_due_date'] : gmdate('Y-m-d', strtotime('+1 month')),
+		if ( class_exists( 'HNG_Fee_Calculator' ) ) {
 
-        ];
+			$calc = HNG_Fee_Calculator::instance();
 
-        return $this->make_request('/subscriptions', $payload, 'POST');
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'pix' );
 
-    }
+			$plugin_fee_amount = $fee_data['plugin_fee'];
 
-    
+		}
 
-    /**
+		// VALIDAR COM API ANTES DE CRIAR COBRANÇA
 
-     * Buscar cliente por CPF/CNPJ
+		$validation = $this->validate_transaction_with_api(
+			$order_id,
+			$order->get_total(),
+			$plugin_fee_amount,
+			'pix'
+		);
 
-     * 
+		if ( is_wp_error( $validation ) ) {
 
-     * @param string $cpf_cnpj
+			// Log do erro
 
-     * @return array|WP_Error
+			$this->log(
+				'VALIDATION_FAILED',
+				array(
 
-     */
+					'order_id' => $order_id,
 
-    protected function get_customer_by_cpf_cnpj($cpf_cnpj) {
+					'error'    => $validation->get_error_message(),
 
-        $cpf_cnpj = preg_replace('/[^0-9]/', '', $cpf_cnpj);
+				)
+			);
 
-        $response = $this->make_request('/customers?cpfCnpj=' . $cpf_cnpj, [], 'GET');
+			// Adicionar nota ao pedido para admin
 
-        
+			$order->add_note(
+				'?? Erro ao processar pagamento: ' . $validation->get_error_message() .
 
-        if (is_wp_error($response)) {
+				' | Entre em contato com o suporte HNG Commerce.'
+			);
 
-            return $response;
+			return $validation;
 
-        }
+		}
 
-        
+		// Usar wallet_id retornado pela API (garantia de que é o correto)
 
-        if (isset($response['data'][0])) {
+		$api_wallet_id = $validation['wallet_id'];
 
-            return $response['data'][0];
+		// Criar cobrança PIX
 
-        }
+		$charge_data = array(
 
-        
+			'customer'          => $customer_id,
 
-        return new WP_Error('customer_not_found', 'Cliente não encontrado');
+			'billingType'       => 'PIX',
 
-    }
+			'value'             => $order->get_total(),
 
-    
+			'dueDate'           => gmdate( 'Y-m-d', strtotime( '+1 day' ) ),
 
-    /**
+			'description'       => sprintf( 'Pedido #%s - %s', $order->get_order_number(), get_bloginfo( 'name' ) ),
 
-     * Criar cobrança PIX
+			'externalReference' => (string) $order_id,
 
-     * 
+		);
 
-     * @param int $order_id
+		if ( ! empty( $api_wallet_id ) && $plugin_fee_amount > 0 ) {
+			$charge_data['split'] = array(
+				array(
+					'walletId'    => $api_wallet_id,
+					'fixedValue'  => $plugin_fee_amount,
+					'description' => 'Taxa HNG Commerce Plugin',
+				),
+			);
+		}
 
-     * @param array $payment_data
+		$charge = $this->make_request( '/payments', $charge_data, 'POST' );
 
-     * @return array|WP_Error
+		if ( is_wp_error( $charge ) ) {
 
-     */
+			error_log( 'HNG Asaas PIX: ERRO ao criar cobrança - ' . $charge->get_error_message() );
 
-    public function create_pix_payment($order_id, $payment_data) {
+			return $charge;
 
-        $order = new HNG_Order($order_id);
+		}
 
-        
+		error_log( 'HNG Asaas PIX: Cobrança criada: ' . $charge['id'] );
 
-        // Log para debug
+		// Salvar dados da cobrança no pedido
 
-        error_log('HNG Asaas PIX: Iniciando criação de pagamento PIX para pedido #' . $order_id);
+		$post_id = $order->get_post_id();
 
-        error_log('HNG Asaas PIX: Post ID do pedido: ' . $order->get_post_id());
+		error_log( 'HNG Asaas PIX: Salvando meta no post_id: ' . $post_id );
 
-        error_log('HNG Asaas PIX: Total do pedido: ' . $order->get_total());
+		if ( $post_id > 0 ) {
 
-        
+			update_post_meta( $post_id, '_asaas_payment_id', $charge['id'] );
 
-        // Verificar se o order foi carregado corretamente
+			update_post_meta( $post_id, '_asaas_customer_id', $customer_id );
 
-        if (!$order->get_id()) {
+			update_post_meta( $post_id, '_payment_method', 'pix' );
 
-            error_log('HNG Asaas PIX: ERRO - Pedido não encontrado: ' . $order_id);
+			error_log( 'HNG Asaas PIX: Metas salvos com sucesso' );
 
-            return new WP_Error('order_not_found', __('Pedido não encontrado.', 'hng-commerce'));
+		} else {
 
-        }
+			error_log( 'HNG Asaas PIX: ERRO - post_id inválido (0)' );
 
-        
+		}
 
-        // Criar ou obter cliente
+		// Obter QR Code PIX
 
-        $customer = $this->create_customer([
+		$qrcode = $this->get_pix_qrcode( $charge['id'] );
 
-            'name' => $order->get_customer_name(),
+		if ( ! is_wp_error( $qrcode ) ) {
 
-            'email' => $order->get_customer_email(),
+			$charge['pixQrCode'] = $qrcode;
 
-            'cpfCnpj' => $payment_data['cpf'],
+			error_log( 'HNG Asaas PIX: QR Code obtido com sucesso' );
 
-            'phone' => $order->get_billing_phone(),
+		} else {
 
-            'postalCode' => $order->get_billing_postcode(),
+			error_log( 'HNG Asaas PIX: ERRO ao obter QR Code - ' . $qrcode->get_error_message() );
 
-            'address' => $order->get_billing_address(),
+		}
 
-            'addressNumber' => $order->get_billing_number(),
+		// Taxas + ledger (PIX)
 
-            'complement' => $order->get_billing_complement(),
+		if ( class_exists( 'HNG_Fee_Calculator' ) && class_exists( 'HNG_Ledger' ) ) {
 
-            'province' => $order->get_billing_neighborhood(),
+			$calc = HNG_Fee_Calculator::instance();
 
-        ]);
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'pix' );
 
-        
+			update_post_meta( $order->get_post_id(), '_hng_fee_data', $fee_data );
 
-        if (is_wp_error($customer)) {
+			HNG_Ledger::add_entry(
+				array(
 
-            return $customer;
+					'type'         => 'charge',
 
-        }
+					'order_id'     => $order_id,
 
-        
+					'external_ref' => $charge['id'],
 
-        $customer_id = $customer['id'];
+					'gross_amount' => $fee_data['gross_amount'],
 
-        
+					'fee_amount'   => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
 
-        // Calcular split (taxa do plugin)
+					'net_amount'   => $fee_data['net_amount'],
 
-        $plugin_fee_amount = 0;
+					'status'       => 'pending',
 
-        if (class_exists('HNG_Fee_Calculator')) {
+					'meta'         => array(
 
-            $calc = HNG_Fee_Calculator::instance();
+						'gateway'     => $this->id,
 
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'pix');
+						'method'      => 'pix',
 
-            $plugin_fee_amount = $fee_data['plugin_fee'];
+						'plugin_fee'  => $fee_data['plugin_fee'],
 
-        }
+						'gateway_fee' => $fee_data['gateway_fee'],
 
-        
+						'tier'        => $fee_data['tier'],
 
-        // VALIDAR COM API ANTES DE CRIAR COBRANÇA
+					),
 
-        $validation = $this->validate_transaction_with_api(
+				)
+			);
 
-            $order_id,
+		}
 
-            $order->get_total(),
+		return $charge;
+	}
 
-            $plugin_fee_amount,
 
-            'pix'
 
-        );
+	/**
 
-        
+	 * Obter status da cobrança PIX
 
-        if (is_wp_error($validation)) {
+	 * @param string $charge_id
 
-            // Log do erro
+	 * @return array|WP_Error
+	 */
+	public function get_pix_status( $charge_id ) {
 
-            $this->log('VALIDATION_FAILED', [
+		if ( empty( $charge_id ) ) {
 
-                'order_id' => $order_id,
+			return new WP_Error( 'pix_invalid_id', 'ID da cobrança vazio' );
 
-                'error' => $validation->get_error_message()
+		}
 
-            ]);
+		$resp = $this->make_request( '/payments/' . urlencode( $charge_id ), array(), 'GET' );
 
-            
+		if ( is_wp_error( $resp ) ) {
+			return $resp; }
 
-            // Adicionar nota ao pedido para admin
+		return array(
+			'status' => $resp['status'] ?? 'UNKNOWN',
+			'raw'    => $resp,
+		);
+	}
 
-            $order->add_note(
 
-                '?? Erro ao processar pagamento: ' . $validation->get_error_message() . 
 
-                ' | Entre em contato com o suporte HNG Commerce.'
+	/**
 
-            );
+	 * Cancelar cobrança PIX (DELETE /payments/{id})
+	 */
+	public function cancel_pix( $charge_id ) {
 
-            
+		if ( empty( $charge_id ) ) {
+			return new WP_Error( 'pix_invalid_id', 'ID inválido' ); }
 
-            return $validation;
+		$resp = $this->make_request( '/payments/' . urlencode( $charge_id ), array(), 'DELETE' );
 
-        }
+		if ( is_wp_error( $resp ) ) {
+			return $resp; }
 
-        
+		return $resp;
+	}
 
-        // Usar wallet_id retornado pela API (garantia de que é o correto)
 
-        $api_wallet_id = $validation['wallet_id'];
 
-        
+	/**
 
-        // Criar cobrança PIX
+	 * Reembolso PIX total ou parcial
+	 */
+	public function refund_pix( $charge_id, $amount = null ) {
 
-        $charge_data = [
+		if ( empty( $charge_id ) ) {
+			return new WP_Error( 'pix_invalid_id', 'ID inválido' ); }
 
-            'customer' => $customer_id,
+		$payload = array();
 
-            'billingType' => 'PIX',
+		if ( ! is_null( $amount ) ) {
+			$payload['value'] = (float) $amount; }
 
-            'value' => $order->get_total(),
+		$resp = $this->make_request( '/payments/' . urlencode( $charge_id ) . '/refund', $payload, 'POST' );
 
-            'dueDate' => gmdate('Y-m-d', strtotime('+1 day')),
+		if ( is_wp_error( $resp ) ) {
+			return $resp; }
 
-            'description' => sprintf('Pedido #%s - %s', $order->get_order_number(), get_bloginfo('name')),
+		return $resp;
+	}
 
-            'externalReference' => (string) $order_id,
 
-        ];
 
-        
+	/**
 
-        if (!empty($api_wallet_id) && $plugin_fee_amount > 0) {
-            $charge_data['split'] = [
-                [
-                    'walletId' => $api_wallet_id,
-                    'fixedValue' => $plugin_fee_amount,
-                    'description' => 'Taxa HNG Commerce Plugin'
-                ]
-            ];
-        }
+	 * Buscar dados do QR Code PIX
+	 *
+	 * @param string $payment_id
 
-        
+	 * @return array|WP_Error
+	 */
+	public function get_pix_qrcode( $payment_id ) {
 
-        $charge = $this->make_request('/payments', $charge_data, 'POST');
+		if ( ! $this->is_configured() ) {
 
-        
+			return new WP_Error( 'not_configured', 'Gateway Asaas não configurado' );
 
-        if (is_wp_error($charge)) {
+		}
 
-            error_log('HNG Asaas PIX: ERRO ao criar cobrança - ' . $charge->get_error_message());
+		return $this->make_request( "/payments/{$payment_id}/pixQrCode", array(), 'GET' );
+	}
 
-            return $charge;
 
-        }
 
-        
+	/**
 
-        error_log('HNG Asaas PIX: Cobrança criada: ' . $charge['id']);
+	 * Buscar dados do Boleto
+	 *
+	 * @param string $payment_id
 
-        
+	 * @return array|WP_Error
+	 */
+	public function get_boleto_data( $payment_id ) {
 
-        // Salvar dados da cobrança no pedido
+		if ( ! $this->is_configured() ) {
 
-        $post_id = $order->get_post_id();
+			return new WP_Error( 'not_configured', 'Gateway Asaas não configurado' );
 
-        error_log('HNG Asaas PIX: Salvando meta no post_id: ' . $post_id);
+		}
 
-        
+		$payment = $this->make_request( "/payments/{$payment_id}", array(), 'GET' );
 
-        if ($post_id > 0) {
+		if ( is_wp_error( $payment ) ) {
 
-            update_post_meta($post_id, '_asaas_payment_id', $charge['id']);
+			return $payment;
 
-            update_post_meta($post_id, '_asaas_customer_id', $customer_id);
+		}
 
-            update_post_meta($post_id, '_payment_method', 'pix');
+		return array(
 
-            error_log('HNG Asaas PIX: Metas salvos com sucesso');
+			'id'                  => $payment['id'],
 
-        } else {
+			'status'              => $payment['status'],
 
-            error_log('HNG Asaas PIX: ERRO - post_id inválido (0)');
+			'value'               => $payment['value'],
 
-        }
+			'dueDate'             => $payment['dueDate'],
 
-        
+			'identificationField' => $payment['identificationField'] ?? '',
 
-        // Obter QR Code PIX
+			'barCode'             => $payment['barCode'] ?? '',
 
-        $qrcode = $this->get_pix_qrcode($charge['id']);
+			'bankSlipUrl'         => $payment['bankSlipUrl'] ?? '',
 
-        
+			'invoiceUrl'          => $payment['invoiceUrl'] ?? '',
 
-        if (!is_wp_error($qrcode)) {
+		);
+	}
 
-            $charge['pixQrCode'] = $qrcode;
 
-            error_log('HNG Asaas PIX: QR Code obtido com sucesso');
 
-        } else {
+	/**
 
-            error_log('HNG Asaas PIX: ERRO ao obter QR Code - ' . $qrcode->get_error_message());
+	 * Criar cobrança de Boleto
+	 *
+	 * @param int   $order_id
 
-        }
+	 * @param array $payment_data
 
+	 * @return array|WP_Error
+	 */
+	public function create_boleto_payment( $order_id, $payment_data ) {
 
+		$order = new HNG_Order( $order_id );
 
-        // Taxas + ledger (PIX)
+		// Criar ou obter cliente
 
-        if (class_exists('HNG_Fee_Calculator') && class_exists('HNG_Ledger')) {
+		$customer = $this->create_customer(
+			array(
 
-            $calc = HNG_Fee_Calculator::instance();
+				'name'          => $order->get_customer_name(),
 
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'pix');
+				'email'         => $order->get_customer_email(),
 
-            update_post_meta($order->get_post_id(), '_hng_fee_data', $fee_data);
+				'cpfCnpj'       => $payment_data['cpf'],
 
-            HNG_Ledger::add_entry([
+				'phone'         => $order->get_billing_phone(),
 
-                'type' => 'charge',
+				'postalCode'    => $order->get_billing_postcode(),
 
-                'order_id' => $order_id,
+				'address'       => $order->get_billing_address(),
 
-                'external_ref' => $charge['id'],
+				'addressNumber' => $order->get_billing_number(),
 
-                'gross_amount' => $fee_data['gross_amount'],
+				'complement'    => $order->get_billing_complement(),
 
-                'fee_amount' => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
+				'province'      => $order->get_billing_neighborhood(),
 
-                'net_amount' => $fee_data['net_amount'],
+			)
+		);
 
-                'status' => 'pending',
+		if ( is_wp_error( $customer ) ) {
 
-                'meta' => [
+			return $customer;
 
-                    'gateway' => $this->id,
+		}
 
-                    'method' => 'pix',
+		$customer_id = $customer['id'];
 
-                    'plugin_fee' => $fee_data['plugin_fee'],
+		// Calcular split (taxa do plugin)
 
-                    'gateway_fee' => $fee_data['gateway_fee'],
+		$plugin_fee_amount = 0;
 
-                    'tier' => $fee_data['tier']
+		if ( class_exists( 'HNG_Fee_Calculator' ) ) {
 
-                ]
+			$calc = HNG_Fee_Calculator::instance();
 
-            ]);
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'boleto' );
 
-        }
+			$plugin_fee_amount = $fee_data['plugin_fee'];
 
-        
+		}
 
-        return $charge;
+		// VALIDAR COM API ANTES DE CRIAR COBRANÇA
 
-    }
+		$validation = $this->validate_transaction_with_api(
+			$order_id,
+			$order->get_total(),
+			$plugin_fee_amount,
+			'boleto'
+		);
 
+		if ( is_wp_error( $validation ) ) {
 
+			$this->log(
+				'VALIDATION_FAILED',
+				array(
 
-    /**
+					'order_id' => $order_id,
 
-     * Obter status da cobrança PIX
+					'error'    => $validation->get_error_message(),
 
-     * @param string $charge_id
+				)
+			);
 
-     * @return array|WP_Error
+			$order->add_note(
+				'?? Erro ao processar pagamento: ' . $validation->get_error_message() .
 
-     */
+				' | Entre em contato com o suporte HNG Commerce.'
+			);
 
-    public function get_pix_status($charge_id) {
+			return $validation;
 
-        if (empty($charge_id)) {
+		}
 
-            return new WP_Error('pix_invalid_id', 'ID da cobrança vazio');
+		$api_wallet_id = $validation['wallet_id'];
 
-        }
+		// Criar cobrança de Boleto
 
-        $resp = $this->make_request('/payments/' . urlencode($charge_id), [], 'GET');
+		$charge_data = array(
 
-        if (is_wp_error($resp)) { return $resp; }
+			'customer'          => $customer_id,
 
-        return [ 'status' => $resp['status'] ?? 'UNKNOWN', 'raw' => $resp ];
+			'billingType'       => 'BOLETO',
 
-    }
+			'value'             => $order->get_total(),
 
+			'dueDate'           => gmdate( 'Y-m-d', strtotime( '+3 days' ) ),
 
+			'description'       => sprintf( 'Pedido #%s - %s', $order->get_order_number(), get_bloginfo( 'name' ) ),
 
-    /**
+			'externalReference' => (string) $order_id,
 
-     * Cancelar cobrança PIX (DELETE /payments/{id})
+			'discount'          => array(
 
-     */
+				'value'            => 0,
 
-    public function cancel_pix($charge_id) {
+				'dueDateLimitDays' => 0,
 
-        if (empty($charge_id)) { return new WP_Error('pix_invalid_id', 'ID inválido'); }
+			),
 
-        $resp = $this->make_request('/payments/' . urlencode($charge_id), [], 'DELETE');
+			'fine'              => array(
 
-        if (is_wp_error($resp)) { return $resp; }
+				'value' => 2.00, // 2%
 
-        return $resp;
+			),
 
-    }
+			'interest'          => array(
 
+				'value' => 1.00, // 1% ao mês
 
+			),
 
-    /**
+		);
 
-     * Reembolso PIX total ou parcial
+		// Determinar wallet alvo para split: usar somente a wallet retornada pela API
 
-     */
+		$target_wallet = ! empty( $api_wallet_id ) ? $api_wallet_id : '';
 
-    public function refund_pix($charge_id, $amount = null) {
+		if ( ! empty( $target_wallet ) && $plugin_fee_amount > 0 ) {
+			$charge_data['split'] = array(
+				array(
+					'walletId'    => $target_wallet,
+					'fixedValue'  => $plugin_fee_amount,
+					'description' => 'Taxa HNG Commerce Plugin',
+				),
+			);
+		}
 
-        if (empty($charge_id)) { return new WP_Error('pix_invalid_id', 'ID inválido'); }
+		$charge = $this->make_request( '/payments', $charge_data, 'POST' );
 
-        $payload = [];
+		if ( is_wp_error( $charge ) ) {
 
-        if (!is_null($amount)) { $payload['value'] = (float) $amount; }
+			return $charge;
 
-        $resp = $this->make_request('/payments/' . urlencode($charge_id) . '/refund', $payload, 'POST');
+		}
 
-        if (is_wp_error($resp)) { return $resp; }
+		// Salvar dados da cobrança no pedido
 
-        return $resp;
+		update_post_meta( $order->get_post_id(), '_asaas_payment_id', $charge['id'] );
 
-    }
+		update_post_meta( $order->get_post_id(), '_asaas_customer_id', $customer_id );
 
-    
+		update_post_meta( $order->get_post_id(), '_payment_method', 'boleto' );
 
-    /**
+		// Taxas + ledger (Boleto)
 
-     * Buscar dados do QR Code PIX
+		if ( class_exists( 'HNG_Fee_Calculator' ) && class_exists( 'HNG_Ledger' ) ) {
 
-     * 
+			$calc = HNG_Fee_Calculator::instance();
 
-     * @param string $payment_id
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'boleto' );
 
-     * @return array|WP_Error
+			update_post_meta( $order->get_post_id(), '_hng_fee_data', $fee_data );
 
-     */
+			HNG_Ledger::add_entry(
+				array(
 
-    public function get_pix_qrcode($payment_id) {
+					'type'         => 'charge',
 
-        if (!$this->is_configured()) {
+					'order_id'     => $order_id,
 
-            return new WP_Error('not_configured', 'Gateway Asaas não configurado');
+					'external_ref' => $charge['id'],
 
-        }
+					'gross_amount' => $fee_data['gross_amount'],
 
-        
+					'fee_amount'   => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
 
-        return $this->make_request("/payments/{$payment_id}/pixQrCode", [], 'GET');
+					'net_amount'   => $fee_data['net_amount'],
 
-    }
+					'status'       => 'pending',
 
-    
+					'meta'         => array(
 
-    /**
+						'gateway'     => $this->id,
 
-     * Buscar dados do Boleto
+						'method'      => 'boleto',
 
-     * 
+						'plugin_fee'  => $fee_data['plugin_fee'],
 
-     * @param string $payment_id
+						'gateway_fee' => $fee_data['gateway_fee'],
 
-     * @return array|WP_Error
+						'tier'        => $fee_data['tier'],
 
-     */
+					),
 
-    public function get_boleto_data($payment_id) {
+				)
+			);
 
-        if (!$this->is_configured()) {
+		}
 
-            return new WP_Error('not_configured', 'Gateway Asaas não configurado');
+		return $charge;
+	}
 
-        }
 
-        
 
-        $payment = $this->make_request("/payments/{$payment_id}", [], 'GET');
+	/**
 
-        
+	 * Criar cobrança de Cartão de Crédito
+	 *
+	 * @param int   $order_id
 
-        if (is_wp_error($payment)) {
+	 * @param array $payment_data
 
-            return $payment;
+	 * @return array|WP_Error
+	 */
+	public function create_credit_card_payment( $order_id, $payment_data ) {
 
-        }
+		$order = new HNG_Order( $order_id );
 
-        
+		// Criar ou obter cliente
 
-        return [
+		$customer = $this->create_customer(
+			array(
 
-            'id' => $payment['id'],
+				'name'          => $order->get_customer_name(),
 
-            'status' => $payment['status'],
+				'email'         => $order->get_customer_email(),
 
-            'value' => $payment['value'],
+				'cpfCnpj'       => $payment_data['cpf'],
 
-            'dueDate' => $payment['dueDate'],
+				'phone'         => $order->get_billing_phone(),
 
-            'identificationField' => $payment['identificationField'] ?? '',
+				'postalCode'    => $order->get_billing_postcode(),
 
-            'barCode' => $payment['barCode'] ?? '',
+				'address'       => $order->get_billing_address(),
 
-            'bankSlipUrl' => $payment['bankSlipUrl'] ?? '',
+				'addressNumber' => $order->get_billing_number(),
 
-            'invoiceUrl' => $payment['invoiceUrl'] ?? ''
+				'complement'    => $order->get_billing_complement(),
 
-        ];
+				'province'      => $order->get_billing_neighborhood(),
 
-    }
+			)
+		);
 
-    
+		if ( is_wp_error( $customer ) ) {
 
-    /**
+			return $customer;
 
-     * Criar cobrança de Boleto
+		}
 
-     * 
+		$customer_id = $customer['id'];
 
-     * @param int $order_id
+		// Calcular split (taxa do plugin)
 
-     * @param array $payment_data
+		$plugin_fee_amount = 0;
 
-     * @return array|WP_Error
+		if ( class_exists( 'HNG_Fee_Calculator' ) ) {
 
-     */
+			$calc = HNG_Fee_Calculator::instance();
 
-    public function create_boleto_payment($order_id, $payment_data) {
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'credit_card' );
 
-        $order = new HNG_Order($order_id);
+			$plugin_fee_amount = $fee_data['plugin_fee'];
 
-        
+		}
 
-        // Criar ou obter cliente
+		// VALIDAR COM API ANTES DE CRIAR COBRANÇA
 
-        $customer = $this->create_customer([
+		$validation = $this->validate_transaction_with_api(
+			$order_id,
+			$order->get_total(),
+			$plugin_fee_amount,
+			'credit_card'
+		);
 
-            'name' => $order->get_customer_name(),
+		if ( is_wp_error( $validation ) ) {
 
-            'email' => $order->get_customer_email(),
+			$this->log(
+				'VALIDATION_FAILED',
+				array(
 
-            'cpfCnpj' => $payment_data['cpf'],
+					'order_id' => $order_id,
 
-            'phone' => $order->get_billing_phone(),
+					'error'    => $validation->get_error_message(),
 
-            'postalCode' => $order->get_billing_postcode(),
+				)
+			);
 
-            'address' => $order->get_billing_address(),
+			$order->add_note(
+				'?? Erro ao processar pagamento: ' . $validation->get_error_message() .
 
-            'addressNumber' => $order->get_billing_number(),
+				' | Entre em contato com o suporte HNG Commerce.'
+			);
 
-            'complement' => $order->get_billing_complement(),
+			return $validation;
 
-            'province' => $order->get_billing_neighborhood(),
+		}
 
-        ]);
+		$api_wallet_id = $validation['wallet_id'];
 
-        
+		// Criar cobrança de Cartão
 
-        if (is_wp_error($customer)) {
+		$charge_data = array(
 
-            return $customer;
+			'customer'             => $customer_id,
 
-        }
+			'billingType'          => 'CREDIT_CARD',
 
-        
+			'value'                => $order->get_total(),
 
-        $customer_id = $customer['id'];
+			'dueDate'              => gmdate( 'Y-m-d' ),
 
-        
+			'description'          => sprintf( 'Pedido #%s - %s', $order->get_order_number(), get_bloginfo( 'name' ) ),
 
-        // Calcular split (taxa do plugin)
+			'externalReference'    => (string) $order_id,
 
-        $plugin_fee_amount = 0;
+			'creditCard'           => array(
 
-        if (class_exists('HNG_Fee_Calculator')) {
+				'holderName'  => sanitize_text_field( $payment_data['card_holder_name'] ),
 
-            $calc = HNG_Fee_Calculator::instance();
+				'number'      => preg_replace( '/\s+/', '', $payment_data['card_number'] ),
 
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'boleto');
+				'expiryMonth' => sanitize_text_field( $payment_data['card_expiry_month'] ),
 
-            $plugin_fee_amount = $fee_data['plugin_fee'];
+				'expiryYear'  => sanitize_text_field( $payment_data['card_expiry_year'] ),
 
-        }
+				'ccv'         => sanitize_text_field( $payment_data['card_cvv'] ),
 
-        
+			),
 
-        // VALIDAR COM API ANTES DE CRIAR COBRANÇA
+			'creditCardHolderInfo' => array(
 
-        $validation = $this->validate_transaction_with_api(
+				'name'          => sanitize_text_field( $payment_data['card_holder_name'] ),
 
-            $order_id,
+				'email'         => $order->get_customer_email(),
 
-            $order->get_total(),
+				'cpfCnpj'       => preg_replace( '/[^0-9]/', '', $payment_data['cpf'] ),
 
-            $plugin_fee_amount,
+				'postalCode'    => preg_replace( '/[^0-9]/', '', $order->get_billing_postcode() ),
 
-            'boleto'
+				'addressNumber' => $order->get_billing_number(),
 
-        );
+				'phone'         => preg_replace( '/[^0-9]/', '', $order->get_billing_phone() ),
 
-        
+			),
 
-        if (is_wp_error($validation)) {
+		);
 
-            $this->log('VALIDATION_FAILED', [
+		// Determinar wallet alvo para split: usar somente a wallet retornada pela API
 
-                'order_id' => $order_id,
+		$target_wallet = ! empty( $api_wallet_id ) ? $api_wallet_id : '';
 
-                'error' => $validation->get_error_message()
+		if ( ! empty( $target_wallet ) && $plugin_fee_amount > 0 ) {
 
-            ]);
+			$charge_data['split'] = array(
 
-            
+				array(
 
-            $order->add_note(
+					'walletId'    => $target_wallet,
 
-                '?? Erro ao processar pagamento: ' . $validation->get_error_message() . 
+					'fixedValue'  => $plugin_fee_amount,
 
-                ' | Entre em contato com o suporte HNG Commerce.'
+					'description' => 'Taxa HNG Commerce Plugin',
 
-            );
+				),
 
-            
+			);
 
-            return $validation;
+		}
 
-        }
+		// Adicionar parcelamento se houver
 
-        
+		if ( isset( $payment_data['installments'] ) && $payment_data['installments'] > 1 ) {
 
-        $api_wallet_id = $validation['wallet_id'];
+			$charge_data['installmentCount'] = (int) $payment_data['installments'];
 
-        
+			$charge_data['installmentValue'] = $order->get_total() / $payment_data['installments'];
 
-        // Criar cobrança de Boleto
+		}
 
-        $charge_data = [
+		$charge = $this->make_request( '/payments', $charge_data, 'POST' );
 
-            'customer' => $customer_id,
+		if ( is_wp_error( $charge ) ) {
 
-            'billingType' => 'BOLETO',
+			return $charge;
 
-            'value' => $order->get_total(),
+		}
 
-            'dueDate' => gmdate('Y-m-d', strtotime('+3 days')),
+		// Salvar dados da cobrança no pedido
 
-            'description' => sprintf('Pedido #%s - %s', $order->get_order_number(), get_bloginfo('name')),
+		update_post_meta( $order->get_post_id(), '_asaas_payment_id', $charge['id'] );
 
-            'externalReference' => (string) $order_id,
+		update_post_meta( $order->get_post_id(), '_asaas_customer_id', $customer_id );
 
-            'discount' => [
+		update_post_meta( $order->get_post_id(), '_payment_method', 'credit_card' );
 
-                'value' => 0,
+		// Salvar últimos 4 dígitos do cartão (para exibição)
 
-                'dueDateLimitDays' => 0,
+		$last4 = substr( preg_replace( '/\s+/', '', $payment_data['card_number'] ), -4 );
 
-            ],
+		update_post_meta( $order->get_post_id(), '_card_last4', $last4 );
 
-            'fine' => [
+		// Taxas + ledger (Cartão)
 
-                'value' => 2.00, // 2%
+		if ( class_exists( 'HNG_Fee_Calculator' ) && class_exists( 'HNG_Ledger' ) ) {
 
-            ],
+			$calc = HNG_Fee_Calculator::instance();
 
-            'interest' => [
+			$fee_data = $calc->calculate_all_fees( $order->get_total(), 'physical', $this->id, 'credit_card' );
 
-                'value' => 1.00, // 1% ao mês
+			update_post_meta( $order->get_post_id(), '_hng_fee_data', $fee_data );
 
-            ],
+			HNG_Ledger::add_entry(
+				array(
 
-        ];
+					'type'         => 'charge',
 
-        
+					'order_id'     => $order_id,
 
-        // Determinar wallet alvo para split: usar somente a wallet retornada pela API
+					'external_ref' => $charge['id'],
 
-        $target_wallet = !empty($api_wallet_id) ? $api_wallet_id : '';
+					'gross_amount' => $fee_data['gross_amount'],
 
-        if (!empty($target_wallet) && $plugin_fee_amount > 0) {
-            $charge_data['split'] = [
-                [
-                    'walletId' => $target_wallet,
-                    'fixedValue' => $plugin_fee_amount,
-                    'description' => 'Taxa HNG Commerce Plugin'
-                ]
-            ];
-        }
+					'fee_amount'   => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
 
-        
+					'net_amount'   => $fee_data['net_amount'],
 
-        $charge = $this->make_request('/payments', $charge_data, 'POST');
+					'status'       => 'pending',
 
-        
+					'meta'         => array(
 
-        if (is_wp_error($charge)) {
+						'gateway'     => $this->id,
 
-            return $charge;
+						'method'      => 'credit_card',
 
-        }
+						'plugin_fee'  => $fee_data['plugin_fee'],
 
-        
+						'gateway_fee' => $fee_data['gateway_fee'],
 
-        // Salvar dados da cobrança no pedido
+						'tier'        => $fee_data['tier'],
 
-        update_post_meta($order->get_post_id(), '_asaas_payment_id', $charge['id']);
+					),
 
-        update_post_meta($order->get_post_id(), '_asaas_customer_id', $customer_id);
+				)
+			);
 
-        update_post_meta($order->get_post_id(), '_payment_method', 'boleto');
+		}
 
-        // Taxas + ledger (Boleto)
+		return $charge;
+	}
 
-        if (class_exists('HNG_Fee_Calculator') && class_exists('HNG_Ledger')) {
 
-            $calc = HNG_Fee_Calculator::instance();
 
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'boleto');
+	/**
 
-            update_post_meta($order->get_post_id(), '_hng_fee_data', $fee_data);
+	 * Verificar status do pagamento
+	 *
+	 * @param string $payment_id
 
-            HNG_Ledger::add_entry([
+	 * @return array|WP_Error
+	 */
+	public function get_payment_status( $payment_id ) {
 
-                'type' => 'charge',
+		return $this->make_request( "/payments/{$payment_id}", array(), 'GET' );
+	}
 
-                'order_id' => $order_id,
 
-                'external_ref' => $charge['id'],
 
-                'gross_amount' => $fee_data['gross_amount'],
+	/**
 
-                'fee_amount' => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
+	 * AJAX: Verificar status do pagamento
+	 */
+	public function ajax_check_payment_status() {
 
-                'net_amount' => $fee_data['net_amount'],
+		// Nonce validation (specific nonce or legacy for backward compatibility)
+		$nonce          = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		$nonce_verified = wp_verify_nonce( $nonce, 'hng_asaas_check_payment' ) ||
+						wp_verify_nonce( $nonce, 'hng_payment_check' );
+		if ( ! $nonce_verified ) {
+			wp_send_json_error( array( 'message' => __( 'Verificação de segurança falhou.', 'hng-commerce' ) ) );
+		}
 
-                'status' => 'pending',
+		$post = function_exists( 'wp_unslash' ) ? wp_unslash( $_POST ) : $_POST;
 
-                'meta' => [
+		$order_id = absint( $post['order_id'] ?? 0 );
 
-                    'gateway' => $this->id,
+		if ( ! $order_id ) {
 
-                    'method' => 'boleto',
+			wp_send_json_error( array( 'message' => 'ID do pedido inválido' ) );
 
-                    'plugin_fee' => $fee_data['plugin_fee'],
+		}
 
-                    'gateway_fee' => $fee_data['gateway_fee'],
+		$payment_id = get_post_meta( $order_id, '_asaas_payment_id', true );
 
-                    'tier' => $fee_data['tier']
+		if ( ! $payment_id ) {
 
-                ]
+			wp_send_json_error( array( 'message' => 'Cobrança não encontrada' ) );
 
-            ]);
+		}
 
-        }
+		$status = $this->get_payment_status( $payment_id );
 
+		if ( is_wp_error( $status ) ) {
 
+			wp_send_json_error( array( 'message' => $status->get_error_message() ) );
 
-        return $charge;
+		}
 
-    }
+		// Atualizar status do pedido se necessário
 
-    
+		if ( $status['status'] === 'RECEIVED' || $status['status'] === 'CONFIRMED' ) {
 
-    /**
+			$order = new HNG_Order( $order_id );
 
-     * Criar cobrança de Cartão de Crédito
+			// Usar status interno com prefixo hng- para desbloquear e-mails e colunas
+			$order->update_status( 'hng-processing', 'Pagamento confirmado via Asaas' );
 
-     * 
+		}
 
-     * @param int $order_id
+		wp_send_json_success(
+			array(
 
-     * @param array $payment_data
+				'status' => $status['status'],
 
-     * @return array|WP_Error
+				'paid'   => in_array( $status['status'], array( 'RECEIVED', 'CONFIRMED' ) ),
 
-     */
+			)
+		);
+	}
 
-    public function create_credit_card_payment($order_id, $payment_data) {
 
-        $order = new HNG_Order($order_id);
 
-        
+	/**
 
-        // Criar ou obter cliente
+	 * Testar conexão com API
+	 */
+	public function test_connection() {
 
-        $customer = $this->create_customer([
+		if ( ! $this->is_configured() ) {
 
-            'name' => $order->get_customer_name(),
+			return new WP_Error( 'not_configured', 'Gateway Asaas não configurado. Verifique a API Key.' );
 
-            'email' => $order->get_customer_email(),
+		}
 
-            'cpfCnpj' => $payment_data['cpf'],
+		// Fazer uma requisição simples para verificar a conexão
 
-            'phone' => $order->get_billing_phone(),
+		$response = $this->make_request( '/customers?limit=1', array(), 'GET' );
 
-            'postalCode' => $order->get_billing_postcode(),
+		if ( is_wp_error( $response ) ) {
 
-            'address' => $order->get_billing_address(),
+			return $response;
 
-            'addressNumber' => $order->get_billing_number(),
+		}
 
-            'complement' => $order->get_billing_complement(),
+		return true;
+	}
 
-            'province' => $order->get_billing_neighborhood(),
 
-        ]);
 
-        
+	/**
 
-        if (is_wp_error($customer)) {
+	 * Registrar log
+	 *
+	 * @param string $type
 
-            return $customer;
+	 * @param mixed  $data
+	 */
+	protected function log( $type, $data ) {
 
-        }
+		if ( get_option( 'hng_asaas_debug', 'no' ) !== 'yes' ) {
 
-        
+			return;
 
-        $customer_id = $customer['id'];
+		}
 
-        
+		$log_file = WP_CONTENT_DIR . '/hng-asaas-logs.txt';
 
-        // Calcular split (taxa do plugin)
+		$timestamp = gmdate( 'Y-m-d H:i:s' );
 
-        $plugin_fee_amount = 0;
+		$message = sprintf( "[%s] %s: %s\n", $timestamp, $type, print_r( $data, true ) );
 
-        if (class_exists('HNG_Fee_Calculator')) {
+		if ( function_exists( 'hng_files_log_put_contents' ) ) {
 
-            $calc = HNG_Fee_Calculator::instance();
+			hng_files_log_put_contents( $log_file, $message );
 
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'credit_card');
-
-            $plugin_fee_amount = $fee_data['plugin_fee'];
-
-        }
-
-        
-
-        // VALIDAR COM API ANTES DE CRIAR COBRANÇA
-
-        $validation = $this->validate_transaction_with_api(
-
-            $order_id,
-
-            $order->get_total(),
-
-            $plugin_fee_amount,
-
-            'credit_card'
-
-        );
-
-        
-
-        if (is_wp_error($validation)) {
-
-            $this->log('VALIDATION_FAILED', [
-
-                'order_id' => $order_id,
-
-                'error' => $validation->get_error_message()
-
-            ]);
-
-            
-
-            $order->add_note(
-
-                '?? Erro ao processar pagamento: ' . $validation->get_error_message() . 
-
-                ' | Entre em contato com o suporte HNG Commerce.'
-
-            );
-
-            
-
-            return $validation;
-
-        }
-
-        
-
-        $api_wallet_id = $validation['wallet_id'];
-
-        
-
-        // Criar cobrança de Cartão
-
-        $charge_data = [
-
-            'customer' => $customer_id,
-
-            'billingType' => 'CREDIT_CARD',
-
-            'value' => $order->get_total(),
-
-            'dueDate' => gmdate('Y-m-d'),
-
-            'description' => sprintf('Pedido #%s - %s', $order->get_order_number(), get_bloginfo('name')),
-
-            'externalReference' => (string) $order_id,
-
-            'creditCard' => [
-
-                'holderName' => sanitize_text_field($payment_data['card_holder_name']),
-
-                'number' => preg_replace('/\s+/', '', $payment_data['card_number']),
-
-                'expiryMonth' => sanitize_text_field($payment_data['card_expiry_month']),
-
-                'expiryYear' => sanitize_text_field($payment_data['card_expiry_year']),
-
-                'ccv' => sanitize_text_field($payment_data['card_cvv']),
-
-            ],
-
-            'creditCardHolderInfo' => [
-
-                'name' => sanitize_text_field($payment_data['card_holder_name']),
-
-                'email' => $order->get_customer_email(),
-
-                'cpfCnpj' => preg_replace('/[^0-9]/', '', $payment_data['cpf']),
-
-                'postalCode' => preg_replace('/[^0-9]/', '', $order->get_billing_postcode()),
-
-                'addressNumber' => $order->get_billing_number(),
-
-                'phone' => preg_replace('/[^0-9]/', '', $order->get_billing_phone()),
-
-            ],
-
-        ];
-
-        
-
-        // Determinar wallet alvo para split: usar somente a wallet retornada pela API
-
-        $target_wallet = !empty($api_wallet_id) ? $api_wallet_id : '';
-
-        if (!empty($target_wallet) && $plugin_fee_amount > 0) {
-
-            $charge_data['split'] = [
-
-                [
-
-                    'walletId' => $target_wallet,
-
-                    'fixedValue' => $plugin_fee_amount,
-
-                    'description' => 'Taxa HNG Commerce Plugin'
-
-                ]
-
-            ];
-
-        }
-
-        
-
-        // Adicionar parcelamento se houver
-
-        if (isset($payment_data['installments']) && $payment_data['installments'] > 1) {
-
-            $charge_data['installmentCount'] = (int) $payment_data['installments'];
-
-            $charge_data['installmentValue'] = $order->get_total() / $payment_data['installments'];
-
-        }
-
-        
-
-        $charge = $this->make_request('/payments', $charge_data, 'POST');
-
-        
-
-        if (is_wp_error($charge)) {
-
-            return $charge;
-
-        }
-
-        
-
-        // Salvar dados da cobrança no pedido
-
-        update_post_meta($order->get_post_id(), '_asaas_payment_id', $charge['id']);
-
-        update_post_meta($order->get_post_id(), '_asaas_customer_id', $customer_id);
-
-        update_post_meta($order->get_post_id(), '_payment_method', 'credit_card');
-
-        
-
-        // Salvar últimos 4 dígitos do cartão (para exibição)
-
-        $last4 = substr(preg_replace('/\s+/', '', $payment_data['card_number']), -4);
-
-        update_post_meta($order->get_post_id(), '_card_last4', $last4);
-
-        // Taxas + ledger (Cartão)
-
-        if (class_exists('HNG_Fee_Calculator') && class_exists('HNG_Ledger')) {
-
-            $calc = HNG_Fee_Calculator::instance();
-
-            $fee_data = $calc->calculate_all_fees($order->get_total(), 'physical', $this->id, 'credit_card');
-
-            update_post_meta($order->get_post_id(), '_hng_fee_data', $fee_data);
-
-            HNG_Ledger::add_entry([
-
-                'type' => 'charge',
-
-                'order_id' => $order_id,
-
-                'external_ref' => $charge['id'],
-
-                'gross_amount' => $fee_data['gross_amount'],
-
-                'fee_amount' => $fee_data['plugin_fee'] + $fee_data['gateway_fee'],
-
-                'net_amount' => $fee_data['net_amount'],
-
-                'status' => 'pending',
-
-                'meta' => [
-
-                    'gateway' => $this->id,
-
-                    'method' => 'credit_card',
-
-                    'plugin_fee' => $fee_data['plugin_fee'],
-
-                    'gateway_fee' => $fee_data['gateway_fee'],
-
-                    'tier' => $fee_data['tier']
-
-                ]
-
-            ]);
-
-        }
-
-
-
-        return $charge;
-
-    }
-
-    
-
-    /**
-
-     * Verificar status do pagamento
-
-     * 
-
-     * @param string $payment_id
-
-     * @return array|WP_Error
-
-     */
-
-    public function get_payment_status($payment_id) {
-
-        return $this->make_request("/payments/{$payment_id}", [], 'GET');
-
-    }
-
-    
-
-    /**
-
-     * AJAX: Verificar status do pagamento
-
-     */
-
-    public function ajax_check_payment_status() {
-
-        // Nonce validation (specific nonce or legacy for backward compatibility)
-        $nonce = isset($_REQUEST['nonce']) ? wp_unslash($_REQUEST['nonce']) : '';
-        $nonce_verified = wp_verify_nonce($nonce, 'hng_asaas_check_payment') || 
-                         wp_verify_nonce($nonce, 'hng_payment_check');
-        if (!$nonce_verified) {
-            wp_send_json_error(['message' => __('Verificação de segurança falhou.', 'hng-commerce')]);
-        }
-
-        $post = function_exists('wp_unslash') ? wp_unslash($_POST) : $_POST;
-
-
-
-        $order_id = absint($post['order_id'] ?? 0);
-
-        
-
-        if (!$order_id) {
-
-            wp_send_json_error(['message' => 'ID do pedido inválido']);
-
-        }
-
-        
-
-        $payment_id = get_post_meta($order_id, '_asaas_payment_id', true);
-
-        
-
-        if (!$payment_id) {
-
-            wp_send_json_error(['message' => 'Cobrança não encontrada']);
-
-        }
-
-        
-
-        $status = $this->get_payment_status($payment_id);
-
-        
-
-        if (is_wp_error($status)) {
-
-            wp_send_json_error(['message' => $status->get_error_message()]);
-
-        }
-
-        
-
-        // Atualizar status do pedido se necessário
-
-        if ($status['status'] === 'RECEIVED' || $status['status'] === 'CONFIRMED') {
-
-            $order = new HNG_Order($order_id);
-
-            // Usar status interno com prefixo hng- para desbloquear e-mails e colunas
-            $order->update_status('hng-processing', 'Pagamento confirmado via Asaas');
-
-        }
-
-        
-
-        wp_send_json_success([
-
-            'status' => $status['status'],
-
-            'paid' => in_array($status['status'], ['RECEIVED', 'CONFIRMED']),
-
-        ]);
-
-    }
-
-    
-
-    /**
-
-     * Testar conexão com API
-
-     */
-
-    public function test_connection() {
-
-        if (!$this->is_configured()) {
-
-            return new WP_Error('not_configured', 'Gateway Asaas não configurado. Verifique a API Key.');
-
-        }
-
-        
-
-        // Fazer uma requisição simples para verificar a conexão
-
-        $response = $this->make_request('/customers?limit=1', [], 'GET');
-
-        
-
-        if (is_wp_error($response)) {
-
-            return $response;
-
-        }
-
-        
-
-        return true;
-
-    }
-
-    
-
-    /**
-
-     * Registrar log
-
-     * 
-
-     * @param string $type
-
-     * @param mixed $data
-
-     */
-
-    protected function log($type, $data) {
-
-        if (get_option('hng_asaas_debug', 'no') !== 'yes') {
-
-            return;
-
-        }
-
-        
-
-        $log_file = WP_CONTENT_DIR . '/hng-asaas-logs.txt';
-
-        $timestamp = gmdate('Y-m-d H:i:s');
-
-        $message = sprintf("[%s] %s: %s\n", $timestamp, $type, print_r($data, true));
-
-        
-
-        if (function_exists('hng_files_log_put_contents')) {
-
-            hng_files_log_put_contents($log_file, $message);
-
-        }
-
-    }
-
+		}
+	}
 }
 
 
@@ -1794,176 +1547,150 @@ class HNG_Gateway_Asaas extends HNG_Payment_Gateway {
  * Hook para renovação manual de assinatura (PIX/Boleto)
 
  * Gera novo pagamento quando assinatura precisa ser renovada manualmente
-
  */
 
-add_action('hng_subscription_manual_renewal', function($subscription_id, $order_id, $payment_method) {
+add_action(
+	'hng_subscription_manual_renewal',
+	function ( $subscription_id, $order_id, $payment_method ) {
 
-    // Buscar dados da assinatura
+		// Buscar dados da assinatura
 
-    $subscription = new HNG_Subscription($subscription_id);
+		$subscription = new HNG_Subscription( $subscription_id );
 
-    $gateway_name = $subscription->get_gateway();
+		$gateway_name = $subscription->get_gateway();
 
-    
+		// Verificar se é Asaas
 
-    // Verificar se é Asaas
+		if ( $gateway_name !== 'asaas' ) {
 
-    if ($gateway_name !== 'asaas') {
+			return;
 
-        return;
+		}
 
-    }
+		// Instanciar gateway
 
-    
+		$gateway = new HNG_Gateway_Asaas();
 
-    // Instanciar gateway
+		// Buscar dados do pedido
 
-    $gateway = new HNG_Gateway_Asaas();
+		$order = new HNG_Order( $order_id );
 
-    
+		$customer_email = $order->get_customer_email();
 
-    // Buscar dados do pedido
+		// Buscar dados do cliente (CPF do pedido original se existir)
 
-    $order = new HNG_Order($order_id);
+		$original_order_id = $subscription->get_order_id();
 
-    $customer_email = $order->get_customer_email();
+		$cpf = get_post_meta( $original_order_id, '_billing_cpf', true );
 
-    
+		if ( empty( $cpf ) ) {
 
-    // Buscar dados do cliente (CPF do pedido original se existir)
+			// Tentar buscar do usuário
 
-    $original_order_id = $subscription->get_order_id();
+			$user = get_user_by( 'email', $customer_email );
 
-    $cpf = get_post_meta($original_order_id, '_billing_cpf', true);
+			if ( $user ) {
 
-    
+				$cpf = get_user_meta( $user->ID, 'billing_cpf', true );
 
-    if (empty($cpf)) {
+			}
+		}
 
-        // Tentar buscar do usuário
+		// Preparar dados de pagamento
 
-        $user = get_user_by('email', $customer_email);
+		$payment_data = array(
 
-        if ($user) {
+			'cpf' => $cpf ?: '00000000000', // Fallback se não tiver CPF
 
-            $cpf = get_user_meta($user->ID, 'billing_cpf', true);
+		);
 
-        }
+		try {
 
-    }
+			// Gerar novo pagamento
 
-    
+			if ( $payment_method === 'pix' ) {
 
-    // Preparar dados de pagamento
+				$result = $gateway->create_pix_payment( $order_id, $payment_data );
 
-    $payment_data = [
+				if ( ! is_wp_error( $result ) ) {
 
-        'cpf' => $cpf ?: '00000000000', // Fallback se não tiver CPF
+					// Salvar dados do PIX no pedido
 
-    ];
+					update_post_meta(
+						$order_id,
+						'_payment_data',
+						array(
 
-    
+							'qr_code'       => $result['pixQrCode']['payload'] ?? '',
 
-    try {
+							'qr_code_image' => $result['pixQrCode']['encodedImage'] ?? '',
 
-        // Gerar novo pagamento
+							'expires_at'    => $result['pixQrCode']['expirationDate'] ?? '',
 
-        if ($payment_method === 'pix') {
+							'payment_id'    => $result['id'] ?? '',
 
-            $result = $gateway->create_pix_payment($order_id, $payment_data);
+						)
+					);
 
-            
+					// URL de visualização (pode ser personalizada)
 
-            if (!is_wp_error($result)) {
+					$payment_url = home_url( '/checkout/view-pix/?order=' . $order_id );
 
-                // Salvar dados do PIX no pedido
+					update_post_meta( $order_id, '_payment_url', $payment_url );
 
-                update_post_meta($order_id, '_payment_data', [
+					// Log sucesso
 
-                    'qr_code' => $result['pixQrCode']['payload'] ?? '',
+					if ( function_exists( 'hng_files_log_append' ) ) {
+						hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf( '[Asaas Renovação] PIX gerado para assinatura #%d, pedido #%d' . PHP_EOL, $subscription_id, $order_id ) ); }
+				} elseif ( function_exists( 'hng_files_log_append' ) ) {
 
-                    'qr_code_image' => $result['pixQrCode']['encodedImage'] ?? '',
+							hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf( '[Asaas Renovação] Erro ao gerar PIX: %s' . PHP_EOL, $result->get_error_message() ) );
+				}
+			} elseif ( $payment_method === 'boleto' ) {
 
-                    'expires_at' => $result['pixQrCode']['expirationDate'] ?? '',
+				$result = $gateway->create_boleto_payment( $order_id, $payment_data );
 
-                    'payment_id' => $result['id'] ?? '',
+				if ( ! is_wp_error( $result ) ) {
 
-                ]);
+					// Salvar dados do Boleto no pedido
 
-                
+					update_post_meta(
+						$order_id,
+						'_payment_data',
+						array(
 
-                // URL de visualização (pode ser personalizada)
+							'boleto_url' => $result['bankSlipUrl'] ?? '',
 
-                $payment_url = home_url('/checkout/view-pix/?order=' . $order_id);
+							'barcode'    => $result['nossoNumero'] ?? '',
 
-                update_post_meta($order_id, '_payment_url', $payment_url);
+							'due_date'   => $result['dueDate'] ?? gmdate( 'Y-m-d', strtotime( '+3 days' ) ),
 
-                
+							'payment_id' => $result['id'] ?? '',
 
-                // Log sucesso
+						)
+					);
 
-                if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf('[Asaas Renovação] PIX gerado para assinatura #%d, pedido #%d' . PHP_EOL, $subscription_id, $order_id)); }
+					// URL do boleto
 
-            } else {
+					$payment_url = $result['bankSlipUrl'] ?? '';
 
-                if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf('[Asaas Renovação] Erro ao gerar PIX: %s' . PHP_EOL, $result->get_error_message())); }
+					update_post_meta( $order_id, '_payment_url', $payment_url );
 
-            }
+					// Log sucesso
 
-            
+					if ( function_exists( 'hng_files_log_append' ) ) {
+						hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf( '[Asaas Renovação] Boleto gerado para assinatura #%d, pedido #%d' . PHP_EOL, $subscription_id, $order_id ) ); }
+				} elseif ( function_exists( 'hng_files_log_append' ) ) {
 
-        } elseif ($payment_method === 'boleto') {
+					hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf( '[Asaas Renovação] Erro ao gerar Boleto: %s' . PHP_EOL, $result->get_error_message() ) );
+				}
+			}
+		} catch ( Exception $e ) {
 
-            $result = $gateway->create_boleto_payment($order_id, $payment_data);
-
-            
-
-            if (!is_wp_error($result)) {
-
-                // Salvar dados do Boleto no pedido
-
-                update_post_meta($order_id, '_payment_data', [
-
-                    'boleto_url' => $result['bankSlipUrl'] ?? '',
-
-                    'barcode' => $result['nossoNumero'] ?? '',
-
-                    'due_date' => $result['dueDate'] ?? gmdate('Y-m-d', strtotime('+3 days')),
-
-                    'payment_id' => $result['id'] ?? '',
-
-                ]);
-
-                
-
-                // URL do boleto
-
-                $payment_url = $result['bankSlipUrl'] ?? '';
-
-                update_post_meta($order_id, '_payment_url', $payment_url);
-
-                
-
-                // Log sucesso
-
-                if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf('[Asaas Renovação] Boleto gerado para assinatura #%d, pedido #%d' . PHP_EOL, $subscription_id, $order_id)); }
-
-            } else {
-
-                if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf('[Asaas Renovação] Erro ao gerar Boleto: %s' . PHP_EOL, $result->get_error_message())); }
-
-            }
-
-        }
-
-        
-
-        } catch (Exception $e) {
-
-            if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf('[Asaas Renovação] Exception: %s' . PHP_EOL, $e->getMessage())); }
-
-        }
-
-}, 10, 3);
-
+			if ( function_exists( 'hng_files_log_append' ) ) {
+				hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways-asaas.log', sprintf( '[Asaas Renovação] Exception: %s' . PHP_EOL, $e->getMessage() ) ); }
+		}
+	},
+	10,
+	3
+);

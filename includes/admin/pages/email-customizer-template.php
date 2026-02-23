@@ -1,551 +1,568 @@
-<?php
-if (!defined('ABSPATH')) {
-    exit;
+<?php // phpcs:disable Squiz.Commenting.FileComment
+// phpcs:disable WordPress.PHP.YodaConditions
+// phpcs:disable WordPress.WP.GlobalVariablesOverride
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 ?>
 <div class="wrap hng-email-customizer-v2">
 
-    <h1 class="hng-page-title" style="display: inline-flex; align-items: center;">
+	<h1 class="hng-page-title" style="display: inline-flex; align-items: center;">
+
+		<span class="dashicons dashicons-email"></span>
+
+		<?php esc_html_e( 'Customização de Emails', 'hng-commerce' ); ?>
+		<?php
+		if ( function_exists( 'hng_admin_tooltip' ) ) {
+			echo wp_kses_post(
+				hng_admin_tooltip(
+					'✉️ Sistema de Emails Transacionais',
+					array(
+						array(
+							'icon'    => '⚙️',
+							'title'   => 'Configurações Globais',
+							'content' => 'Defina cores, logo, fonte, rodapé e redes sociais uma única vez. Essas configurações são aplicadas automaticamente a todos os templates de email.',
+						),
+						array(
+							'icon'    => '📧',
+							'title'   => 'Templates Inteligentes',
+							'content' => 'Cada tipo de email tem seu template: pedidos, pagamentos, reembolsos, orçamentos, assinaturas, agendamentos e downloads digitais. Templates aparecem apenas para tipos de produto ativos.',
+						),
+						array(
+							'icon'    => '🔤',
+							'title'   => 'Variáveis Dinâmicas',
+							'content' => 'Use {{customer_name}}, {{order_id}}, {{order_total}} e outras variáveis que são substituídas automaticamente pelos dados reais do cliente e pedido.',
+						),
+						array(
+							'icon'    => '👁️',
+							'title'   => 'Prévia em Tempo Real',
+							'content' => 'Veja exatamente como o email ficará enquanto edita. O preview lateral atualiza automaticamente a cada alteração.',
+						),
+						array(
+							'icon'    => '📤',
+							'title'   => 'Teste de Envio',
+							'content' => 'Envie um email de teste para si mesmo antes de ativar. Valide que tudo está correto incluindo imagens, links e formatação.',
+						),
+					),
+					array(
+						'title' => '💡 Dica',
+						'items' => array(
+							array(
+								'label' => 'Primeiro',
+								'text'  => 'Configure as opções globais (cores, logo)',
+							),
+							array(
+								'label' => 'Depois',
+								'text'  => 'Personalize cada template individualmente',
+							),
+							array(
+								'label' => 'Sempre',
+								'text'  => 'Envie um teste antes de finalizar',
+							),
+						),
+					)
+				)
+			);
+		}
+		?>
 
-        <span class="dashicons dashicons-email"></span>
+	</h1>
 
-        <?php esc_html_e('Customização de Emails', 'hng-commerce'); ?>
-        <?php 
-        if (function_exists('hng_admin_tooltip')) {
-            echo hng_admin_tooltip(
-                '✉️ Sistema de Emails Transacionais',
-                [
-                    [
-                        'icon' => '⚙️',
-                        'title' => 'Configurações Globais',
-                        'content' => 'Defina cores, logo, fonte, rodapé e redes sociais uma única vez. Essas configurações são aplicadas automaticamente a todos os templates de email.'
-                    ],
-                    [
-                        'icon' => '📧',
-                        'title' => 'Templates Inteligentes',
-                        'content' => 'Cada tipo de email tem seu template: pedidos, pagamentos, reembolsos, orçamentos, assinaturas, agendamentos e downloads digitais. Templates aparecem apenas para tipos de produto ativos.'
-                    ],
-                    [
-                        'icon' => '🔤',
-                        'title' => 'Variáveis Dinâmicas',
-                        'content' => 'Use {{customer_name}}, {{order_id}}, {{order_total}} e outras variáveis que são substituídas automaticamente pelos dados reais do cliente e pedido.'
-                    ],
-                    [
-                        'icon' => '👁️',
-                        'title' => 'Prévia em Tempo Real',
-                        'content' => 'Veja exatamente como o email ficará enquanto edita. O preview lateral atualiza automaticamente a cada alteração.'
-                    ],
-                    [
-                        'icon' => '📤',
-                        'title' => 'Teste de Envio',
-                        'content' => 'Envie um email de teste para si mesmo antes de ativar. Valide que tudo está correto incluindo imagens, links e formatação.'
-                    ],
-                ],
-                [
-                    'title' => '💡 Dica',
-                    'items' => [
-                        ['label' => 'Primeiro', 'text' => 'Configure as opções globais (cores, logo)'],
-                        ['label' => 'Depois', 'text' => 'Personalize cada template individualmente'],
-                        ['label' => 'Sempre', 'text' => 'Envie um teste antes de finalizar'],
-                    ]
-                ]
-            );
-        }
-        ?>
+	
 
-    </h1>
+	<!-- Barra de Templates -->
 
-    
+	<div class="hng-email-templates-bar">
 
-    <!-- Barra de Templates -->
+		<div class="templates-label"><?php esc_html_e( 'Selecione o Template:', 'hng-commerce' ); ?></div>
 
-    <div class="hng-email-templates-bar">
+		<div class="templates-list">
 
-        <div class="templates-label"><?php esc_html_e('Selecione o Template:', 'hng-commerce'); ?></div>
+			<?php foreach ( $email_types as $type => $info ) : ?>
 
-        <div class="templates-list">
+				<a href="<?php echo esc_url( add_query_arg( 'email_type', $type, admin_url( 'admin.php?page=hng-emails' ) ) ); ?>" 
 
-            <?php foreach ($email_types as $type => $info): ?>
+					class="template-item <?php echo esc_html( esc_html( $type ) ) === $current_type ? 'active' : ''; ?>">
 
-                <a href="<?php echo esc_url(add_query_arg('email_type', $type, admin_url('admin.php?page=hng-emails'))); ?>" 
+					<span class="dashicons dashicons-email-alt"></span>
 
-                   class="template-item <?php echo esc_html(esc_html($type)) === $current_type ? 'active' : ''; ?>">
+					<span class="template-name"><?php echo esc_html( $info['name'] ); ?></span>
 
-                    <span class="dashicons dashicons-email-alt"></span>
+				</a>
 
-                    <span class="template-name"><?php echo esc_html($info['name']); ?></span>
+			<?php endforeach; ?>
 
-                </a>
+		</div>
 
-            <?php endforeach; ?>
+	</div>
 
-        </div>
+	
 
-    </div>
+	<!-- Layout: Editor + Preview -->
 
-    
+	<div class="hng-email-layout">
 
-    <!-- Layout: Editor + Preview -->
+		<?php if ( $current_type === 'global_settings' ) : ?>
 
-    <div class="hng-email-layout">
+			<!-- Configurações Globais -->
 
-        <?php if ($current_type === 'global_settings'): ?>
+			<?php HNG_Email_Global_Settings::render_settings_page(); ?>
 
-            <!-- Configurações Globais -->
+		<?php else : ?>
 
-            <?php HNG_Email_Global_Settings::render_settings_page(); ?>
+		<!-- Editor de Template -->
 
-        <?php else: ?>
+		<div class="hng-email-editor">
 
-        <!-- Editor de Template -->
+			<input type="hidden" id="current-email-type" value="<?php echo esc_html( esc_attr( $current_type ) ); ?>">
 
-        <div class="hng-email-editor">
+			<?php wp_nonce_field( 'hng_email_customizer', 'hng_email_nonce' ); ?>
 
-            <input type="hidden" id="current-email-type" value="<?php echo esc_html(esc_attr($current_type)); ?>">
+			
 
-            <?php wp_nonce_field('hng_email_customizer', 'hng_email_nonce'); ?>
+			<!-- Tabs -->
 
-            
+			<div class="hng-editor-tabs">
 
-            <!-- Tabs -->
+				<button type="button" class="tab-btn active" data-tab="design">🎨 Design</button>
 
-            <div class="hng-editor-tabs">
+				<button type="button" class="tab-btn" data-tab="content">📝 Conteúdo</button>
 
-                <button type="button" class="tab-btn active" data-tab="design">🎨 Design</button>
+				<button type="button" class="tab-btn" data-tab="settings">⚙️ Configuração</button>
 
-                <button type="button" class="tab-btn" data-tab="content">📝 Conteúdo</button>
+				<button type="button" class="tab-btn" data-tab="variables">🔧 Variáveis</button>
 
-                <button type="button" class="tab-btn" data-tab="settings">⚙️ Configuração</button>
+			</div>
 
-                <button type="button" class="tab-btn" data-tab="variables">🔧 Variáveis</button>
+			
 
-            </div>
+			<!-- Tab: Design -->
 
-            
+			<div class="tab-content active" data-tab="design">
 
-            <!-- Tab: Design -->
+				<div class="form-group">
 
-            <div class="tab-content active" data-tab="design">
+					<label>Logo do Email</label>
 
-                <div class="form-group">
+					<div class="logo-uploader">
 
-                    <label>Logo do Email</label>
+						<input type="hidden" name="logo" id="email-logo" value="<?php echo esc_attr( $settings['logo'] ); ?>">
 
-                    <div class="logo-uploader">
+						<div class="logo-preview-box">
 
-                        <input type="hidden" name="logo" id="email-logo" value="<?php echo esc_attr($settings['logo']); ?>">
+							<?php if ( ! empty( $settings['logo'] ) ) : ?>
 
-                        <div class="logo-preview-box">
+								<img src="<?php echo esc_url( $settings['logo'] ); ?>" class="logo-img">
 
-                            <?php if (!empty($settings['logo'])): ?>
+							<?php else : ?>
 
-                                <img src="<?php echo esc_url($settings['logo']); ?>" class="logo-img">
+								<div class="logo-placeholder">
 
-                            <?php else: ?>
+									<span class="dashicons dashicons-format-image"></span>
 
-                                <div class="logo-placeholder">
+									<p>Clique para adicionar logo</p>
 
-                                    <span class="dashicons dashicons-format-image"></span>
+								</div>
 
-                                    <p>Clique para adicionar logo</p>
+							<?php endif; ?>
 
-                                </div>
+						</div>
 
-                            <?php endif; ?>
+						<div class="logo-actions">
 
-                        </div>
+							<button type="button" class="button" id="upload-logo">Selecionar Logo</button>
 
-                        <div class="logo-actions">
+							<?php if ( ! empty( $settings['logo'] ) ) : ?>
 
-                            <button type="button" class="button" id="upload-logo">Selecionar Logo</button>
+								<button type="button" class="button" id="remove-logo">Remover</button>
 
-                            <?php if (!empty($settings['logo'])): ?>
+							<?php endif; ?>
 
-                                <button type="button" class="button" id="remove-logo">Remover</button>
+						</div>
 
-                            <?php endif; ?>
+					</div>
 
-                        </div>
+				</div>
 
-                    </div>
+				
 
-                </div>
+				<div class="color-grid">
 
-                
+					<div class="form-group">
 
-                <div class="color-grid">
+						<label>Cor do Cabeçalho</label>
 
-                    <div class="form-group">
+						<input type="text" id="header-color" name="header_color" value="<?php echo esc_attr( $settings['header_color'] ); ?>" class="color-picker">
 
-                        <label>Cor do Cabeçalho</label>
+					</div>
 
-                        <input type="text" id="header-color" name="header_color" value="<?php echo esc_attr($settings['header_color']); ?>" class="color-picker">
+					<div class="form-group">
 
-                    </div>
+						<label>Cor dos Botões</label>
 
-                    <div class="form-group">
+						<input type="text" id="button-color" name="button_color" value="<?php echo esc_attr( $settings['button_color'] ); ?>" class="color-picker">
 
-                        <label>Cor dos Botões</label>
+					</div>
 
-                        <input type="text" id="button-color" name="button_color" value="<?php echo esc_attr($settings['button_color']); ?>" class="color-picker">
+					<div class="form-group">
 
-                    </div>
+						<label>Cor do Texto</label>
 
-                    <div class="form-group">
+						<input type="text" id="text-color" name="text_color" value="<?php echo esc_attr( $settings['text_color'] ); ?>" class="color-picker">
 
-                        <label>Cor do Texto</label>
+					</div>
 
-                        <input type="text" id="text-color" name="text_color" value="<?php echo esc_attr($settings['text_color']); ?>" class="color-picker">
+					<div class="form-group">
 
-                    </div>
+						<label>Cor de Fundo</label>
 
-                    <div class="form-group">
+						<input type="text" id="bg-color" name="bg_color" value="<?php echo esc_attr( $settings['bg_color'] ); ?>" class="color-picker">
 
-                        <label>Cor de Fundo</label>
+					</div>
 
-                        <input type="text" id="bg-color" name="bg_color" value="<?php echo esc_attr($settings['bg_color']); ?>" class="color-picker">
+				</div>
 
-                    </div>
+			</div>
 
-                </div>
+			
 
-            </div>
+			<!-- Tab: Conteúdo -->
 
-            
+			<div class="tab-content" data-tab="content">
 
-            <!-- Tab: Conteúdo -->
+				<p class="description" style="margin-bottom: 15px;">
 
-            <div class="tab-content" data-tab="content">
+					💡 <strong>Dica:</strong> Arraste variáveis da aba "Variáveis" direto para o preview ao lado →
 
-                <p class="description" style="margin-bottom: 15px;">
+				</p>
 
-                    💡 <strong>Dica:</strong> Arraste variáveis da aba "Variáveis" direto para o preview ao lado →
+				<div class="editor-resize-wrapper">
 
-                </p>
+					<?php
 
-                <div class="editor-resize-wrapper">
+					wp_editor(
+						$settings['content'],
+						'email-content-editor',
+						array(
 
-                    <?php
+							'textarea_name' => 'email_content',
 
-                    wp_editor($settings['content'], 'email-content-editor', [
+							'textarea_rows' => 15,
 
-                        'textarea_name' => 'email_content',
+							'media_buttons' => true,
 
-                        'textarea_rows' => 15,
+							'tinymce'       => array(
 
-                        'media_buttons' => true,
+								'toolbar1' => 'formatselect,bold,italic,underline,forecolor,backcolor,alignleft,aligncenter,alignright,link,image',
 
-                        'tinymce' => [
+								'toolbar2' => 'bullist,numlist,blockquote,undo,redo,removeformat,code,fullscreen',
 
-                            'toolbar1' => 'formatselect,bold,italic,underline,forecolor,backcolor,alignleft,aligncenter,alignright,link,image',
+							),
 
-                            'toolbar2' => 'bullist,numlist,blockquote,undo,redo,removeformat,code,fullscreen',
+						)
+					);
 
-                        ],
+					?>
 
-                    ]);
+					<div class="editor-resize-handle">
 
-                    ?>
+						<span class="dashicons dashicons-sort"></span>
 
-                    <div class="editor-resize-handle">
+						Arraste para redimensionar
 
-                        <span class="dashicons dashicons-sort"></span>
+					</div>
 
-                        Arraste para redimensionar
+				</div>
 
-                    </div>
+			</div>
 
-                </div>
+			
 
-            </div>
+			<!-- Tab: Configurações -->
 
-            
+			<div class="tab-content" data-tab="settings">
 
-            <!-- Tab: Configurações -->
+				<div class="form-group">
 
-            <div class="tab-content" data-tab="settings">
+					<label>Assunto do Email</label>
 
-                <div class="form-group">
+					<input type="text" id="email-subject" name="subject" value="<?php echo esc_attr( $settings['subject'] ); ?>" class="widefat" placeholder="Pedido #{order_number} recebido!">
 
-                    <label>Assunto do Email</label>
+					<p class="description">Você pode usar variáveis no assunto</p>
 
-                    <input type="text" id="email-subject" name="subject" value="<?php echo esc_attr($settings['subject']); ?>" class="widefat" placeholder="Pedido #{order_number} recebido!">
+				</div>
 
-                    <p class="description">Você pode usar variáveis no assunto</p>
+				
 
-                </div>
+				<div class="form-group">
 
-                
+					<label>Nome do Remetente</label>
 
-                <div class="form-group">
+					<input type="text" id="from-name" name="from_name" value="<?php echo esc_attr( $settings['from_name'] ); ?>" class="widefat">
 
-                    <label>Nome do Remetente</label>
+				</div>
 
-                    <input type="text" id="from-name" name="from_name" value="<?php echo esc_attr($settings['from_name']); ?>" class="widefat">
+				
 
-                </div>
+				<div class="form-group">
 
-                
+					<label>Email do Remetente</label>
 
-                <div class="form-group">
+					<input type="email" id="from-email" name="from_email" value="<?php echo esc_attr( $settings['from_email'] ); ?>" class="widefat">
 
-                    <label>Email do Remetente</label>
+				</div>
 
-                    <input type="email" id="from-email" name="from_email" value="<?php echo esc_attr($settings['from_email']); ?>" class="widefat">
+			</div>
 
-                </div>
+			
 
-            </div>
+			<!-- Tab: Variáveis -->
 
-            
+			<div class="tab-content" data-tab="variables">
 
-            <!-- Tab: Variáveis -->
+				<div class="variables-help" style="margin-bottom: 15px;">
 
-            <div class="tab-content" data-tab="variables">
+					<h4>Como usar:</h4>
 
-                <div class="variables-help" style="margin-bottom: 15px;">
+					<ul>
 
-                    <h4>Como usar:</h4>
+						<li>➜ <strong>Arraste</strong> a variável direto para o <strong>preview ao lado</strong></li>
 
-                    <ul>
+						<li>🔧 Ou <strong>clique no ícone</strong> para inserir no editor</li>
 
-                        <li>➜ <strong>Arraste</strong> a variável direto para o <strong>preview ao lado</strong></li>
+						<li>📝 Edite o texto <strong>direto no preview</strong> clicando nele</li>
 
-                        <li>🔧 Ou <strong>clique no ícone</strong> para inserir no editor</li>
+					</ul>
 
-                        <li>📝 Edite o texto <strong>direto no preview</strong> clicando nele</li>
+				</div>
 
-                    </ul>
+				
 
-                </div>
+				<div class="variables-draggable-list">
 
-                
+					<?php foreach ( $email_info['variables'] as $var => $desc ) : ?>
 
-                <div class="variables-draggable-list">
+						<div class="variable-item" draggable="true" data-variable="<?php echo esc_html( esc_attr( $var ) ); ?>">
 
-                    <?php foreach ($email_info['variables'] as $var => $desc): ?>
+							<span class="drag-handle">
 
-                        <div class="variable-item" draggable="true" data-variable="<?php echo esc_html(esc_attr($var)); ?>">
+								<span class="dashicons dashicons-move"></span>
 
-                            <span class="drag-handle">
+							</span>
 
-                                <span class="dashicons dashicons-move"></span>
+							<code class="variable-code"><?php echo esc_html( esc_html( $var ) ); ?></code>
 
-                            </span>
+							<span class="variable-desc"><?php echo esc_html( esc_html( $desc ) ); ?></span>
 
-                            <code class="variable-code"><?php echo esc_html(esc_html($var)); ?></code>
+							<button type="button" class="copy-var-btn" title="Inserir no preview">
 
-                            <span class="variable-desc"><?php echo esc_html(esc_html($desc)); ?></span>
+								<span class="dashicons dashicons-insert"></span>
 
-                            <button type="button" class="copy-var-btn" title="Inserir no preview">
+							</button>
 
-                                <span class="dashicons dashicons-insert"></span>
+						</div>
 
-                            </button>
+					<?php endforeach; ?>
 
-                        </div>
+				</div>
 
-                    <?php endforeach; ?>
+			</div>
 
-                </div>
+			
 
-            </div>
+			<!-- Botões -->
 
-            
+			<div class="hng-editor-actions">
 
-            <!-- Botões -->
+				<button type="button" class="button button-primary button-large" id="save-email-template">
 
-            <div class="hng-editor-actions">
+					<span class="dashicons dashicons-saved"></span>
 
-                <button type="button" class="button button-primary button-large" id="save-email-template">
+					Salvar Template
 
-                    <span class="dashicons dashicons-saved"></span>
+				</button>
 
-                    Salvar Template
+				<?php if ( $current_type !== 'global_settings' ) : ?>
 
-                </button>
+				<button type="button" class="button button-large" id="use-global-settings">
 
-                <?php if ($current_type !== 'global_settings'): ?>
+					<span class="dashicons dashicons-admin-settings"></span>
 
-                <button type="button" class="button button-large" id="use-global-settings">
+					Usar Configurações Globais
 
-                    <span class="dashicons dashicons-admin-settings"></span>
+				</button>
 
-                    Usar Configurações Globais
+				<?php endif; ?>
 
-                </button>
+				<button type="button" class="button button-large" id="reset-template">
 
-                <?php endif; ?>
+					<span class="dashicons dashicons-update"></span>
 
-                <button type="button" class="button button-large" id="reset-template">
+					Restaurar Padrão
 
-                    <span class="dashicons dashicons-update"></span>
+				</button>
 
-                    Restaurar Padrão
+			</div>
 
-                </button>
+		</div>
 
-            </div>
+		
 
-        </div>
+		<!-- Preview -->
 
-        
+		<div class="hng-email-preview">
 
-        <!-- Preview -->
+			<div class="preview-header">
 
-        <div class="hng-email-preview">
+				<h3>Preview do Email</h3>
 
-            <div class="preview-header">
+				<div class="preview-controls">
 
-                <h3>Preview do Email</h3>
+					<div class="preview-mode-toggle">
 
-                <div class="preview-controls">
+						<button type="button" class="mode-btn active" data-mode="visual" title="Modo Visual">
 
-                    <div class="preview-mode-toggle">
+							<span class="dashicons dashicons-edit"></span>
 
-                        <button type="button" class="mode-btn active" data-mode="visual" title="Modo Visual">
+							Visual
 
-                            <span class="dashicons dashicons-edit"></span>
+						</button>
 
-                            Visual
+						<button type="button" class="mode-btn" data-mode="code" title="Modo Código">
 
-                        </button>
+							<span class="dashicons dashicons-editor-code"></span>
 
-                        <button type="button" class="mode-btn" data-mode="code" title="Modo Código">
+							Código
 
-                            <span class="dashicons dashicons-editor-code"></span>
+						</button>
 
-                            Código
+					</div>
 
-                        </button>
+					
 
-                    </div>
+					<select id="preview-order" class="preview-select">
 
-                    
+						<option value="sample">👤 Dados de Exemplo</option>
 
-                    <select id="preview-order" class="preview-select">
+						<?php if ( ! empty( $orders ) ) : ?>
 
-                        <option value="sample">👤 Dados de Exemplo</option>
+							<optgroup label="Pedidos Reais">
 
-                        <?php if (!empty($orders)): ?>
+								<?php foreach ( $orders as $order ) : ?>
 
-                            <optgroup label="Pedidos Reais">
+									<option value="<?php echo esc_attr( $order->id ); ?>">
 
-                                <?php foreach ($orders as $order): ?>
+										<?php echo esc_html( $order->order_number ); ?> - 
 
-                                    <option value="<?php echo esc_attr($order->id); ?>">
+										<?php echo esc_html( $order->customer_name ); ?>
 
-                                        <?php echo esc_html($order->order_number); ?> - 
+									</option>
 
-                                        <?php echo esc_html($order->customer_name); ?>
+								<?php endforeach; ?>
 
-                                    </option>
+							</optgroup>
 
-                                <?php endforeach; ?>
+						<?php endif; ?>
 
-                            </optgroup>
+					</select>
 
-                        <?php endif; ?>
+					
 
-                    </select>
+					<button type="button" class="button" id="refresh-preview" title="Atualizar">
 
-                    
+						<span class="dashicons dashicons-update"></span>
 
-                    <button type="button" class="button" id="refresh-preview" title="Atualizar">
+					</button>
 
-                        <span class="dashicons dashicons-update"></span>
+					
 
-                    </button>
+					<button type="button" class="button" id="send-test-email" title="Enviar Teste">
 
-                    
+						<span class="dashicons dashicons-email-alt"></span>
 
-                    <button type="button" class="button" id="send-test-email" title="Enviar Teste">
+						Testar
 
-                        <span class="dashicons dashicons-email-alt"></span>
+					</button>
 
-                        Testar
+				</div>
 
-                    </button>
+			</div>
 
-                </div>
+			
 
-            </div>
+			<div class="preview-device-tabs">
 
-            
+				<button type="button" class="device-tab active" data-device="desktop">
 
-            <div class="preview-device-tabs">
+					<span class="dashicons dashicons-desktop"></span>
 
-                <button type="button" class="device-tab active" data-device="desktop">
+					Desktop
 
-                    <span class="dashicons dashicons-desktop"></span>
+				</button>
 
-                    Desktop
+				<button type="button" class="device-tab" data-device="mobile">
 
-                </button>
+					<span class="dashicons dashicons-smartphone"></span>
 
-                <button type="button" class="device-tab" data-device="mobile">
+					Mobile
 
-                    <span class="dashicons dashicons-smartphone"></span>
+				</button>
 
-                    Mobile
+			</div>
 
-                </button>
+			
 
-            </div>
+			<div class="preview-container">
 
-            
+				<!-- Modo Visual: Edição Direta -->
 
-            <div class="preview-container">
+				<div class="preview-viewport desktop" id="visual-mode-preview">
 
-                <!-- Modo Visual: Edição Direta -->
+					<div class="email-preview-editor" contenteditable="true" id="email-preview-editable">
 
-                <div class="preview-viewport desktop" id="visual-mode-preview">
+						<!-- Conteúdo será carregado aqui -->
 
-                    <div class="email-preview-editor" contenteditable="true" id="email-preview-editable">
+					</div>
 
-                        <!-- Conteúdo será carregado aqui -->
+					<div class="preview-edit-hint">
 
-                    </div>
+						<span class="dashicons dashicons-edit"></span>
 
-                    <div class="preview-edit-hint">
+						Clique para editar ou arraste variáveis aqui
 
-                        <span class="dashicons dashicons-edit"></span>
+					</div>
 
-                        Clique para editar ou arraste variáveis aqui
+				</div>
 
-                    </div>
+				
 
-                </div>
+				<!-- Modo Código: HTML Bruto -->
 
-                
+				<div class="preview-viewport desktop" id="code-mode-preview" style="display: none;">
 
-                <!-- Modo Código: HTML Bruto -->
+					<textarea id="email-code-editor" class="code-editor" spellcheck="false"></textarea>
 
-                <div class="preview-viewport desktop" id="code-mode-preview" style="display: none;">
+				</div>
 
-                    <textarea id="email-code-editor" class="code-editor" spellcheck="false"></textarea>
+				
 
-                </div>
+				<div class="preview-loading">
 
-                
+					<span class="spinner is-active"></span>
 
-                <div class="preview-loading">
+					<p>Carregando preview...</p>
 
-                    <span class="spinner is-active"></span>
+				</div>
 
-                    <p>Carregando preview...</p>
+			</div>
 
-                </div>
+		</div>
 
-            </div>
+		<?php endif; ?>
 
-        </div>
-
-        <?php endif; ?>
-
-    </div>
+	</div>
 
 </div>
 
-<?php include __DIR__ . '/email-customizer-styles.php'; ?>
-<?php include __DIR__ . '/email-customizer-scripts.php'; ?>
+<?php require __DIR__ . '/email-customizer-styles.php'; ?>
+<?php require __DIR__ . '/email-customizer-scripts.php'; ?>

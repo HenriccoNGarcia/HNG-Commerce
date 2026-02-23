@@ -1,927 +1,785 @@
 <?php
 /**
  * HNG Commerce - Customer Registration Handler
- * 
+ *
  * Handles AJAX registration for new customers (providers and companies)
  * Creates WordPress user and saves customer metadata
- * 
+ *
  * @package HNG_Commerce
  * @since 1.2.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamComment
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable Universal.Operators.DisallowShortTernary.Found
+// phpcs:disable WordPress.DB.DirectDatabaseQuery
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class HNG_Customer_Registration {
-    
-    /**
 
-     * Customer type constants
+	/**
 
-     */
+	 * Customer type constants
+	 */
 
-    const TYPE_PROVIDER = 'provider';
+	const TYPE_PROVIDER = 'provider';
 
-    const TYPE_COMPANY = 'company';
+	const TYPE_COMPANY = 'company';
 
-    
 
-    /**
 
-     * Meta keys for customer data
+	/**
 
-     */
+	 * Meta keys for customer data
+	 */
 
-    const META_PREFIX = '_hng_customer_';
+	const META_PREFIX = '_hng_customer_';
 
-    
 
-    /**
 
-     * Constructor - register AJAX handlers
+	/**
 
-     */
+	 * Constructor - register AJAX handlers
+	 */
+	public function __construct() {
 
-    public function __construct() {
+		add_action( 'wp_ajax_hng_register_client', array( $this, 'handle_registration' ) );
 
-        add_action('wp_ajax_hng_register_client', [$this, 'handle_registration']);
+		add_action( 'wp_ajax_nopriv_hng_register_client', array( $this, 'handle_registration' ) );
 
-        add_action('wp_ajax_nopriv_hng_register_client', [$this, 'handle_registration']);
+		add_action( 'wp_ajax_hng_client_login', array( $this, 'handle_login' ) );
 
-        add_action('wp_ajax_hng_client_login', [$this, 'handle_login']);
+		add_action( 'wp_ajax_nopriv_hng_client_login', array( $this, 'handle_login' ) );
 
-        add_action('wp_ajax_nopriv_hng_client_login', [$this, 'handle_login']);
+		add_action( 'wp_ajax_hng_get_customer_details', array( $this, 'get_customer_details' ) );
+	}
 
-        add_action('wp_ajax_hng_get_customer_details', [$this, 'get_customer_details']);
 
-    }
 
-    
+	/**
 
-    /**
+	 * Handle customer login AJAX request
+	 */
+	public function handle_login() {
 
-     * Handle customer login AJAX request
+		// Verify nonce
 
-     */
+		if ( ! isset( $_POST['hng_login_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['hng_login_nonce'] ) ), 'hng_client_login' ) ) {
 
-    public function handle_login() {
+			wp_send_json_error( array( 'message' => __( 'Erro de segurança. Recarregue a página e tente novamente.', 'hng-commerce' ) ) );
 
-        // Verify nonce
+		}
 
-        if (!isset($_POST['hng_login_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['hng_login_nonce'])), 'hng_client_login')) {
+		// Verify reCAPTCHA if enabled
+		if ( function_exists( 'hng_is_recaptcha_enabled' ) && hng_is_recaptcha_enabled() ) {
+			$recaptcha_token  = isset( $_POST['recaptcha_token'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_token'] ) ) : '';
+			$recaptcha_result = hng_verify_recaptcha( $recaptcha_token, 'login' );
 
-            wp_send_json_error(['message' => __('Erro de segurança. Recarregue a página e tente novamente.', 'hng-commerce')]);
+			if ( ! $recaptcha_result['success'] ) {
+				wp_send_json_error( array( 'message' => $recaptcha_result['error'] ?: __( 'Verificação de segurança falhou. Tente novamente.', 'hng-commerce' ) ) );
+			}
+		}
 
-        }
+		// Get credentials
 
-        
-        // Verify reCAPTCHA if enabled
-        if (function_exists('hng_is_recaptcha_enabled') && hng_is_recaptcha_enabled()) {
-            $recaptcha_token = isset($_POST['recaptcha_token']) ? sanitize_text_field(wp_unslash($_POST['recaptcha_token'])) : '';
-            $recaptcha_result = hng_verify_recaptcha($recaptcha_token, 'login');
-            
-            if (!$recaptcha_result['success']) {
-                wp_send_json_error(['message' => $recaptcha_result['error'] ?: __('Verificação de segurança falhou. Tente novamente.', 'hng-commerce')]);
-            }
-        }
-        
-        // Get credentials
+		$email = isset( $_POST['login_email'] ) ? sanitize_email( wp_unslash( $_POST['login_email'] ) ) : '';
 
-        $email = isset($_POST['login_email']) ? sanitize_email(wp_unslash($_POST['login_email'])) : '';
+		$password = isset( $_POST['login_password'] ) ? wp_unslash( $_POST['login_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password should not be sanitized before authentication.
 
-        $password = isset($_POST['login_password']) ? wp_unslash($_POST['login_password']) : '';
+		$remember = isset( $_POST['remember_me'] ) && $_POST['remember_me'] === 'on';
 
-        $remember = isset($_POST['remember_me']) && $_POST['remember_me'] === 'on';
+		if ( empty( $email ) || empty( $password ) ) {
 
-        
+			wp_send_json_error( array( 'message' => __( 'Por favor, preencha e-mail e senha.', 'hng-commerce' ) ) );
 
-        if (empty($email) || empty($password)) {
+		}
 
-            wp_send_json_error(['message' => __('Por favor, preencha e-mail e senha.', 'hng-commerce')]);
+		// Try to authenticate
 
-        }
+		$user = wp_authenticate( $email, $password );
 
-        
+		if ( is_wp_error( $user ) ) {
 
-        // Try to authenticate
+			// Translate common error messages
 
-        $user = wp_authenticate($email, $password);
+			$error_code = $user->get_error_code();
 
-        
+			switch ( $error_code ) {
 
-        if (is_wp_error($user)) {
+				case 'invalid_email':
+				case 'invalid_username':
+					$message = __( 'E-mail não encontrado.', 'hng-commerce' );
 
-            // Translate common error messages
+					break;
 
-            $error_code = $user->get_error_code();
+				case 'incorrect_password':
+					$message = __( 'Senha incorreta.', 'hng-commerce' );
 
-            switch ($error_code) {
+					break;
 
-                case 'invalid_email':
+				default:
+					$message = __( 'Credenciais inválidas.', 'hng-commerce' );
 
-                case 'invalid_username':
+			}
 
-                    $message = __('E-mail não encontrado.', 'hng-commerce');
+			wp_send_json_error( array( 'message' => $message ) );
 
-                    break;
+		}
 
-                case 'incorrect_password':
+		// Set auth cookie
 
-                    $message = __('Senha incorreta.', 'hng-commerce');
+		wp_set_current_user( $user->ID );
 
-                    break;
+		wp_set_auth_cookie( $user->ID, $remember );
 
-                default:
+		// Determine redirect URL
 
-                    $message = __('Credenciais inválidas.', 'hng-commerce');
+		$redirect_url = function_exists( 'hng_get_account_url' ) ? hng_get_account_url() : home_url( '/minha-conta/' );
 
-            }
+		/* translators: %s: user display name */
 
-            wp_send_json_error(['message' => $message]);
+		wp_send_json_success(
+			array(
 
-        }
+				/* translators: %s: user display name */
+				'message'  => sprintf( __( 'Bem-vindo(a) de volta, %s!', 'hng-commerce' ), $user->display_name ),
 
-        
+				'user_id'  => $user->ID,
 
-        // Set auth cookie
+				'redirect' => $redirect_url,
 
-        wp_set_current_user($user->ID);
+			)
+		);
+	}
 
-        wp_set_auth_cookie($user->ID, $remember);
 
-        
 
-        // Determine redirect URL
+	/**
 
-        $redirect_url = function_exists('hng_get_account_url') ? hng_get_account_url() : home_url('/minha-conta/');
+	 * Handle customer registration AJAX request
+	 */
+	public function handle_registration() {
 
-        
+		// Verify nonce
 
-        /* translators: %s: user display name */
+		if ( ! isset( $_POST['hng_client_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['hng_client_nonce'] ) ), 'hng_client_registration' ) ) {
 
-        wp_send_json_success([
+			wp_send_json_error( array( 'message' => __( 'Erro de segurança. Recarregue a página e tente novamente.', 'hng-commerce' ) ) );
 
-            /* translators: %s: user display name */
-            'message' => sprintf(__('Bem-vindo(a) de volta, %s!', 'hng-commerce'), $user->display_name),
+		}
 
-            'user_id' => $user->ID,
+		// Verify reCAPTCHA if enabled
+		if ( function_exists( 'hng_is_recaptcha_enabled' ) && hng_is_recaptcha_enabled() ) {
+			$recaptcha_token  = isset( $_POST['recaptcha_token'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_token'] ) ) : '';
+			$recaptcha_result = hng_verify_recaptcha( $recaptcha_token, 'register' );
 
-            'redirect' => $redirect_url,
+			if ( ! $recaptcha_result['success'] ) {
+				wp_send_json_error( array( 'message' => $recaptcha_result['error'] ?: __( 'Verificação de segurança falhou. Tente novamente.', 'hng-commerce' ) ) );
+			}
+		}
 
-        ]);
+		// Get client type
 
-    }
+		$client_type = isset( $_POST['client_type'] ) ? sanitize_text_field( wp_unslash( $_POST['client_type'] ) ) : '';
 
-    
+		if ( ! in_array( $client_type, array( self::TYPE_PROVIDER, self::TYPE_COMPANY ), true ) ) {
 
-    /**
+			wp_send_json_error( array( 'message' => __( 'Tipo de cliente inválido.', 'hng-commerce' ) ) );
 
-     * Handle customer registration AJAX request
+		}
 
-     */
+		// Validate and sanitize data based on type
 
-    public function handle_registration() {
+		if ( $client_type === self::TYPE_PROVIDER ) {
 
-        // Verify nonce
+			$result = $this->register_provider();
 
-        if (!isset($_POST['hng_client_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['hng_client_nonce'])), 'hng_client_registration')) {
+		} else {
 
-            wp_send_json_error(['message' => __('Erro de segurança. Recarregue a página e tente novamente.', 'hng-commerce')]);
+			$result = $this->register_company();
 
-        }
+		}
 
-        
-        // Verify reCAPTCHA if enabled
-        if (function_exists('hng_is_recaptcha_enabled') && hng_is_recaptcha_enabled()) {
-            $recaptcha_token = isset($_POST['recaptcha_token']) ? sanitize_text_field(wp_unslash($_POST['recaptcha_token'])) : '';
-            $recaptcha_result = hng_verify_recaptcha($recaptcha_token, 'register');
-            
-            if (!$recaptcha_result['success']) {
-                wp_send_json_error(['message' => $recaptcha_result['error'] ?: __('Verificação de segurança falhou. Tente novamente.', 'hng-commerce')]);
-            }
-        }
-        
-        // Get client type
+		if ( is_wp_error( $result ) ) {
 
-        $client_type = isset($_POST['client_type']) ? sanitize_text_field(wp_unslash($_POST['client_type'])) : '';
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 
-        
+		}
 
-        if (!in_array($client_type, [self::TYPE_PROVIDER, self::TYPE_COMPANY], true)) {
+		// Auto login the user
 
-            wp_send_json_error(['message' => __('Tipo de cliente inválido.', 'hng-commerce')]);
+		wp_set_current_user( $result['user_id'] );
 
-        }
+		wp_set_auth_cookie( $result['user_id'], true );
 
-        
+		// Determine redirect URL
 
-        // Validate and sanitize data based on type
+		$redirect_url = function_exists( 'hng_get_account_url' ) ? hng_get_account_url() : home_url( '/minha-conta/' );
 
-        if ($client_type === self::TYPE_PROVIDER) {
+		wp_send_json_success(
+			array(
 
-            $result = $this->register_provider();
+				'message'  => __( 'Conta criada com sucesso! Bem-vindo(a)!', 'hng-commerce' ),
 
-        } else {
+				'user_id'  => $result['user_id'],
 
-            $result = $this->register_company();
+				'redirect' => $redirect_url,
 
-        }
+			)
+		);
+	}
 
-        
 
-        if (is_wp_error($result)) {
 
-            wp_send_json_error(['message' => $result->get_error_message()]);
+	/**
 
-        }
+	 * Register a service provider (pessoa física)
+	 *
+	 * @return array|WP_Error
+	 */
+	private function register_provider() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce is verified in handle_registration() before this method is called.
 
-        
+		// Required fields
 
-        // Auto login the user
+		$name = isset( $_POST['provider_name'] ) ? sanitize_text_field( wp_unslash( $_POST['provider_name'] ) ) : '';
 
-        wp_set_current_user($result['user_id']);
+		$email = isset( $_POST['provider_email'] ) ? sanitize_email( wp_unslash( $_POST['provider_email'] ) ) : '';
 
-        wp_set_auth_cookie($result['user_id'], true);
+		$phone = isset( $_POST['provider_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['provider_phone'] ) ) : '';
 
-        
+		$whatsapp = isset( $_POST['provider_whatsapp'] ) ? sanitize_text_field( wp_unslash( $_POST['provider_whatsapp'] ) ) : '';
 
-        // Determine redirect URL
+		$password = isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password should not be sanitized
 
-        $redirect_url = function_exists('hng_get_account_url') ? hng_get_account_url() : home_url('/minha-conta/');
+		// Optional fields
 
-        
+		$area = isset( $_POST['provider_area'] ) ? sanitize_text_field( wp_unslash( $_POST['provider_area'] ) ) : '';
 
-        wp_send_json_success([
+		$social = isset( $_POST['provider_social'] ) ? sanitize_textarea_field( wp_unslash( $_POST['provider_social'] ) ) : '';
 
-            'message' => __('Conta criada com sucesso! Bem-vindo(a)!', 'hng-commerce'),
+		$services = isset( $_POST['provider_services'] ) ? sanitize_textarea_field( wp_unslash( $_POST['provider_services'] ) ) : '';
 
-            'user_id' => $result['user_id'],
+		// Service needed
 
-            'redirect' => $redirect_url,
+		$service_needed = isset( $_POST['service_needed'] ) ? sanitize_text_field( wp_unslash( $_POST['service_needed'] ) ) : '';
 
-        ]);
+		$other_service = isset( $_POST['other_service'] ) ? sanitize_textarea_field( wp_unslash( $_POST['other_service'] ) ) : '';
 
-    }
+		// Validate required fields
 
-    
+		if ( empty( $name ) || empty( $email ) || empty( $phone ) || empty( $whatsapp ) || empty( $password ) ) {
 
-    /**
+			return new WP_Error( 'missing_fields', __( 'Por favor, preencha todos os campos obrigatórios.', 'hng-commerce' ) );
 
-     * Register a service provider (pessoa física)
+		}
 
-     * 
+		if ( ! is_email( $email ) ) {
 
-     * @return array|WP_Error
+			return new WP_Error( 'invalid_email', __( 'Por favor, informe um e-mail válido.', 'hng-commerce' ) );
 
-     */
+		}
 
-    private function register_provider() {
+		if ( strlen( $password ) < 6 ) {
 
-        // Required fields
+			return new WP_Error( 'weak_password', __( 'A senha deve ter pelo menos 6 caracteres.', 'hng-commerce' ) );
 
-        $name = isset($_POST['provider_name']) ? sanitize_text_field(wp_unslash($_POST['provider_name'])) : '';
+		}
 
-        $email = isset($_POST['provider_email']) ? sanitize_email(wp_unslash($_POST['provider_email'])) : '';
+		// Check if email already exists
 
-        $phone = isset($_POST['provider_phone']) ? sanitize_text_field(wp_unslash($_POST['provider_phone'])) : '';
+		if ( email_exists( $email ) ) {
 
-        $whatsapp = isset($_POST['provider_whatsapp']) ? sanitize_text_field(wp_unslash($_POST['provider_whatsapp'])) : '';
+			return new WP_Error( 'email_exists', __( 'Este e-mail já está cadastrado. Tente fazer login.', 'hng-commerce' ) );
 
-        $password = isset($_POST['password']) ? $_POST['password'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password should not be sanitized
+		}
 
-        
+		// Create username from email
 
-        // Optional fields
+		$username = $this->generate_username( $email );
 
-        $area = isset($_POST['provider_area']) ? sanitize_text_field(wp_unslash($_POST['provider_area'])) : '';
+		// Create WordPress user
 
-        $social = isset($_POST['provider_social']) ? sanitize_textarea_field(wp_unslash($_POST['provider_social'])) : '';
+		$user_id = wp_insert_user(
+			array(
 
-        $services = isset($_POST['provider_services']) ? sanitize_textarea_field(wp_unslash($_POST['provider_services'])) : '';
+				'user_login'   => $username,
 
-        
+				'user_email'   => $email,
 
-        // Service needed
+				'user_pass'    => $password,
 
-        $service_needed = isset($_POST['service_needed']) ? sanitize_text_field(wp_unslash($_POST['service_needed'])) : '';
+				'display_name' => $name,
 
-        $other_service = isset($_POST['other_service']) ? sanitize_textarea_field(wp_unslash($_POST['other_service'])) : '';
+				'first_name'   => $this->get_first_name( $name ),
 
-        
+				'last_name'    => $this->get_last_name( $name ),
 
-        // Validate required fields
+				'role'         => 'hng_customer',
 
-        if (empty($name) || empty($email) || empty($phone) || empty($whatsapp) || empty($password)) {
+			)
+		);
 
-            return new WP_Error('missing_fields', __('Por favor, preencha todos os campos obrigatórios.', 'hng-commerce'));
+		if ( is_wp_error( $user_id ) ) {
 
-        }
+			return $user_id;
 
-        
+		}
 
-        if (!is_email($email)) {
+		// Save customer metadata
 
-            return new WP_Error('invalid_email', __('Por favor, informe um e-mail válido.', 'hng-commerce'));
+		update_user_meta( $user_id, self::META_PREFIX . 'type', self::TYPE_PROVIDER );
 
-        }
+		update_user_meta( $user_id, self::META_PREFIX . 'name', $name );
 
-        
+		update_user_meta( $user_id, self::META_PREFIX . 'phone', $phone );
 
-        if (strlen($password) < 6) {
+		update_user_meta( $user_id, self::META_PREFIX . 'whatsapp', $whatsapp );
 
-            return new WP_Error('weak_password', __('A senha deve ter pelo menos 6 caracteres.', 'hng-commerce'));
+		update_user_meta( $user_id, self::META_PREFIX . 'area', $area );
 
-        }
+		update_user_meta( $user_id, self::META_PREFIX . 'social_networks', $social );
 
-        
+		update_user_meta( $user_id, self::META_PREFIX . 'services_provided', $services );
 
-        // Check if email already exists
+		update_user_meta( $user_id, self::META_PREFIX . 'service_needed', $service_needed );
 
-        if (email_exists($email)) {
+		update_user_meta( $user_id, self::META_PREFIX . 'other_service', $other_service );
 
-            return new WP_Error('email_exists', __('Este e-mail já está cadastrado. Tente fazer login.', 'hng-commerce'));
+		update_user_meta( $user_id, self::META_PREFIX . 'registered_at', current_time( 'mysql' ) );
 
-        }
+		// Allow extensions
 
-        
+		do_action( 'hng_customer_registered', $user_id, self::TYPE_PROVIDER, $_POST );
 
-        // Create username from email
+		return array( 'user_id' => $user_id );
+	}
 
-        $username = $this->generate_username($email);
 
-        
 
-        // Create WordPress user
+	/**
 
-        $user_id = wp_insert_user([
+	 * Register a company (pessoa jurídica)
+	 *
+	 * @return array|WP_Error
+	 */
+	private function register_company() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce is verified in handle_registration() before this method is called.
 
-            'user_login' => $username,
+		// Required fields
 
-            'user_email' => $email,
+		$name = isset( $_POST['company_name'] ) ? sanitize_text_field( wp_unslash( $_POST['company_name'] ) ) : '';
 
-            'user_pass' => $password,
+		$email = isset( $_POST['company_email'] ) ? sanitize_email( wp_unslash( $_POST['company_email'] ) ) : '';
 
-            'display_name' => $name,
+		$cnpj = isset( $_POST['company_cnpj'] ) ? sanitize_text_field( wp_unslash( $_POST['company_cnpj'] ) ) : '';
 
-            'first_name' => $this->get_first_name($name),
+		$phone = isset( $_POST['company_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['company_phone'] ) ) : '';
 
-            'last_name' => $this->get_last_name($name),
+		$password = isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password should not be sanitized
 
-            'role' => 'hng_customer',
+		// Optional fields
 
-        ]);
+		$area = isset( $_POST['company_area'] ) ? sanitize_text_field( wp_unslash( $_POST['company_area'] ) ) : '';
 
-        
+		// Service needed
 
-        if (is_wp_error($user_id)) {
+		$service_needed = isset( $_POST['service_needed'] ) ? sanitize_text_field( wp_unslash( $_POST['service_needed'] ) ) : '';
 
-            return $user_id;
+		$other_service = isset( $_POST['other_service'] ) ? sanitize_textarea_field( wp_unslash( $_POST['other_service'] ) ) : '';
 
-        }
+		// Validate required fields
 
-        
+		if ( empty( $name ) || empty( $email ) || empty( $cnpj ) || empty( $phone ) || empty( $password ) ) {
 
-        // Save customer metadata
+			return new WP_Error( 'missing_fields', __( 'Por favor, preencha todos os campos obrigatórios.', 'hng-commerce' ) );
 
-        update_user_meta($user_id, self::META_PREFIX . 'type', self::TYPE_PROVIDER);
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'name', $name);
+		if ( ! is_email( $email ) ) {
 
-        update_user_meta($user_id, self::META_PREFIX . 'phone', $phone);
+			return new WP_Error( 'invalid_email', __( 'Por favor, informe um e-mail válido.', 'hng-commerce' ) );
 
-        update_user_meta($user_id, self::META_PREFIX . 'whatsapp', $whatsapp);
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'area', $area);
+		if ( strlen( $password ) < 6 ) {
 
-        update_user_meta($user_id, self::META_PREFIX . 'social_networks', $social);
+			return new WP_Error( 'weak_password', __( 'A senha deve ter pelo menos 6 caracteres.', 'hng-commerce' ) );
 
-        update_user_meta($user_id, self::META_PREFIX . 'services_provided', $services);
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'service_needed', $service_needed);
+		// Validate CNPJ format
 
-        update_user_meta($user_id, self::META_PREFIX . 'other_service', $other_service);
+		$cnpj_clean = preg_replace( '/\D/', '', $cnpj );
 
-        update_user_meta($user_id, self::META_PREFIX . 'registered_at', current_time('mysql'));
+		if ( strlen( $cnpj_clean ) !== 14 ) {
 
-        
+			return new WP_Error( 'invalid_cnpj', __( 'Por favor, informe um CNPJ válido.', 'hng-commerce' ) );
 
-        // Allow extensions
+		}
 
-        do_action('hng_customer_registered', $user_id, self::TYPE_PROVIDER, $_POST);
+		// Check if email already exists
 
-        
+		if ( email_exists( $email ) ) {
 
-        return ['user_id' => $user_id];
+			return new WP_Error( 'email_exists', __( 'Este e-mail já está cadastrado. Tente fazer login.', 'hng-commerce' ) );
 
-    }
+		}
 
-    
+		// Create username from email
 
-    /**
+		$username = $this->generate_username( $email );
 
-     * Register a company (pessoa jurídica)
+		// Create WordPress user
 
-     * 
+		$user_id = wp_insert_user(
+			array(
 
-     * @return array|WP_Error
+				'user_login'   => $username,
 
-     */
+				'user_email'   => $email,
 
-    private function register_company() {
+				'user_pass'    => $password,
 
-        // Required fields
+				'display_name' => $name,
 
-        $name = isset($_POST['company_name']) ? sanitize_text_field(wp_unslash($_POST['company_name'])) : '';
+				'first_name'   => $name,
 
-        $email = isset($_POST['company_email']) ? sanitize_email(wp_unslash($_POST['company_email'])) : '';
+				'role'         => 'hng_customer',
 
-        $cnpj = isset($_POST['company_cnpj']) ? sanitize_text_field(wp_unslash($_POST['company_cnpj'])) : '';
+			)
+		);
 
-        $phone = isset($_POST['company_phone']) ? sanitize_text_field(wp_unslash($_POST['company_phone'])) : '';
+		if ( is_wp_error( $user_id ) ) {
 
-        $password = isset($_POST['password']) ? $_POST['password'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Password should not be sanitized
+			return $user_id;
 
-        
+		}
 
-        // Optional fields
+		// Save customer metadata
 
-        $area = isset($_POST['company_area']) ? sanitize_text_field(wp_unslash($_POST['company_area'])) : '';
+		update_user_meta( $user_id, self::META_PREFIX . 'type', self::TYPE_COMPANY );
 
-        
+		update_user_meta( $user_id, self::META_PREFIX . 'company_name', $name );
 
-        // Service needed
+		update_user_meta( $user_id, self::META_PREFIX . 'cnpj', $cnpj );
 
-        $service_needed = isset($_POST['service_needed']) ? sanitize_text_field(wp_unslash($_POST['service_needed'])) : '';
+		update_user_meta( $user_id, self::META_PREFIX . 'phone', $phone );
 
-        $other_service = isset($_POST['other_service']) ? sanitize_textarea_field(wp_unslash($_POST['other_service'])) : '';
+		update_user_meta( $user_id, self::META_PREFIX . 'whatsapp', $phone ); // Same as phone for company
 
-        
+		update_user_meta( $user_id, self::META_PREFIX . 'area', $area );
 
-        // Validate required fields
+		update_user_meta( $user_id, self::META_PREFIX . 'service_needed', $service_needed );
 
-        if (empty($name) || empty($email) || empty($cnpj) || empty($phone) || empty($password)) {
+		update_user_meta( $user_id, self::META_PREFIX . 'other_service', $other_service );
 
-            return new WP_Error('missing_fields', __('Por favor, preencha todos os campos obrigatórios.', 'hng-commerce'));
+		update_user_meta( $user_id, self::META_PREFIX . 'registered_at', current_time( 'mysql' ) );
 
-        }
+		// Allow extensions
 
-        
+		do_action( 'hng_customer_registered', $user_id, self::TYPE_COMPANY, $_POST );
 
-        if (!is_email($email)) {
+		return array( 'user_id' => $user_id );
+	}
 
-            return new WP_Error('invalid_email', __('Por favor, informe um e-mail válido.', 'hng-commerce'));
 
-        }
 
-        
+	/**
 
-        if (strlen($password) < 6) {
+	 * Generate unique username from email
+	 *
+	 * @param string $email
 
-            return new WP_Error('weak_password', __('A senha deve ter pelo menos 6 caracteres.', 'hng-commerce'));
+	 * @return string
+	 */
+	private function generate_username( $email ) {
 
-        }
+		$base = sanitize_user( explode( '@', $email )[0], true );
 
-        
+		$username = $base;
 
-        // Validate CNPJ format
+		$counter = 1;
 
-        $cnpj_clean = preg_replace('/\D/', '', $cnpj);
+		while ( username_exists( $username ) ) {
 
-        if (strlen($cnpj_clean) !== 14) {
+			$username = $base . $counter;
 
-            return new WP_Error('invalid_cnpj', __('Por favor, informe um CNPJ válido.', 'hng-commerce'));
+			++$counter;
 
-        }
+		}
 
-        
+		return $username;
+	}
 
-        // Check if email already exists
 
-        if (email_exists($email)) {
 
-            return new WP_Error('email_exists', __('Este e-mail já está cadastrado. Tente fazer login.', 'hng-commerce'));
+	/**
 
-        }
+	 * Get first name from full name
+	 *
+	 * @param string $full_name
 
-        
+	 * @return string
+	 */
+	private function get_first_name( $full_name ) {
 
-        // Create username from email
+		$parts = explode( ' ', trim( $full_name ) );
 
-        $username = $this->generate_username($email);
+		return $parts[0] ?? '';
+	}
 
-        
 
-        // Create WordPress user
 
-        $user_id = wp_insert_user([
+	/**
 
-            'user_login' => $username,
+	 * Get last name from full name
+	 *
+	 * @param string $full_name
 
-            'user_email' => $email,
+	 * @return string
+	 */
+	private function get_last_name( $full_name ) {
 
-            'user_pass' => $password,
+		$parts = explode( ' ', trim( $full_name ) );
 
-            'display_name' => $name,
+		array_shift( $parts );
 
-            'first_name' => $name,
+		return implode( ' ', $parts );
+	}
 
-            'role' => 'hng_customer',
 
-        ]);
 
-        
+	/**
 
-        if (is_wp_error($user_id)) {
+	 * Get customer details for admin modal
+	 */
+	public function get_customer_details() {
 
-            return $user_id;
+		// Verify nonce and permissions
 
-        }
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-        
+			wp_send_json_error( array( 'message' => __( 'Permissão negada.', 'hng-commerce' ) ) );
 
-        // Save customer metadata
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'type', self::TYPE_COMPANY);
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'hng-commerce-admin' ) ) {
 
-        update_user_meta($user_id, self::META_PREFIX . 'company_name', $name);
+			wp_send_json_error( array( 'message' => __( 'Erro de segurança.', 'hng-commerce' ) ) );
 
-        update_user_meta($user_id, self::META_PREFIX . 'cnpj', $cnpj);
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'phone', $phone);
+		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 
-        update_user_meta($user_id, self::META_PREFIX . 'whatsapp', $phone); // Same as phone for company
+		if ( empty( $email ) ) {
 
-        update_user_meta($user_id, self::META_PREFIX . 'area', $area);
+			wp_send_json_error( array( 'message' => __( 'E-mail não informado.', 'hng-commerce' ) ) );
 
-        update_user_meta($user_id, self::META_PREFIX . 'service_needed', $service_needed);
+		}
 
-        update_user_meta($user_id, self::META_PREFIX . 'other_service', $other_service);
+		// Get user by email
 
-        update_user_meta($user_id, self::META_PREFIX . 'registered_at', current_time('mysql'));
+		$user = get_user_by( 'email', $email );
 
-        
+		if ( ! $user ) {
 
-        // Allow extensions
+			// Return basic info from orders if user doesn't exist as WP user
 
-        do_action('hng_customer_registered', $user_id, self::TYPE_COMPANY, $_POST);
+			wp_send_json_success(
+				array(
 
-        
+					'has_account' => false,
 
-        return ['user_id' => $user_id];
+					'email'       => $email,
 
-    }
+					'message'     => __( 'Cliente não possui conta cadastrada no sistema.', 'hng-commerce' ),
 
-    
+				)
+			);
 
-    /**
+		}
 
-     * Generate unique username from email
+		// Get all customer meta
 
-     * 
+		$customer_data = array(
 
-     * @param string $email
+			'has_account'       => true,
 
-     * @return string
+			'user_id'           => $user->ID,
 
-     */
+			'username'          => $user->user_login,
 
-    private function generate_username($email) {
+			'email'             => $user->user_email,
 
-        $base = sanitize_user(explode('@', $email)[0], true);
+			'display_name'      => $user->display_name,
 
-        $username = $base;
+			'registered'        => $user->user_registered,
 
-        $counter = 1;
+			'type'              => get_user_meta( $user->ID, self::META_PREFIX . 'type', true ),
 
-        
+			'name'              => get_user_meta( $user->ID, self::META_PREFIX . 'name', true ),
 
-        while (username_exists($username)) {
+			'company_name'      => get_user_meta( $user->ID, self::META_PREFIX . 'company_name', true ),
 
-            $username = $base . $counter;
+			'cnpj'              => get_user_meta( $user->ID, self::META_PREFIX . 'cnpj', true ),
 
-            $counter++;
+			'phone'             => get_user_meta( $user->ID, self::META_PREFIX . 'phone', true ),
 
-        }
+			'whatsapp'          => get_user_meta( $user->ID, self::META_PREFIX . 'whatsapp', true ),
 
-        
+			'area'              => get_user_meta( $user->ID, self::META_PREFIX . 'area', true ),
 
-        return $username;
+			'social_networks'   => get_user_meta( $user->ID, self::META_PREFIX . 'social_networks', true ),
 
-    }
+			'services_provided' => get_user_meta( $user->ID, self::META_PREFIX . 'services_provided', true ),
 
-    
+			'service_needed'    => get_user_meta( $user->ID, self::META_PREFIX . 'service_needed', true ),
 
-    /**
+			'other_service'     => get_user_meta( $user->ID, self::META_PREFIX . 'other_service', true ),
 
-     * Get first name from full name
+			'registered_at'     => get_user_meta( $user->ID, self::META_PREFIX . 'registered_at', true ),
 
-     * 
+		);
 
-     * @param string $full_name
+		// Get service name if it's a product ID
 
-     * @return string
+		if ( ! empty( $customer_data['service_needed'] ) && is_numeric( $customer_data['service_needed'] ) ) {
 
-     */
+			$product = get_post( $customer_data['service_needed'] );
 
-    private function get_first_name($full_name) {
+			if ( $product ) {
 
-        $parts = explode(' ', trim($full_name));
+				$customer_data['service_needed_name'] = $product->post_title;
 
-        return $parts[0] ?? '';
+			}
+		}
 
-    }
+		// Force type and label based on user role or linked customer
 
-    
+		$user_roles = is_array( $user->roles ) ? $user->roles : array();
 
-    /**
+		$type = $customer_data['type'] && $customer_data['type'] !== '' ? $customer_data['type'] : 'supplier';
 
-     * Get last name from full name
+		// Se o usuário tem papel de cliente, força o tipo para cliente
 
-     * 
+		if ( in_array( 'hng_customer', $user_roles, true ) || in_array( 'customer', $user_roles, true ) ) {
 
-     * @param string $full_name
+			$type = 'customer';
 
-     * @return string
+		}
 
-     */
+		// Check if customer is linked in hng_customers table
 
-    private function get_last_name($full_name) {
+		global $wpdb;
 
-        $parts = explode(' ', trim($full_name));
+		$linked_customer = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, wp_user_id FROM {$wpdb->prefix}hng_customers WHERE wp_user_id = %d LIMIT 1",
+				$user->ID
+			)
+		);
 
-        array_shift($parts);
+		if ( $linked_customer ) {
 
-        return implode(' ', $parts);
+			$type = 'customer';
 
-    }
+		}
 
-    
+		// Normaliza possíveis aliases
 
-    /**
+		if ( $type === 'provider' ) {
 
-     * Get customer details for admin modal
+			$type = 'supplier';
 
-     */
+		}
 
-    public function get_customer_details() {
+		$type_label = $type === 'company'
 
-        // Verify nonce and permissions
+			? __( 'Empresa', 'hng-commerce' )
 
-        if (!current_user_can('manage_options')) {
+			: ( $type === 'customer'
 
-            wp_send_json_error(['message' => __('Permissão negada.', 'hng-commerce')]);
+				? __( 'Cliente HNG', 'hng-commerce' )
 
-        }
+				: __( 'Prestador de Serviços', 'hng-commerce' ) );
 
-        
+		$customer_data['type'] = $type;
 
-        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'hng-commerce-admin')) {
+		$customer_data['type_label'] = $type_label;
 
-            wp_send_json_error(['message' => __('Erro de segurança.', 'hng-commerce')]);
+		wp_send_json_success( $customer_data );
+	}
 
-        }
 
-        
 
-        $email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
+	/**
 
-        
+	 * Get all customer meta fields
+	 *
+	 * @param int $user_id
 
-        if (empty($email)) {
+	 * @return array
+	 */
+	public static function get_customer_meta( $user_id ) {
 
-            wp_send_json_error(['message' => __('E-mail não informado.', 'hng-commerce')]);
+		$fields = array(
 
-        }
+			'type',
+			'name',
+			'company_name',
+			'cnpj',
+			'phone',
+			'whatsapp',
 
-        
+			'area',
+			'social_networks',
+			'services_provided',
 
-        // Get user by email
+			'service_needed',
+			'other_service',
+			'registered_at',
 
-        $user = get_user_by('email', $email);
+		);
 
-        
+		$data = array();
 
-        if (!$user) {
+		foreach ( $fields as $field ) {
 
-            // Return basic info from orders if user doesn't exist as WP user
+			$data[ $field ] = get_user_meta( $user_id, self::META_PREFIX . $field, true );
 
-            wp_send_json_success([
+		}
 
-                'has_account' => false,
+		return $data;
+	}
 
-                'email' => $email,
 
-                'message' => __('Cliente não possui conta cadastrada no sistema.', 'hng-commerce'),
 
-            ]);
+	/**
 
-        }
+	 * Check if user is a HNG customer
+	 *
+	 * @param int $user_id
 
-        
+	 * @return bool
+	 */
+	public static function is_hng_customer( $user_id ) {
 
-        // Get all customer meta
+		$user = get_userdata( $user_id );
 
-        $customer_data = [
+		if ( ! $user ) {
 
-            'has_account' => true,
+			return false;
 
-            'user_id' => $user->ID,
+		}
 
-            'username' => $user->user_login,
-
-            'email' => $user->user_email,
-
-            'display_name' => $user->display_name,
-
-            'registered' => $user->user_registered,
-
-            'type' => get_user_meta($user->ID, self::META_PREFIX . 'type', true),
-
-            'name' => get_user_meta($user->ID, self::META_PREFIX . 'name', true),
-
-            'company_name' => get_user_meta($user->ID, self::META_PREFIX . 'company_name', true),
-
-            'cnpj' => get_user_meta($user->ID, self::META_PREFIX . 'cnpj', true),
-
-            'phone' => get_user_meta($user->ID, self::META_PREFIX . 'phone', true),
-
-            'whatsapp' => get_user_meta($user->ID, self::META_PREFIX . 'whatsapp', true),
-
-            'area' => get_user_meta($user->ID, self::META_PREFIX . 'area', true),
-
-            'social_networks' => get_user_meta($user->ID, self::META_PREFIX . 'social_networks', true),
-
-            'services_provided' => get_user_meta($user->ID, self::META_PREFIX . 'services_provided', true),
-
-            'service_needed' => get_user_meta($user->ID, self::META_PREFIX . 'service_needed', true),
-
-            'other_service' => get_user_meta($user->ID, self::META_PREFIX . 'other_service', true),
-
-            'registered_at' => get_user_meta($user->ID, self::META_PREFIX . 'registered_at', true),
-
-        ];
-
-        
-
-        // Get service name if it's a product ID
-
-        if (!empty($customer_data['service_needed']) && is_numeric($customer_data['service_needed'])) {
-
-            $product = get_post($customer_data['service_needed']);
-
-            if ($product) {
-
-                $customer_data['service_needed_name'] = $product->post_title;
-
-            }
-
-        }
-
-        
-
-        // Force type and label based on user role or linked customer
-
-        $user_roles = is_array($user->roles) ? $user->roles : [];
-
-        $type = $customer_data['type'] && $customer_data['type'] !== '' ? $customer_data['type'] : 'supplier';
-
-        
-
-        // Se o usuário tem papel de cliente, força o tipo para cliente
-
-        if (in_array('hng_customer', $user_roles, true) || in_array('customer', $user_roles, true)) {
-
-            $type = 'customer';
-
-        }
-
-        
-
-        // Check if customer is linked in hng_customers table
-
-        global $wpdb;
-
-        $linked_customer = $wpdb->get_row($wpdb->prepare(
-
-            "SELECT id, wp_user_id FROM {$wpdb->prefix}hng_customers WHERE wp_user_id = %d LIMIT 1",
-
-            $user->ID
-
-        ));
-
-        if ($linked_customer) {
-
-            $type = 'customer';
-
-        }
-
-        
-
-        // Normaliza possíveis aliases
-
-        if ($type === 'provider') {
-
-            $type = 'supplier';
-
-        }
-
-        
-
-        $type_label = $type === 'company'
-
-            ? __('Empresa', 'hng-commerce')
-
-            : ($type === 'customer'
-
-                ? __('Cliente HNG', 'hng-commerce')
-
-                : __('Prestador de Serviços', 'hng-commerce'));
-
-        
-
-        $customer_data['type'] = $type;
-
-        $customer_data['type_label'] = $type_label;
-
-        
-
-        wp_send_json_success($customer_data);
-
-    }
-
-    
-
-    /**
-
-     * Get all customer meta fields
-
-     * 
-
-     * @param int $user_id
-
-     * @return array
-
-     */
-
-    public static function get_customer_meta($user_id) {
-
-        $fields = [
-
-            'type', 'name', 'company_name', 'cnpj', 'phone', 'whatsapp',
-
-            'area', 'social_networks', 'services_provided', 
-
-            'service_needed', 'other_service', 'registered_at'
-
-        ];
-
-        
-
-        $data = [];
-
-        foreach ($fields as $field) {
-
-            $data[$field] = get_user_meta($user_id, self::META_PREFIX . $field, true);
-
-        }
-
-        
-
-        return $data;
-
-    }
-
-    
-
-    /**
-
-     * Check if user is a HNG customer
-
-     * 
-
-     * @param int $user_id
-
-     * @return bool
-
-     */
-
-    public static function is_hng_customer($user_id) {
-
-        $user = get_userdata($user_id);
-
-        if (!$user) {
-
-            return false;
-
-        }
-
-        
-
-        return in_array('hng_customer', (array) $user->roles, true);
-
-    }
-
+		return in_array( 'hng_customer', (array) $user->roles, true );
+	}
 }
 
 
@@ -929,4 +787,3 @@ class HNG_Customer_Registration {
 // Initialize
 
 new HNG_Customer_Registration();
-

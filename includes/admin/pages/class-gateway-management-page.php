@@ -1,650 +1,598 @@
-<?php
+<?php // phpcs:disable WordPress.Files.FileName.InvalidClassFileName, Squiz.Commenting.FileComment.MissingPackageTag, Squiz.Commenting.FileComment.SpacingAfterComment, Squiz.Commenting.FileComment.SpacingAfterOpen
 
 /**
 
  * Gateway Management Page
 
  * Displays and manages all payment gateways
-
  */
 
 
 
-if (!defined('ABSPATH')) {
+if ( ! defined( 'ABSPATH' ) ) {
 
-    exit;
+	exit;
 
 }
 
-
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_print_r
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+// phpcs:disable Squiz.Commenting.ClassComment.WrongStyle
+// Reason: This admin page uses extensive diagnostic logging during active development.
 
 class HNG_Gateway_Management_Page {
 
-    
 
-    /**
 
-     * Construtor - registra AJAX handlers
+	/**
 
-     */
+	 * Construtor - registra AJAX handlers
+	 */
+	public function __construct() {
 
-    public function __construct() {
+		error_log( 'HNG Gateway Management: Constructor called' );
+	}
 
-        error_log('HNG Gateway Management: Constructor called');
 
-    }
 
+	/**
 
+	 * Método estático para registrar os hooks AJAX
 
-    /**
+	 * Chamado globalmente no carregamento do plugin
+	 */
+	public static function register_ajax_hooks() {
 
-     * Método estático para registrar os hooks AJAX
+		error_log( 'HNG Gateway Management: Registering AJAX actions...' );
 
-     * Chamado globalmente no carregamento do plugin
+		$instance = new self();
 
-     */
+		add_action( 'wp_ajax_hng_save_gateway_config', array( $instance, 'save_gateway_config' ) );
 
-    public static function register_ajax_hooks() {
+		add_action( 'wp_ajax_hng_test_gateway_connection', array( $instance, 'test_gateway_connection' ) );
 
-        error_log('HNG Gateway Management: Registering AJAX actions...');
+		add_action( 'wp_ajax_hng_refresh_fees', array( $instance, 'refresh_fees_from_api' ) );
 
-        
+		add_action( 'wp_ajax_hng_check_gateway_status', array( $instance, 'check_gateway_status' ) ); // Auto-check sem nonce
 
-        $instance = new self();
+		add_action( 'wp_ajax_hng_quick_test_gateway', array( $instance, 'quick_test_gateway' ) );
 
-        
+		add_action( 'wp_ajax_hng_toggle_gateway', array( $instance, 'toggle_gateway' ) );
 
-        add_action('wp_ajax_hng_save_gateway_config', [$instance, 'save_gateway_config']);
+		add_action( 'wp_ajax_hng_toggle_advanced_integration', array( $instance, 'toggle_advanced_integration' ) );
 
-        
+		add_action( 'wp_ajax_hng_test_all_gateways', array( $instance, 'test_all_gateways' ) );
 
-        add_action('wp_ajax_hng_test_gateway_connection', [$instance, 'test_gateway_connection']);
+		error_log( 'HNG Gateway Management: AJAX actions registered successfully' );
+	}
 
-        
-        add_action('wp_ajax_hng_refresh_fees', [$instance, 'refresh_fees_from_api']);
 
-        add_action('wp_ajax_hng_check_gateway_status', [$instance, 'check_gateway_status']); // Auto-check sem nonce
 
-        
+	/**
 
-        add_action('wp_ajax_hng_quick_test_gateway', [$instance, 'quick_test_gateway']);
+	 * Render management UI for gateways
+	 */
+	public function render() {
 
-        
+		$nonce = wp_create_nonce( 'hng-commerce-admin' );
 
-        add_action('wp_ajax_hng_toggle_gateway', [$instance, 'toggle_gateway']);
+		echo '<div class="hng-wrap hng-gateways-page">';
 
-        
+		// Header
 
-        add_action('wp_ajax_hng_toggle_advanced_integration', [$instance, 'toggle_advanced_integration']);
+		echo '<div class="hng-page-header">';
 
-        
+		echo '<div class="hng-header-title">';
 
-        add_action('wp_ajax_hng_test_all_gateways', [$instance, 'test_all_gateways']);
+		echo '<h1 style="display: inline-flex; align-items: center;"><span class="dashicons dashicons-credit"></span> Gateways de Pagamento';
+		if ( function_exists( 'hng_admin_tooltip' ) ) {
+					echo wp_kses_post(
+						hng_admin_tooltip(
+							'💳 Gateways de Pagamento',
+							array(
+								array(
+									'icon'    => '🏦',
+									'title'   => 'Gateways Suportados',
+									'content' => 'Mercado Pago, PagSeguro, Asaas, Pagar.me, Cielo, Rede, Stone e GetNet. Configure credenciais de API e escolha ambiente sandbox ou produção.',
+								),
+								array(
+									'icon'    => '💰',
+									'title'   => 'Métodos de Pagamento',
+									'content' => 'PIX (instantâneo), boleto bancário e cartão de crédito com parcelamento. Cada gateway suporta combinações diferentes.',
+								),
+								array(
+									'icon'    => '🔗',
+									'title'   => 'Integração Avançada',
+									'content' => 'Ative para sincronizar dados do gateway: importar clientes, assinaturas e cobranças existentes. Receba webhooks para atualização automática de status de pagamentos.',
+								),
+								array(
+									'icon'    => '🧪',
+									'title'   => 'Teste de Conexão',
+									'content' => 'Valide suas credenciais antes de ativar. O sistema testa a comunicação com a API do gateway e exibe o status em tempo real.',
+								),
+								array(
+									'icon'    => '📊',
+									'title'   => 'Taxas HNG Commerce',
+									'content' => 'Taxa sobre vendas que diminui conforme seu volume (GMV). Quanto mais vende, menor a taxa. Veja seu tier atual e próximo nível no card acima.',
+								),
+							),
+							array(
+								'title' => '⚠️ Importante',
+								'items' => array(
+									array(
+										'label' => 'Exclusividade',
+										'text'  => 'Apenas um gateway pode estar ativo por vez',
+									),
+									array(
+										'label' => 'Credenciais',
+										'text'  => 'Configure e teste as credenciais antes de ativar',
+									),
+									array(
+										'label' => 'Ambiente',
+										'text'  => 'Use sandbox para testes, produção para vendas reais',
+									),
+								),
+							)
+						)
+					);
+		}
+		echo '</h1>';
 
-        
+		echo '<p class="description">Configure e gerencie seus gateways de pagamento. Apenas um gateway pode estar ativo por vez.</p>';
 
-        error_log('HNG Gateway Management: AJAX actions registered successfully');
+		echo '</div>';
 
-    }
+		echo '<div class="hng-header-actions">';
 
+		echo '<button type="button" class="button button-primary" id="hng-test-all-gateways" title="Testar conectividade de todos os gateways">';
 
+		echo '<span class="dashicons dashicons-yes-alt"></span> Testar Todos';
 
-    /**
+		echo '</button>';
 
-     * Render management UI for gateways
+		echo '</div>';
 
-     */
+		echo '</div>';
 
-    public function render() {
+		// Card informativo de taxas HNG Commerce
 
-        $nonce = wp_create_nonce('hng-commerce-admin');
+		$fee_calculator = class_exists( 'HNG_Fee_Calculator' ) ? HNG_Fee_Calculator::instance() : null;
 
-        echo '<div class="hng-wrap hng-gateways-page">';
+		$current_tier = $fee_calculator ? $fee_calculator->get_current_tier() : 1;
 
-        
+		$tier_data = $fee_calculator ? $fee_calculator->get_tier_data( $current_tier ) : null;
 
-        // Header
+		$next_tier_info = $fee_calculator ? $fee_calculator->get_next_tier_info() : null;
 
-        echo '<div class="hng-page-header">';
+		$current_gmv = $fee_calculator ? $fee_calculator->get_current_month_gmv() : 0;
 
-        echo '<div class="hng-header-title">';
+		echo '<div class="hng-fees-info-card">';
 
-        echo '<h1 style="display: inline-flex; align-items: center;"><span class="dashicons dashicons-credit"></span> Gateways de Pagamento';
-        if (function_exists('hng_admin_tooltip')) {
-            echo hng_admin_tooltip(
-                '💳 Gateways de Pagamento',
-                [
-                    [
-                        'icon' => '🏦',
-                        'title' => 'Gateways Suportados',
-                        'content' => 'Mercado Pago, PagSeguro, Asaas, Pagar.me, Cielo, Rede, Stone e GetNet. Configure credenciais de API e escolha ambiente sandbox ou produção.'
-                    ],
-                    [
-                        'icon' => '💰',
-                        'title' => 'Métodos de Pagamento',
-                        'content' => 'PIX (instantâneo), boleto bancário e cartão de crédito com parcelamento. Cada gateway suporta combinações diferentes.'
-                    ],
-                    [
-                        'icon' => '🔗',
-                        'title' => 'Integração Avançada',
-                        'content' => 'Ative para sincronizar dados do gateway: importar clientes, assinaturas e cobranças existentes. Receba webhooks para atualização automática de status de pagamentos.'
-                    ],
-                    [
-                        'icon' => '🧪',
-                        'title' => 'Teste de Conexão',
-                        'content' => 'Valide suas credenciais antes de ativar. O sistema testa a comunicação com a API do gateway e exibe o status em tempo real.'
-                    ],
-                    [
-                        'icon' => '📊',
-                        'title' => 'Taxas HNG Commerce',
-                        'content' => 'Taxa sobre vendas que diminui conforme seu volume (GMV). Quanto mais vende, menor a taxa. Veja seu tier atual e próximo nível no card acima.'
-                    ],
-                ],
-                [
-                    'title' => '⚠️ Importante',
-                    'items' => [
-                        ['label' => 'Exclusividade', 'text' => 'Apenas um gateway pode estar ativo por vez'],
-                        ['label' => 'Credenciais', 'text' => 'Configure e teste as credenciais antes de ativar'],
-                        ['label' => 'Ambiente', 'text' => 'Use sandbox para testes, produção para vendas reais'],
-                    ]
-                ]
-            );
-        }
-        echo '</h1>';
+		echo '<div class="fees-card-header">';
 
-        echo '<p class="description">Configure e gerencie seus gateways de pagamento. Apenas um gateway pode estar ativo por vez.</p>';
+		echo '<div class="fees-card-title">';
 
-        echo '</div>';
+		echo '<span class="dashicons dashicons-info-outline"></span>';
 
-        echo '<div class="hng-header-actions">';
+		echo '<strong>Sobre as Taxas por Transação</strong>';
 
-        echo '<button type="button" class="button button-primary" id="hng-test-all-gateways" title="Testar conectividade de todos os gateways">';
+		// Indicador de fonte de dados
+		$cache_time = get_transient( 'hng_api_fees_data' ) !== false ? get_option( '_transient_timeout_hng_api_fees_data', 0 ) : 0;
+		if ( $cache_time > 0 ) {
+			$updated_ago = human_time_diff( $cache_time - 300, time() );
+			echo ' <small style="font-weight: normal; color: #666;">(atualizado há ' . esc_html( $updated_ago ) . ')</small>';
+		}
 
-        echo '<span class="dashicons dashicons-yes-alt"></span> Testar Todos';
+		echo '</div>';
 
-        echo '</button>';
+		echo '<div style="display: flex; align-items: center; gap: 10px;">';
+		echo '<button type="button" class="button button-small refresh-fees-btn" title="Atualizar taxas da API"><span class="dashicons dashicons-update" style="margin-top: 3px;"></span></button>';
+		echo '<span class="fees-card-toggle" title="Expandir/Recolher"><span class="dashicons dashicons-arrow-down-alt2"></span></span>';
+		echo '</div>';
 
-        echo '</div>';
+		echo '</div>';
 
-        echo '</div>';
+		echo '<div class="fees-card-content">';
 
+		// Descrição geral
 
+		echo '<div class="fees-description">';
 
-        // Card informativo de taxas HNG Commerce
+		echo '<p>Cada venda processada pelo HNG Commerce inclui <strong>duas taxas</strong>:</p>';
 
-        $fee_calculator = class_exists('HNG_Fee_Calculator') ? HNG_Fee_Calculator::instance() : null;
+		echo '<ul>';
 
-        $current_tier = $fee_calculator ? $fee_calculator->get_current_tier() : 1;
+		echo '<li><strong>Taxa do Gateway:</strong> Cobrada pelo processador de pagamentos (varia por gateway e método)</li>';
 
-        $tier_data = $fee_calculator ? $fee_calculator->get_tier_data($current_tier) : null;
+		echo '<li><strong>Taxa do Plugin HNG:</strong> Taxa escalonada baseada no seu GMV mensal (volume de vendas)</li>';
 
-        $next_tier_info = $fee_calculator ? $fee_calculator->get_next_tier_info() : null;
+		echo '</ul>';
 
-        $current_gmv = $fee_calculator ? $fee_calculator->get_current_month_gmv() : 0;
+		echo '</div>';
 
-        
+		// Tier atual
 
-        echo '<div class="hng-fees-info-card">';
+		if ( $tier_data ) {
 
-        echo '<div class="fees-card-header">';
+			echo '<div class="fees-tier-info">';
 
-        echo '<div class="fees-card-title">';
+			echo '<div class="tier-badge" style="background-color: ' . esc_attr( $tier_data['color'] ) . ';">';
 
-        echo '<span class="dashicons dashicons-info-outline"></span>';
+			echo '<span class="tier-icon">' . esc_html( $tier_data['icon'] ?? '🎯' ) . '</span>';
 
-        echo '<strong>Sobre as Taxas por Transação</strong>';
+			echo '<span class="tier-name">' . esc_html( $tier_data['name'] ) . '</span>';
 
-        // Indicador de fonte de dados
-        $cache_time = get_transient('hng_api_fees_data') !== false ? get_option('_transient_timeout_hng_api_fees_data', 0) : 0;
-        if ($cache_time > 0) {
-            $updated_ago = human_time_diff($cache_time - 300, time());
-            echo ' <small style="font-weight: normal; color: #666;">(atualizado há ' . esc_html($updated_ago) . ')</small>';
-        }
+			echo '</div>';
 
-        echo '</div>';
+			echo '<div class="tier-details">';
 
-        echo '<div style="display: flex; align-items: center; gap: 10px;">';
-        echo '<button type="button" class="button button-small refresh-fees-btn" title="Atualizar taxas da API"><span class="dashicons dashicons-update" style="margin-top: 3px;"></span></button>';
-        echo '<span class="fees-card-toggle" title="Expandir/Recolher"><span class="dashicons dashicons-arrow-down-alt2"></span></span>';
-        echo '</div>';
+			echo '<p class="tier-gmv"><strong>Seu GMV este mês:</strong> R$ ' . number_format( $current_gmv, 2, ',', '.' ) . '</p>';
 
-        echo '</div>';
+			echo '<div class="tier-fees-list">';
 
-        
+			echo '<span class="fee-item"><strong>Físico:</strong> ' . esc_html( $tier_data['fees']['physical'] ) . '%</span>';
 
-        echo '<div class="fees-card-content">';
+			echo '<span class="fee-item"><strong>Digital:</strong> ' . esc_html( $tier_data['fees']['digital'] ) . '%</span>';
 
-        
+			echo '<span class="fee-item"><strong>Assinatura:</strong> ' . esc_html( $tier_data['fees']['subscription'] ) . '%</span>';
 
-        // Descrição geral
+			echo '<span class="fee-item"><strong>Orçamento:</strong> ' . esc_html( $tier_data['fees']['quote'] ?? '-' ) . '%</span>';
 
-        echo '<div class="fees-description">';
+			echo '<span class="fee-item"><strong>Agendamento:</strong> ' . esc_html( $tier_data['fees']['appointment'] ?? '-' ) . '%</span>';
 
-        echo '<p>Cada venda processada pelo HNG Commerce inclui <strong>duas taxas</strong>:</p>';
+			echo '</div>';
 
-        echo '<ul>';
+			echo '<p class="tier-minimum"><small>* Taxa mínima de R$ 0,50 por transação</small></p>';
 
-        echo '<li><strong>Taxa do Gateway:</strong> Cobrada pelo processador de pagamentos (varia por gateway e método)</li>';
+			echo '</div>';
 
-        echo '<li><strong>Taxa do Plugin HNG:</strong> Taxa escalonada baseada no seu GMV mensal (volume de vendas)</li>';
+			echo '</div>';
 
-        echo '</ul>';
+		}
 
-        echo '</div>';
+		// Próximo tier (se não estiver no máximo)
 
-        
+		if ( $next_tier_info ) {
 
-        // Tier atual
+			echo '<div class="fees-next-tier">';
 
-        if ($tier_data) {
+			echo '<p class="next-tier-msg">';
 
-            echo '<div class="fees-tier-info">';
+			echo '🚀 Faltam <strong>R$ ' . number_format( $next_tier_info['remaining'], 2, ',', '.' ) . '</strong> para o tier <strong>' . esc_html( $next_tier_info['next_tier_name'] ) . '</strong>';
 
-            echo '<div class="tier-badge" style="background-color: ' . esc_attr($tier_data['color']) . ';">';
+			echo '</p>';
 
-            echo '<span class="tier-icon">' . esc_html($tier_data['icon'] ?? '🎯') . '</span>';
+			echo '<div class="next-tier-progress">';
 
-            echo '<span class="tier-name">' . esc_html($tier_data['name']) . '</span>';
+			echo '<div class="progress-bar" style="width: ' . esc_attr( $next_tier_info['progress_percentage'] ) . '%;"></div>';
 
-            echo '</div>';
+			echo '</div>';
 
-            
+			echo '</div>';
 
-            echo '<div class="tier-details">';
+		}
 
-            echo '<p class="tier-gmv"><strong>Seu GMV este mês:</strong> R$ ' . number_format($current_gmv, 2, ',', '.') . '</p>';
+		// Tabela completa de tiers
 
-            echo '<div class="tier-fees-list">';
+		echo '<div class="fees-tiers-table">';
 
-            echo '<span class="fee-item"><strong>Físico:</strong> ' . esc_html($tier_data['fees']['physical']) . '%</span>';
+		echo '<h4>Tabela de Taxas por Tier (HNG Commerce)</h4>';
 
-            echo '<span class="fee-item"><strong>Digital:</strong> ' . esc_html($tier_data['fees']['digital']) . '%</span>';
+		echo '<table>';
 
-            echo '<span class="fee-item"><strong>Assinatura:</strong> ' . esc_html($tier_data['fees']['subscription']) . '%</span>';
+		echo '<thead><tr><th>Tier</th><th>GMV Mensal</th><th>Físico</th><th>Digital</th><th>Assinatura</th><th>Orçamento</th><th>Agendamento</th></tr></thead>';
 
-            echo '<span class="fee-item"><strong>Orçamento:</strong> ' . esc_html($tier_data['fees']['quote'] ?? '-') . '%</span>';
+		echo '<tbody>';
 
-            echo '<span class="fee-item"><strong>Agendamento:</strong> ' . esc_html($tier_data['fees']['appointment'] ?? '-') . '%</span>';
+		if ( $fee_calculator ) {
 
-            echo '</div>';
+			foreach ( $fee_calculator->get_all_tiers() as $num => $tier ) {
 
-            echo '<p class="tier-minimum"><small>* Taxa mínima de R$ 0,50 por transação</small></p>';
+				$is_current = ( $num === $current_tier );
 
-            echo '</div>';
+				$row_class = $is_current ? 'current-tier' : '';
 
-            echo '</div>';
+				echo '<tr class="' . esc_attr( $row_class ) . '">';
 
-        }
+				echo '<td><span class="tier-name-badge" style="background-color: ' . esc_attr( $tier['color'] ) . ';">' . esc_html( $tier['icon'] ?? '' ) . ' ' . esc_html( $tier['name'] ) . '</span></td>';
 
-        
+				if ( $tier['gmv_max'] >= PHP_INT_MAX ) {
 
-        // Próximo tier (se não estiver no máximo)
+					echo '<td>Acima de R$ ' . number_format( $tier['gmv_min'], 0, ',', '.' ) . '</td>';
 
-        if ($next_tier_info) {
+				} else {
 
-            echo '<div class="fees-next-tier">';
+					echo '<td>R$ ' . number_format( $tier['gmv_min'], 0, ',', '.' ) . ' - ' . number_format( $tier['gmv_max'], 0, ',', '.' ) . '</td>';
 
-            echo '<p class="next-tier-msg">';
+				}
 
-            echo '🚀 Faltam <strong>R$ ' . number_format($next_tier_info['remaining'], 2, ',', '.') . '</strong> para o tier <strong>' . esc_html($next_tier_info['next_tier_name']) . '</strong>';
+				echo '<td>' . esc_html( $tier['fees']['physical'] ) . '%</td>';
 
-            echo '</p>';
+				echo '<td>' . esc_html( $tier['fees']['digital'] ) . '%</td>';
 
-            echo '<div class="next-tier-progress">';
+				echo '<td>' . esc_html( $tier['fees']['subscription'] ) . '%</td>';
 
-            echo '<div class="progress-bar" style="width: ' . esc_attr($next_tier_info['progress_percentage']) . '%;"></div>';
+				echo '<td>' . esc_html( $tier['fees']['quote'] ?? '-' ) . '%</td>';
 
-            echo '</div>';
+				echo '<td>' . esc_html( $tier['fees']['appointment'] ?? '-' ) . '%</td>';
 
-            echo '</div>';
+				echo '</tr>';
 
-        }
+			}
+		}
 
-        
+		echo '</tbody>';
 
-        // Tabela completa de tiers
+		echo '</table>';
 
-        echo '<div class="fees-tiers-table">';
+		echo '</div>';
 
-        echo '<h4>Tabela de Taxas por Tier (HNG Commerce)</h4>';
+		echo '</div>'; // fees-card-content
 
-        echo '<table>';
+		echo '</div>'; // hng-fees-info-card
 
-        echo '<thead><tr><th>Tier</th><th>GMV Mensal</th><th>Físico</th><th>Digital</th><th>Assinatura</th><th>Orçamento</th><th>Agendamento</th></tr></thead>';
+		// Filter/Category buttons
 
-        echo '<tbody>';
+		echo '<div class="hng-gateway-filters">';
 
-        if ($fee_calculator) {
+		echo '<button class="filter-btn active" data-filter="all">Todos (13)</button>';
 
-            foreach ($fee_calculator->get_all_tiers() as $num => $tier) {
+		echo '<button class="filter-btn" data-filter="fintech">Fintech (6)</button>';
 
-                $is_current = ($num === $current_tier);
+		echo '<button class="filter-btn" data-filter="banks">Bancos (5)</button>';
 
-                $row_class = $is_current ? 'current-tier' : '';
+		echo '<button class="filter-btn" data-filter="marketplace">Marketplace (2)</button>';
 
-                echo '<tr class="' . esc_attr($row_class) . '">';
+		echo '</div>';
 
-                echo '<td><span class="tier-name-badge" style="background-color: ' . esc_attr($tier['color']) . ';">' . esc_html($tier['icon'] ?? '') . ' ' . esc_html($tier['name']) . '</span></td>';
+		echo '<div class="hng-gateways-grid">';
 
-                if ($tier['gmv_max'] >= PHP_INT_MAX) {
+		$gateways = self::get_gateways();
 
-                    echo '<td>Acima de R$ ' . number_format($tier['gmv_min'], 0, ',', '.') . '</td>';
+		// Gateways disponíveis para configuração — os demais ficam como "em breve".
+		$available_gateways = array( 'asaas', 'pagseguro' );
 
-                } else {
+		foreach ( $gateways as $id => $gw ) {
 
-                    echo '<td>R$ ' . number_format($tier['gmv_min'], 0, ',', '.') . ' - ' . number_format($tier['gmv_max'], 0, ',', '.') . '</td>';
+			$is_coming_soon = ! in_array( $id, $available_gateways, true );
 
-                }
+			$enabled = get_option( 'hng_gateway_' . $id . '_enabled', 'no' ) === 'yes';
 
-                echo '<td>' . esc_html($tier['fees']['physical']) . '%</td>';
+			$category = isset( $gw['category'] ) ? $gw['category'] : 'other';
 
-                echo '<td>' . esc_html($tier['fees']['digital']) . '%</td>';
+			// Buscar status salvo do gateway
 
-                echo '<td>' . esc_html($tier['fees']['subscription']) . '%</td>';
+			$saved_status = get_option( 'hng_gateway_' . $id . '_test_status', null );
 
-                echo '<td>' . esc_html($tier['fees']['quote'] ?? '-') . '%</td>';
+			$status_class = 'status-red';
 
-                echo '<td>' . esc_html($tier['fees']['appointment'] ?? '-') . '%</td>';
+			$status_text = 'Não testado';
 
-                echo '</tr>';
+			if ( $saved_status !== null ) {
 
-            }
+				switch ( $saved_status ) {
 
-        }
+					case 'success':
+						$status_class = 'status-green';
 
-        echo '</tbody>';
+						$status_text = 'Conectado';
 
-        echo '</table>';
+						break;
 
-        echo '</div>';
+					case 'warning':
+						$status_class = 'status-yellow';
 
-        
+						$status_text = 'Configurado';
 
-        echo '</div>'; // fees-card-content
+						break;
 
-        echo '</div>'; // hng-fees-info-card
+					case 'error':
+						$status_class = 'status-red';
 
+						$status_text = 'Erro de conexão';
 
+						break;
 
-        // Filter/Category buttons
+				}
+			}
 
-        echo '<div class="hng-gateway-filters">';
+			$coming_soon_class = $is_coming_soon ? ' hng-coming-soon' : '';
+			$coming_soon_attr  = $is_coming_soon ? ' data-coming-soon="1"' : '';
+			echo '<div class="hng-gateway-item' . esc_attr( $coming_soon_class ) . '" data-gateway="' . esc_attr( $id ) . '" data-category="' . esc_attr( $category ) . '"' . esc_attr( $coming_soon_attr ) . '>';
 
-        echo '<button class="filter-btn active" data-filter="all">Todos (13)</button>';
+			if ( $is_coming_soon ) {
+				echo '<div class="hng-coming-soon-overlay">';
+				echo '<div class="hng-coming-soon-badge">';
+				echo '<span class="dashicons dashicons-clock"></span>';
+				echo '<div class="hng-coming-soon-text">';
+				echo '<strong>' . esc_html__( 'Disponível em breve', 'hng-commerce' ) . '</strong>';
+				echo '<span>' . esc_html__( 'Estamos trabalhando em uma solução para disponibilizar esse gateway. Aguarde as próximas atualizações.', 'hng-commerce' ) . '</span>';
+				echo '</div>';
+				echo '</div>';
+				echo '</div>';
+			}
 
-        echo '<button class="filter-btn" data-filter="fintech">Fintech (6)</button>';
+			// Card header with logo/icon
 
-        echo '<button class="filter-btn" data-filter="banks">Bancos (5)</button>';
+			echo '<div class="gateway-header">';
 
-        echo '<button class="filter-btn" data-filter="marketplace">Marketplace (2)</button>';
+			echo '<div class="gateway-icon ' . esc_attr( $id ) . '">';
 
-        echo '</div>';
+			echo '<span class="dashicons dashicons-' . esc_attr( $gw['icon'] ) . '"></span>';
 
+			echo '</div>';
 
+			echo '<div class="gateway-name-section">';
 
-        echo '<div class="hng-gateways-grid">';
+			echo '<div class="gateway-name-with-status">';
 
-        $gateways = self::get_gateways();
+			echo '<h3>' . esc_html( $gw['name'] ) . '</h3>';
 
-        foreach ($gateways as $id => $gw) {
+			echo '<span class="gateway-api-status" data-gateway="' . esc_attr( $id ) . '" title="Clique em testar para verificar o status">';
 
-            $enabled = get_option('hng_gateway_' . $id . '_enabled', 'no') === 'yes';
+			echo '<span class="status-dot ' . esc_attr( $status_class ) . '"></span>';
 
-            $category = isset($gw['category']) ? $gw['category'] : 'other';
+			echo '<span class="status-text">' . esc_html( $status_text ) . '</span>';
 
-            
+			echo '</span>';
 
-            // Buscar status salvo do gateway
+			echo '</div>';
 
-            $saved_status = get_option('hng_gateway_' . $id . '_test_status', null);
+			echo '<p class="gateway-category">' . esc_html( self::get_category_label( $category ) ) . '</p>';
 
-            $status_class = 'status-red';
+			echo '</div>';
 
-            $status_text = 'Não testado';
+			echo '</div>';
 
-            
+			// Description
 
-            if ($saved_status !== null) {
+			echo '<div class="gateway-description">';
 
-                switch ($saved_status) {
+			echo '<p>' . esc_html( $gw['description'] ) . '</p>';
 
-                    case 'success':
+			echo '</div>';
 
-                        $status_class = 'status-green';
+			// Methods & Fees
 
-                        $status_text = 'Conectado';
+			echo '<div class="gateway-details">';
 
-                        break;
+			if ( ! empty( $gw['methods'] ) ) {
 
-                    case 'warning':
+				echo '<div class="detail-group">';
 
-                        $status_class = 'status-yellow';
+				echo '<label class="detail-label">Métodos</label>';
 
-                        $status_text = 'Configurado';
+				echo '<div class="detail-badges">';
 
-                        break;
+				foreach ( $gw['methods'] as $m ) {
 
-                    case 'error':
+					echo '<span class="badge badge-method">' . esc_html( $m ) . '</span>';
 
-                        $status_class = 'status-red';
+				}
 
-                        $status_text = 'Erro de conexão';
+				echo '</div>';
 
-                        break;
+				echo '</div>';
 
-                }
+			}
 
-            }
+			if ( ! empty( $gw['fees'] ) ) {
 
-            
+				echo '<div class="detail-group">';
 
-            echo '<div class="hng-gateway-item" data-gateway="' . esc_attr($id) . '" data-category="' . esc_attr($category) . '">';
+				echo '<label class="detail-label">Taxas</label>';
 
-            
+				echo '<div class="detail-badges">';
 
-            // Card header with logo/icon
+				foreach ( $gw['fees'] as $f ) {
 
-            echo '<div class="gateway-header">';
+					echo '<span class="badge badge-fee">' . esc_html( $f ) . '</span>';
 
-            echo '<div class="gateway-icon ' . esc_attr($id) . '">';
+				}
 
-            echo '<span class="dashicons dashicons-' . esc_attr($gw['icon']) . '"></span>';
+				echo '</div>';
 
-            echo '</div>';
+				echo '</div>';
 
-            echo '<div class="gateway-name-section">';
+			}
 
-            echo '<div class="gateway-name-with-status">';
+			echo '</div>';
 
-            echo '<h3>' . esc_html($gw['name']) . '</h3>';
+			// Actions
 
-            echo '<span class="gateway-api-status" data-gateway="' . esc_attr($id) . '" title="Clique em testar para verificar o status">';
+			echo '<div class="gateway-actions">';
 
-            echo '<span class="status-dot ' . esc_attr($status_class) . '"></span>';
+			// Toggle switch
 
-            echo '<span class="status-text">' . esc_html($status_text) . '</span>';
+			echo '<div class="action-toggle">';
 
-            echo '</span>';
+			echo '<label class="hng-switch">';
 
-            echo '</div>';
+			$disabled_attr = $is_coming_soon ? ' disabled="disabled"' : '';
+			echo '<input type="checkbox" class="gateway-toggle" data-gateway="' . esc_attr( $id ) . '" ' . checked( $enabled && ! $is_coming_soon, true, false ) . esc_attr( $disabled_attr ) . ' />';
 
-            echo '<p class="gateway-category">' . esc_html(self::get_category_label($category)) . '</p>';
+			echo '<span class="hng-switch-slider"></span>';
 
-            echo '</div>';
+			echo '</label>';
 
+			echo '<span class="toggle-label">' . ( ! $is_coming_soon && $enabled ? 'Ativo' : 'Inativo' ) . '</span>';
 
+			echo '</div>';
 
-            echo '</div>';
+			// Buttons
 
+			echo '<div class="action-buttons">';
 
+			if ( $is_coming_soon ) {
+				echo '<button type="button" class="button button-secondary hng-toggle-config" data-gateway="' . esc_attr( $id ) . '" title="Configurar credenciais" disabled="disabled">';
+				echo '<span class="dashicons dashicons-admin-tools"></span>';
+				echo '</button>';
+				echo '<button type="button" class="button button-secondary gateway-test-btn" data-gateway="' . esc_attr( $id ) . '" title="Testar conexao" disabled="disabled">';
+				echo '<span class="dashicons dashicons-update"></span>';
+				echo '</button>';
+			} else {
+				echo '<button type="button" class="button button-secondary hng-toggle-config" data-gateway="' . esc_attr( $id ) . '" title="Configurar credenciais">';
+				echo '<span class="dashicons dashicons-admin-tools"></span>';
+				echo '</button>';
+				echo '<button type="button" class="button button-secondary gateway-test-btn" data-gateway="' . esc_attr( $id ) . '" title="Testar conexao">';
+				echo '<span class="dashicons dashicons-update"></span>';
+				echo '</button>';
+			}
 
-            // Description
+			echo '<a href="' . esc_url( '#' ) . '" target="_blank" class="button button-link gateway-docs-btn" title="Ver documentacao">';
 
-            echo '<div class="gateway-description">';
+			echo '<span class="dashicons dashicons-external"></span>';
 
-            echo '<p>' . esc_html($gw['description']) . '</p>';
+			echo '</a>';
 
-            echo '</div>';
+			echo '</div>';
 
+			echo '</div>';
 
+			// Config form (initially hidden)
 
-            // Methods & Fees
+			echo '<div class="hng-gateway-config-wrapper" data-gateway="' . esc_attr( $id ) . '" style="display:none;">';
 
-            echo '<div class="gateway-details">';
+			self::render_gateway_form( $id );
 
-            
+			echo '</div>';
 
-            if (!empty($gw['methods'])) {
+			echo '</div>';
 
-                echo '<div class="detail-group">';
+		}
 
-                echo '<label class="detail-label">Métodos</label>';
+		echo '</div>';
 
-                echo '<div class="detail-badges">';
+		// Enqueue gateway management scripts
 
-                foreach ($gw['methods'] as $m) {
+		wp_enqueue_script(
+			'hng-admin-gateways',
+			HNG_COMMERCE_URL . 'assets/js/admin-gateways.js',
+			array( 'jquery' ),
+			HNG_COMMERCE_VERSION,
+			true
+		);
 
-                    echo '<span class="badge badge-method">' . esc_html($m) . '</span>';
+		wp_localize_script(
+			'hng-admin-gateways',
+			'hngGatewaysPage',
+			array(
 
-                }
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 
-                echo '</div>';
+				'nonce'   => $nonce,
 
-                echo '</div>';
+			)
+		);
 
-            }
+		// Enhanced inline CSS for the gateways page
 
-            
-
-            if (!empty($gw['fees'])) {
-
-                echo '<div class="detail-group">';
-
-                echo '<label class="detail-label">Taxas</label>';
-
-                echo '<div class="detail-badges">';
-
-                foreach ($gw['fees'] as $f) {
-
-                    echo '<span class="badge badge-fee">' . esc_html($f) . '</span>';
-
-                }
-
-                echo '</div>';
-
-                echo '</div>';
-
-            }
-
-            
-
-            echo '</div>';
-
-
-
-            // Actions
-
-            echo '<div class="gateway-actions">';
-
-            
-
-            // Toggle switch
-
-            echo '<div class="action-toggle">';
-
-            echo '<label class="hng-switch">';
-
-            echo '<input type="checkbox" class="gateway-toggle" data-gateway="' . esc_attr($id) . '" ' . checked($enabled, true, false) . ' />';
-
-            echo '<span class="hng-switch-slider"></span>';
-
-            echo '</label>';
-
-            echo '<span class="toggle-label">' . ($enabled ? 'Ativo' : 'Inativo') . '</span>';
-
-            echo '</div>';
-
-            
-
-            // Buttons
-
-            echo '<div class="action-buttons">';
-
-            echo '<button type="button" class="button button-secondary hng-toggle-config" data-gateway="' . esc_attr($id) . '" title="Configurar credenciais">';
-
-            echo '<span class="dashicons dashicons-admin-tools"></span>';
-
-            echo '</button>';
-
-            echo '<button type="button" class="button button-secondary gateway-test-btn" data-gateway="' . esc_attr($id) . '" title="Testar conexao">';
-
-            echo '<span class="dashicons dashicons-update"></span>';
-
-            echo '</button>';
-
-            echo '<a href="' . esc_url('#') . '" target="_blank" class="button button-link gateway-docs-btn" title="Ver documentacao">';
-
-            echo '<span class="dashicons dashicons-external"></span>';
-
-            echo '</a>';
-
-            echo '</div>';
-
-            
-
-            echo '</div>';
-
-
-
-            // Config form (initially hidden)
-
-            echo '<div class="hng-gateway-config-wrapper" data-gateway="' . esc_attr($id) . '" style="display:none;">';
-
-            self::render_gateway_form($id);
-
-            echo '</div>';
-
-            
-
-            echo '</div>';
-
-        }
-
-        echo '</div>';
-
-
-
-        // Enqueue gateway management scripts
-
-        wp_enqueue_script(
-
-            'hng-admin-gateways',
-
-            HNG_COMMERCE_URL . 'assets/js/admin-gateways.js',
-
-            array('jquery'),
-
-            HNG_COMMERCE_VERSION,
-
-            true
-
-        );
-
-        
-
-        wp_localize_script('hng-admin-gateways', 'hngGatewaysPage', array(
-
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-
-            'nonce' => $nonce,
-
-        ));
-
-
-
-        // Enhanced inline CSS for the gateways page
-
-        echo '<style>
+		echo '<style>
 
         .hng-gateways-page {
 
@@ -2026,2164 +1974,2101 @@ class HNG_Gateway_Management_Page {
 
         }
 
+        /* ===== Coming Soon Gateway Overlay ===== */
+        .hng-gateway-item.hng-coming-soon {
+            position: relative;
+            overflow: hidden;
+        }
+        .hng-gateway-item.hng-coming-soon .gateway-details,
+        .hng-gateway-item.hng-coming-soon .gateway-actions,
+        .hng-gateway-item.hng-coming-soon .gateway-description {
+            opacity: 0.35;
+            pointer-events: none;
+            user-select: none;
+        }
+        .hng-coming-soon-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(2px);
+            border-radius: inherit;
+        }
+        .hng-coming-soon-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #fff8e1, #fff3cd);
+            border: 1px solid #f0c040;
+            border-radius: 10px;
+            padding: 16px 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            max-width: 380px;
+        }
+        .hng-coming-soon-badge .dashicons-clock {
+            font-size: 28px;
+            width: 28px;
+            height: 28px;
+            color: #b8860b;
+            flex-shrink: 0;
+        }
+        .hng-coming-soon-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .hng-coming-soon-text strong {
+            font-size: 14px;
+            color: #8b6914;
+        }
+        .hng-coming-soon-text span {
+            font-size: 12px;
+            color: #6b5e1f;
+            line-height: 1.4;
+        }
+
         </style>';
 
+		echo '</div>';
+	}
 
 
-        echo '</div>';
 
-    }
+	/**
 
-    
+	 * List of available gateways
+	 */
+	private static function get_gateways() {
 
-    /**
+		return array(
 
-     * List of available gateways
+			'asaas'       => array(
 
-     */
+				'name'        => 'Asaas',
 
-    private static function get_gateways() {
+				'description' => 'PIX, Boleto e Cartao de Credito',
 
-        return [
+				'icon'        => 'money-alt',
 
-            'asaas' => [
+				'category'    => 'fintech',
 
-                'name' => 'Asaas',
+				'methods'     => array( 'PIX', 'Boleto', 'Cartao' ),
 
-                'description' => 'PIX, Boleto e Cartao de Credito',
+				'fees'        => array( 'PIX: 0,99% + R$0,49', 'Boleto: R$3,49', 'Cartao: 2,99%' ),
 
-                'icon' => 'money-alt',
+			),
 
-                'category' => 'fintech',
+			'mercadopago' => array(
 
-                'methods' => ['PIX', 'Boleto', 'Cartao'],
+				'name'        => 'Mercado Pago',
 
-                'fees' => ['PIX: 0,99% + R$0,49', 'Boleto: R$3,49', 'Cartao: 2,99%']
+				'description' => 'Solucao completa de pagamentos',
 
-            ],
+				'icon'        => 'cart',
 
-            'mercadopago' => [
+				'category'    => 'marketplace',
 
-                'name' => 'Mercado Pago',
+				'methods'     => array( 'PIX', 'Boleto', 'Cartao', 'Checkout Pro' ),
 
-                'description' => 'Solucao completa de pagamentos',
+				'fees'        => array( 'PIX: 0,99%', 'Boleto: R$3,79', 'Cartao: 4,99%' ),
 
-                'icon' => 'cart',
+			),
 
-                'category' => 'marketplace',
+			'pagseguro'   => array(
 
-                'methods' => ['PIX', 'Boleto', 'Cartao', 'Checkout Pro'],
+				'name'        => 'PagSeguro',
 
-                'fees' => ['PIX: 0,99%', 'Boleto: R$3,79', 'Cartao: 4,99%']
+				'description' => 'Gateway UOL PagSeguro',
 
-            ],
+				'icon'        => 'shield',
 
-            'pagseguro' => [
+				'category'    => 'marketplace',
 
-                'name' => 'PagSeguro',
+				'methods'     => array( 'PIX', 'Boleto', 'Cartao' ),
 
-                'description' => 'Gateway UOL PagSeguro',
+				'fees'        => array( 'PIX: 0,99%', 'Boleto: R$3,00', 'Cartao: 3,99%' ),
 
-                'icon' => 'shield',
+			),
 
-                'category' => 'marketplace',
+			'pagarme'     => array(
 
-                'methods' => ['PIX', 'Boleto', 'Cartao'],
+				'name'        => 'Pagar.me',
 
-                'fees' => ['PIX: 0,99%', 'Boleto: R$3,00', 'Cartao: 3,99%']
+				'description' => 'PIX, Boleto, Cartao e Split Payment',
 
-            ],
+				'icon'        => 'admin-generic',
 
-            'pagarme' => [
+				'category'    => 'fintech',
 
-                'name' => 'Pagar.me',
+				'methods'     => array( 'PIX', 'Boleto', 'Cartao', 'Split' ),
 
-                'description' => 'PIX, Boleto, Cartao e Split Payment',
+				'fees'        => array( 'PIX: 0,99%', 'Boleto: R$3,49', 'Cartao: 3,79%' ),
 
-                'icon' => 'admin-generic',
+			),
 
-                'category' => 'fintech',
+			'stripe'      => array(
 
-                'methods' => ['PIX', 'Boleto', 'Cartao', 'Split'],
+				'name'        => 'Stripe',
 
-                'fees' => ['PIX: 0,99%', 'Boleto: R$3,49', 'Cartao: 3,79%']
+				'description' => 'Cartao de Credito Internacional',
 
-            ],
+				'icon'        => 'credit',
 
-            'stripe' => [
+				'category'    => 'fintech',
 
-                'name' => 'Stripe',
+				'methods'     => array( 'Cartao Credito', 'Cartao Debito', 'Apple Pay', 'Google Pay' ),
 
-                'description' => 'Cartao de Credito Internacional',
+				'fees'        => array( 'Cartao: 2,90% + $0,30', 'Internacional: 3,90% + $0,30' ),
 
-                'icon' => 'credit',
+			),
 
-                'category' => 'fintech',
+			'paypal'      => array(
 
-                'methods' => ['Cartao Credito', 'Cartao Debito', 'Apple Pay', 'Google Pay'],
+				'name'        => 'PayPal',
 
-                'fees' => ['Cartao: 2,90% + $0,30', 'Internacional: 3,90% + $0,30']
+				'description' => 'Pagamentos internacionais',
 
-            ],
+				'icon'        => 'money-alt',
 
-            'paypal' => [
+				'category'    => 'fintech',
 
-                'name' => 'PayPal',
+				'methods'     => array( 'PayPal Wallet', 'Cartao' ),
 
-                'description' => 'Pagamentos internacionais',
+				'fees'        => array( 'PayPal: 4,99% + $0,49', 'Cartao: 3,99% + $0,49' ),
 
-                'icon' => 'money-alt',
+			),
 
-                'category' => 'fintech',
+			'cielo'       => array(
 
-                'methods' => ['PayPal Wallet', 'Cartao'],
+				'name'        => 'Cielo',
 
-                'fees' => ['PayPal: 4,99% + $0,49', 'Cartao: 3,99% + $0,49']
+				'description' => 'Gateway Cielo de pagamentos',
 
-            ],
+				'icon'        => 'building',
 
-            'cielo' => [
+				'category'    => 'marketplace',
 
-                'name' => 'Cielo',
+				'methods'     => array( 'PIX', 'Cartao', 'Boleto' ),
 
-                'description' => 'Gateway Cielo de pagamentos',
+				'fees'        => array( 'PIX: 0,99%', 'Cartao: 2,75%', 'Boleto: R$2,80' ),
 
-                'icon' => 'building',
+			),
 
-                'category' => 'marketplace',
+			'rede'        => array(
 
-                'methods' => ['PIX', 'Cartao', 'Boleto'],
+				'name'        => 'Rede',
 
-                'fees' => ['PIX: 0,99%', 'Cartao: 2,75%', 'Boleto: R$2,80']
+				'description' => 'Processadora Rede',
 
-            ],
+				'icon'        => 'building',
 
-            'rede' => [
+				'category'    => 'marketplace',
 
-                'name' => 'Rede',
+				'methods'     => array( 'PIX', 'Cartao', 'Boleto' ),
 
-                'description' => 'Processadora Rede',
+				'fees'        => array( 'PIX: 0,99%', 'Cartao: 2,90%', 'Boleto: R$3,00' ),
 
-                'icon' => 'building',
+			),
 
-                'category' => 'marketplace',
+			'getnet'      => array(
 
-                'methods' => ['PIX', 'Cartao', 'Boleto'],
+				'name'        => 'GetNet',
 
-                'fees' => ['PIX: 0,99%', 'Cartao: 2,90%', 'Boleto: R$3,00']
+				'description' => 'Gateway GetNet Santander',
 
-            ],
+				'icon'        => 'building',
 
-            'getnet' => [
+				'category'    => 'marketplace',
 
-                'name' => 'GetNet',
+				'methods'     => array( 'PIX', 'Cartao', 'Boleto' ),
 
-                'description' => 'Gateway GetNet Santander',
+				'fees'        => array( 'PIX: 0,99%', 'Cartao: 2,95%', 'Boleto: R$2,90' ),
 
-                'icon' => 'building',
+			),
 
-                'category' => 'marketplace',
+			'stone'       => array(
 
-                'methods' => ['PIX', 'Cartao', 'Boleto'],
+				'name'        => 'Stone',
 
-                'fees' => ['PIX: 0,99%', 'Cartao: 2,95%', 'Boleto: R$2,90']
+				'description' => 'Adquirente Stone',
 
-            ],
+				'icon'        => 'building',
 
-            'stone' => [
+				'category'    => 'marketplace',
 
-                'name' => 'Stone',
+				'methods'     => array( 'PIX', 'Cartao' ),
 
-                'description' => 'Adquirente Stone',
+				'fees'        => array( 'PIX: 0,99%', 'Cartao: 2,85%' ),
 
-                'icon' => 'building',
+			),
 
-                'category' => 'marketplace',
+			// Gateways removidos (não suportam split payment):
+			// nubank, inter, c6bank, bb, itau, bradesco, santander, picpay
 
-                'methods' => ['PIX', 'Cartao'],
+		);
+	}
 
-                'fees' => ['PIX: 0,99%', 'Cartao: 2,85%']
 
-            ]
 
-            // Gateways removidos (não suportam split payment):
-            // nubank, inter, c6bank, bb, itau, bradesco, santander, picpay
+	/**
 
-        ];
+	 * Get category label
+	 */
+	private static function get_category_label( $category ) {
 
-    }
+		$labels = array(
 
-    
+			'fintech'     => 'Fintech',
 
-    /**
+			'banks'       => 'Banco',
 
-     * Get category label
+			'marketplace' => 'Marketplace',
 
-     */
+			'other'       => 'Outro',
 
-    private static function get_category_label($category) {
+		);
 
-        $labels = [
+		return isset( $labels[ $category ] ) ? $labels[ $category ] : $labels['other'];
+	}
 
-            'fintech' => 'Fintech',
 
-            'banks' => 'Banco',
 
-            'marketplace' => 'Marketplace',
+	/**
 
-            'other' => 'Outro'
+	 * Renderiza formulario de configuracao para cada gateway
+	 */
+	private static function render_gateway_form( $gatewayId ) {
 
-        ];
+		$configs = array();
 
-        return isset($labels[$category]) ? $labels[$category] : $labels['other'];
+		$all_gateways = self::get_gateways();
 
-    }
+		$gateway = isset( $all_gateways[ $gatewayId ] ) ? $all_gateways[ $gatewayId ] : array(
+			'name'        => $gatewayId,
+			'description' => '',
+		);
 
-    
+		if ( $gatewayId === 'asaas' ) {
 
-    /**
+			$configs = array(
 
-     * Renderiza formulario de configuracao para cada gateway
+				'api_key' => get_option( 'hng_asaas_api_key', '' ),
 
-     */
+				'sandbox' => get_option( 'hng_asaas_sandbox', 1 ),
 
-    private static function render_gateway_form($gatewayId) {
+			);
 
-        $configs = [];
+			echo '<h3 style="margin-top: 0;">Config Asaas</h3>';
 
-        $all_gateways = self::get_gateways();
+			echo '<form class="gateway-config-form-inner" data-gateway="asaas">';
 
-        $gateway = isset($all_gateways[$gatewayId]) ? $all_gateways[$gatewayId] : ['name' => $gatewayId, 'description' => ''];
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_asaas', false );
 
-        
+			echo '<p><label><strong>API Key:</strong></label><br>';
 
-        if ($gatewayId === 'asaas') {
+			echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr( $configs['api_key'] ) . '" placeholder="$aact_...">';
 
-            $configs = [
+			echo '<br><small>Obtenha em painel Asaas</small></p>';
 
-                'api_key' => get_option('hng_asaas_api_key', ''),
+			echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked( $configs['sandbox'], 1, false ) . '> Modo Sandbox (Teste)</label>';
 
-                'sandbox' => get_option('hng_asaas_sandbox', 1)
+			echo '<br><small>Desative em producao!</small></p>';
 
-            ];
+			$adv_enabled = get_option( 'hng_asaas_advanced_integration', 'no' ) === 'yes';
 
-            echo '<h3 style="margin-top: 0;">Config Asaas</h3>';
+			echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
 
-            echo '<form class="gateway-config-form-inner" data-gateway="asaas">';
+			echo '<label class="hng-switch" style="margin-left:8px;">';
 
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_asaas', false);
+			echo '<input type="checkbox" class="advanced-toggle" data-gateway="asaas" ' . checked( $adv_enabled, true, false ) . ' />';
 
-            echo '<p><label><strong>API Key:</strong></label><br>';
+			echo '<span class="hng-switch-slider"></span>';
 
-            echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr($configs['api_key']) . '" placeholder="$aact_...">';
+			echo '</label>';
 
-            echo '<br><small>Obtenha em painel Asaas</small></p>';
+			echo '<span class="description">Ativa recursos de sincronização e webhooks.</span>';
 
-            echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked($configs['sandbox'], 1, false) . '> Modo Sandbox (Teste)</label>';
+			echo '</p>';
 
-            echo '<br><small>Desative em producao!</small></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            $adv_enabled = get_option('hng_asaas_advanced_integration', 'no') === 'yes';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
 
-            echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
 
-            echo '<label class="hng-switch" style="margin-left:8px;">';
+			echo '</form>';
 
-            echo '<input type="checkbox" class="advanced-toggle" data-gateway="asaas" ' . checked($adv_enabled, true, false) . ' />';
+		} elseif ( $gatewayId === 'mercadopago' ) {
 
-            echo '<span class="hng-switch-slider"></span>';
+			$configs = array(
 
-            echo '</label>';
+				'access_token' => get_option( 'hng_mercadopago_access_token', '' ),
 
-            echo '<span class="description">Ativa recursos de sincronização e webhooks.</span>';
+				'public_key'   => get_option( 'hng_mercadopago_public_key', '' ),
 
-            echo '</p>';
+				'sandbox'      => get_option( 'hng_mercadopago_sandbox', 1 ),
 
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			);
 
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			// Verificar se temos merchant_id e se está conectado via OAuth
+			$merchant_id     = get_option( 'hng_merchant_id', '' );
+			$oauth_connected = false;
+			$oauth_email     = '';
 
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			if ( ! empty( $merchant_id ) ) {
+				// Verificar status OAuth via API
+				$api_url        = 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/status?merchant_id=' . urlencode( $merchant_id );
+				$oauth_response = wp_remote_get( $api_url, array( 'timeout' => 10 ) );
+				if ( ! is_wp_error( $oauth_response ) ) {
+					$oauth_data      = json_decode( wp_remote_retrieve_body( $oauth_response ), true );
+					$oauth_connected = ! empty( $oauth_data['connected'] ) && $oauth_data['connected'] === true;
+					if ( $oauth_connected && ! empty( $oauth_data['data']['email'] ) ) {
+						$oauth_email = $oauth_data['data']['email'];
+					}
+				}
+			}
 
-            echo '</form>';
+			echo '<h3 style="margin-top: 0;">Config Mercado Pago</h3>';
 
-        } elseif ($gatewayId === 'mercadopago') {
+			// Seção OAuth - Conexão Split Payment (OBRIGATÓRIO)
+			echo '<div class="oauth-section" style="background: ' . ( $oauth_connected ? '#f0fff4' : '#fff8e5' ) . '; border: 2px solid ' . ( $oauth_connected ? '#46b450' : '#f0b849' ) . '; border-radius: 8px; padding: 15px; margin-bottom: 20px;">';
 
-            $configs = [
+			if ( $oauth_connected ) {
+				echo '<h4 style="margin: 0 0 10px 0; color: #46b450;"><span class="dashicons dashicons-yes-alt"></span> Conta Conectada</h4>';
+				echo '<p style="color: #46b450; margin: 0 0 10px 0;"><strong>✓ ' . esc_html( $oauth_email ) . '</strong></p>';
+				echo '<p style="margin: 0 0 15px 0;"><small>Sua conta está autorizada. A taxa HNG Commerce será processada automaticamente via split payment em cada transação.</small></p>';
+				echo '<button type="button" class="button button-link-delete mp-oauth-disconnect" data-merchant="' . esc_attr( $merchant_id ) . '">Desconectar conta</button>';
+			} else {
+				echo '<h4 style="margin: 0 0 10px 0; color: #9c6a00;"><span class="dashicons dashicons-warning"></span> Conexão Obrigatória</h4>';
+				echo '<p style="margin: 0 0 8px 0;"><strong>Para utilizar o Mercado Pago, é necessário conectar sua conta.</strong></p>';
+				echo '<p style="margin: 0 0 15px 0; color: #666;"><small>Essa conexão autoriza o processamento automático de pagamentos com split payment, garantindo a cobrança correta das taxas de plataforma.</small></p>';
+				if ( ! empty( $merchant_id ) ) {
+					$oauth_authorize_url = 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/authorize?merchant_id=' . urlencode( $merchant_id ) . '&redirect_uri=' . urlencode( admin_url( 'admin.php?page=hng-gateways' ) );
+					echo '<a href="' . esc_url( $oauth_authorize_url ) . '" class="button button-primary" style="background: #009ee3; border-color: #009ee3; font-size: 14px; padding: 8px 16px; height: auto;">';
+					echo '<span class="dashicons dashicons-admin-links" style="margin-top: 4px;"></span> Conectar minha conta Mercado Pago</a>';
+				} else {
+					echo '<p style="color: #dc3232; margin: 0;"><strong>⚠</strong> Primeiro registre-se na API HNG para obter seu identificador de loja.</p>';
+				}
+			}
+			echo '</div>';
 
-                'access_token' => get_option('hng_mercadopago_access_token', ''),
+			echo '<form class="gateway-config-form-inner" data-gateway="mercadopago">';
 
-                'public_key' => get_option('hng_mercadopago_public_key', ''),
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_mercadopago', false );
 
-                'sandbox' => get_option('hng_mercadopago_sandbox', 1)
+			echo '<p><label><strong>Access Token:</strong></label><br>';
 
-            ];
+			echo '<input type="password" name="access_token" class="regular-text" value="' . esc_attr( $configs['access_token'] ) . '" placeholder="APP_USR-...">';
 
-            
-            // Verificar se temos merchant_id e se está conectado via OAuth
-            $merchant_id = get_option('hng_merchant_id', '');
-            $oauth_connected = false;
-            $oauth_email = '';
-            
-            if (!empty($merchant_id)) {
-                // Verificar status OAuth via API
-                $api_url = 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/status?merchant_id=' . urlencode($merchant_id);
-                $oauth_response = wp_remote_get($api_url, ['timeout' => 10]);
-                if (!is_wp_error($oauth_response)) {
-                    $oauth_data = json_decode(wp_remote_retrieve_body($oauth_response), true);
-                    $oauth_connected = !empty($oauth_data['connected']) && $oauth_data['connected'] === true;
-                    if ($oauth_connected && !empty($oauth_data['data']['email'])) {
-                        $oauth_email = $oauth_data['data']['email'];
-                    }
-                }
-            }
-            
-            echo '<h3 style="margin-top: 0;">Config Mercado Pago</h3>';
+			echo '<br><small>Obtenha em Mercado Pago Developers</small></p>';
 
-            
-            // Seção OAuth - Conexão Split Payment (OBRIGATÓRIO)
-            echo '<div class="oauth-section" style="background: ' . ($oauth_connected ? '#f0fff4' : '#fff8e5') . '; border: 2px solid ' . ($oauth_connected ? '#46b450' : '#f0b849') . '; border-radius: 8px; padding: 15px; margin-bottom: 20px;">';
-            
-            if ($oauth_connected) {
-                echo '<h4 style="margin: 0 0 10px 0; color: #46b450;"><span class="dashicons dashicons-yes-alt"></span> Conta Conectada</h4>';
-                echo '<p style="color: #46b450; margin: 0 0 10px 0;"><strong>✓ ' . esc_html($oauth_email) . '</strong></p>';
-                echo '<p style="margin: 0 0 15px 0;"><small>Sua conta está autorizada. A taxa HNG Commerce será processada automaticamente via split payment em cada transação.</small></p>';
-                echo '<button type="button" class="button button-link-delete mp-oauth-disconnect" data-merchant="' . esc_attr($merchant_id) . '">Desconectar conta</button>';
-            } else {
-                echo '<h4 style="margin: 0 0 10px 0; color: #9c6a00;"><span class="dashicons dashicons-warning"></span> Conexão Obrigatória</h4>';
-                echo '<p style="margin: 0 0 8px 0;"><strong>Para utilizar o Mercado Pago, é necessário conectar sua conta.</strong></p>';
-                echo '<p style="margin: 0 0 15px 0; color: #666;"><small>Essa conexão autoriza o processamento automático de pagamentos com split payment, garantindo a cobrança correta das taxas de plataforma.</small></p>';
-                if (!empty($merchant_id)) {
-                    $oauth_authorize_url = 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/authorize?merchant_id=' . urlencode($merchant_id) . '&redirect_uri=' . urlencode(admin_url('admin.php?page=hng-gateways'));
-                    echo '<a href="' . esc_url($oauth_authorize_url) . '" class="button button-primary" style="background: #009ee3; border-color: #009ee3; font-size: 14px; padding: 8px 16px; height: auto;">';
-                    echo '<span class="dashicons dashicons-admin-links" style="margin-top: 4px;"></span> Conectar minha conta Mercado Pago</a>';
-                } else {
-                    echo '<p style="color: #dc3232; margin: 0;"><strong>⚠</strong> Primeiro registre-se na API HNG para obter seu identificador de loja.</p>';
-                }
-            }
-            echo '</div>';
+			echo '<p><label><strong>Public Key:</strong></label><br>';
 
-            echo '<form class="gateway-config-form-inner" data-gateway="mercadopago">';
+			echo '<input type="text" name="public_key" class="regular-text" value="' . esc_attr( $configs['public_key'] ) . '" placeholder="APP_USR-... (publico)"></p>';
 
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_mercadopago', false);
+			echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked( $configs['sandbox'], 1, false ) . '> Modo Sandbox (Teste)</label>';
 
-            echo '<p><label><strong>Access Token:</strong></label><br>';
+			echo '<br><small>Desative em producao!</small></p>';
 
-            echo '<input type="password" name="access_token" class="regular-text" value="' . esc_attr($configs['access_token']) . '" placeholder="APP_USR-...">';
+			$adv_enabled = get_option( 'hng_mercadopago_advanced_integration', 'no' ) === 'yes';
 
-            echo '<br><small>Obtenha em Mercado Pago Developers</small></p>';
+			echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
 
-            echo '<p><label><strong>Public Key:</strong></label><br>';
+			echo '<label class="hng-switch" style="margin-left:8px;">';
 
-            echo '<input type="text" name="public_key" class="regular-text" value="' . esc_attr($configs['public_key']) . '" placeholder="APP_USR-... (publico)"></p>';
+			echo '<input type="checkbox" class="advanced-toggle" data-gateway="mercadopago" ' . checked( $adv_enabled, true, false ) . ' />';
 
-            echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked($configs['sandbox'], 1, false) . '> Modo Sandbox (Teste)</label>';
+			echo '<span class="hng-switch-slider"></span>';
 
-            echo '<br><small>Desative em producao!</small></p>';
+			echo '</label>';
 
-            $adv_enabled = get_option('hng_mercadopago_advanced_integration', 'no') === 'yes';
+			echo '<span class="description">Ativa clientes, assinaturas e webhooks.</span>';
 
-            echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
+			echo '</p>';
 
-            echo '<label class="hng-switch" style="margin-left:8px;">';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            echo '<input type="checkbox" class="advanced-toggle" data-gateway="mercadopago" ' . checked($adv_enabled, true, false) . ' />';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
 
-            echo '<span class="hng-switch-slider"></span>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
 
-            echo '</label>';
+			echo '</form>';
 
-            echo '<span class="description">Ativa clientes, assinaturas e webhooks.</span>';
+		} elseif ( $gatewayId === 'pagseguro' ) {
 
-            echo '</p>';
+			$configs = array(
 
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+				'token'   => get_option( 'hng_ps_token', '' ),
 
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+				'email'   => get_option( 'hng_ps_email', '' ),
 
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
+				'sandbox' => get_option( 'hng_ps_sandbox', 'yes' ) === 'yes',
 
-            echo '</form>';
+			);
 
-        } elseif ($gatewayId === 'pagseguro') {
+			echo '<h3 style="margin-top: 0;">Config PagSeguro</h3>';
 
-            $configs = [
+			echo '<form class="gateway-config-form-inner" data-gateway="pagseguro">';
 
-                'token' => get_option('hng_ps_token', ''),
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_pagseguro', false );
 
-                'email' => get_option('hng_ps_email', ''),
+			echo '<p><label><strong>Token / API Key:</strong></label><br>';
 
-                'sandbox' => get_option('hng_ps_sandbox', 'yes') === 'yes'
+			echo '<input type="password" name="token" class="regular-text" value="' . esc_attr( $configs['token'] ) . '" placeholder="token_pagseguro..."></p>';
 
-            ];
+			echo '<p><label><strong>Email de conta:</strong></label><br>';
 
-            echo '<h3 style="margin-top: 0;">Config PagSeguro</h3>';
+			echo '<input type="email" name="email" class="regular-text" value="' . esc_attr( $configs['email'] ) . '" placeholder="seu@email.com"></p>';
 
-            echo '<form class="gateway-config-form-inner" data-gateway="pagseguro">';
+			echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked( $configs['sandbox'], true, false ) . '> Modo Sandbox (Teste)</label>';
 
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_pagseguro', false);
+			echo '<br><small>Obtenha seu token no Portal PagSeguro</small></p>';
 
-            echo '<p><label><strong>Token / API Key:</strong></label><br>';
+			$adv_enabled = get_option( 'hng_pagseguro_advanced_integration', 'no' ) === 'yes';
 
-            echo '<input type="password" name="token" class="regular-text" value="' . esc_attr($configs['token']) . '" placeholder="token_pagseguro..."></p>';
+			echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
 
-            echo '<p><label><strong>Email de conta:</strong></label><br>';
+			echo '<label class="hng-switch" style="margin-left:8px;">';
 
-            echo '<input type="email" name="email" class="regular-text" value="' . esc_attr($configs['email']) . '" placeholder="seu@email.com"></p>';
+			echo '<input type="checkbox" class="advanced-toggle" data-gateway="pagseguro" ' . checked( $adv_enabled, true, false ) . ' />';
 
-            echo '<p><label><input type="checkbox" name="sandbox" value="1" ' . checked($configs['sandbox'], true, false) . '> Modo Sandbox (Teste)</label>';
+			echo '<span class="hng-switch-slider"></span>';
 
-            echo '<br><small>Obtenha seu token no Portal PagSeguro</small></p>';
+			echo '</label>';
 
-            $adv_enabled = get_option('hng_pagseguro_advanced_integration', 'no') === 'yes';
+			echo '<span class="description">Ativa assinaturas, clientes e faturamento.</span>';
 
-            echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
+			echo '</p>';
 
-            echo '<label class="hng-switch" style="margin-left:8px;">';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            echo '<input type="checkbox" class="advanced-toggle" data-gateway="pagseguro" ' . checked($adv_enabled, true, false) . ' />';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
 
-            echo '<span class="hng-switch-slider"></span>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
 
-            echo '</label>';
+			echo '</form>';
 
-            echo '<span class="description">Ativa assinaturas, clientes e faturamento.</span>';
+		} elseif ( $gatewayId === 'pagarme' ) {
 
-            echo '</p>';
+			$configs = array(
 
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+				'secret_key' => get_option( 'hng_pagarme_secret_key', '' ),
 
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+				'public_key' => get_option( 'hng_pagarme_public_key', '' ),
 
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
+				'enabled'    => get_option( 'hng_pagarme_enabled', 'no' ) === 'yes',
 
-            echo '</form>';
+			);
 
-        } elseif ($gatewayId === 'pagarme') {
+			echo '<h3 style="margin-top: 0;">Config Pagar.me</h3>';
 
-            $configs = [
+			echo '<form class="gateway-config-form-inner" data-gateway="pagarme">';
 
-                'secret_key' => get_option('hng_pagarme_secret_key', ''),
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_pagarme', false );
 
-                'public_key' => get_option('hng_pagarme_public_key', ''),
+			echo '<p><label><strong>Secret Key:</strong></label><br>';
 
-                'enabled' => get_option('hng_pagarme_enabled', 'no') === 'yes'
+			echo '<input type="password" name="secret_key" class="regular-text" value="' . esc_attr( $configs['secret_key'] ) . '" placeholder="sk_live_..."></p>';
 
-            ];
+			echo '<p><label><strong>Public Key:</strong></label><br>';
 
-            echo '<h3 style="margin-top: 0;">Config Pagar.me</h3>';
+			echo '<input type="text" name="public_key" class="regular-text" value="' . esc_attr( $configs['public_key'] ) . '" placeholder="pk_live_..."></p>';
 
-            echo '<form class="gateway-config-form-inner" data-gateway="pagarme">';
+			echo '<p><label><input type="checkbox" name="enabled" value="1" ' . checked( $configs['enabled'], true, false ) . '> Habilitar gateway</label></p>';
 
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_pagarme', false);
+			$adv_enabled = get_option( 'hng_pagarme_advanced_integration', 'no' ) === 'yes';
 
-            echo '<p><label><strong>Secret Key:</strong></label><br>';
+			echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
 
-            echo '<input type="password" name="secret_key" class="regular-text" value="' . esc_attr($configs['secret_key']) . '" placeholder="sk_live_..."></p>';
+			echo '<label class="hng-switch" style="margin-left:8px;">';
 
-            echo '<p><label><strong>Public Key:</strong></label><br>';
+			echo '<input type="checkbox" class="advanced-toggle" data-gateway="pagarme" ' . checked( $adv_enabled, true, false ) . ' />';
 
-            echo '<input type="text" name="public_key" class="regular-text" value="' . esc_attr($configs['public_key']) . '" placeholder="pk_live_..."></p>';
+			echo '<span class="hng-switch-slider"></span>';
 
-            echo '<p><label><input type="checkbox" name="enabled" value="1" ' . checked($configs['enabled'], true, false) . '> Habilitar gateway</label></p>';
+			echo '</label>';
 
-            $adv_enabled = get_option('hng_pagarme_advanced_integration', 'no') === 'yes';
+			echo '<span class="description">Ativa Split Payment e assinaturas recorrentes.</span>';
 
-            echo '<p style="display:flex;align-items:center;gap:8px;"><strong>Integração avançada:</strong> ';
+			echo '</p>';
 
-            echo '<label class="hng-switch" style="margin-left:8px;">';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            echo '<input type="checkbox" class="advanced-toggle" data-gateway="pagarme" ' . checked($adv_enabled, true, false) . ' />';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
 
-            echo '<span class="hng-switch-slider"></span>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
 
-            echo '</label>';
+			echo '</form>';
 
-            echo '<span class="description">Ativa Split Payment e assinaturas recorrentes.</span>';
+		} elseif ( $gatewayId === 'stripe' ) {
+			$configs = array(
+				'secret_key'      => get_option( 'hng_stripe_secret_key', '' ),
+				'publishable_key' => get_option( 'hng_stripe_publishable_key', '' ),
+				'webhook_secret'  => get_option( 'hng_stripe_webhook_secret', '' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config Stripe</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="stripe">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_stripe', false );
+			echo '<p><label><strong>Secret Key:</strong></label><br>';
+			echo '<input type="password" name="secret_key" class="regular-text" value="' . esc_attr( $configs['secret_key'] ) . '" placeholder="sk_live_..."></p>';
+			echo '<p><label><strong>Publishable Key:</strong></label><br>';
+			echo '<input type="text" name="publishable_key" class="regular-text" value="' . esc_attr( $configs['publishable_key'] ) . '" placeholder="pk_live_..."></p>';
+			echo '<p><label><strong>Webhook Secret:</strong></label><br>';
+			echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr( $configs['webhook_secret'] ) . '" placeholder="whsec_..."></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
+		} elseif ( $gatewayId === 'paypal' ) {
+			$configs = array(
+				'client_id'     => get_option( 'hng_paypal_client_id', '' ),
+				'client_secret' => get_option( 'hng_paypal_client_secret', '' ),
+				'webhook_token' => get_option( 'hng_paypal_webhook_token', '' ),
+				'environment'   => get_option( 'hng_paypal_environment', 'sandbox' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config PayPal</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="paypal">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_paypal', false );
+			echo '<p><label><strong>Client ID:</strong></label><br>';
+			echo '<input type="text" name="client_id" class="regular-text" value="' . esc_attr( $configs['client_id'] ) . '" placeholder="Client ID"></p>';
+			echo '<p><label><strong>Client Secret:</strong></label><br>';
+			echo '<input type="password" name="client_secret" class="regular-text" value="' . esc_attr( $configs['client_secret'] ) . '" placeholder="Client Secret"></p>';
+			echo '<p><label><strong>Webhook Token:</strong></label><br>';
+			echo '<input type="text" name="webhook_token" class="regular-text" value="' . esc_attr( $configs['webhook_token'] ) . '" placeholder="Webhook ID"></p>';
+			echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
+			echo '<option value="sandbox" ' . selected( $configs['environment'], 'sandbox', false ) . '>Sandbox (Testes)</option>';
+			echo '<option value="production" ' . selected( $configs['environment'], 'production', false ) . '>Produção</option>';
+			echo '</select></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
+		} elseif ( $gatewayId === 'cielo' ) {
+			$configs = array(
+				'merchant_id'    => get_option( 'hng_cielo_merchant_id', '' ),
+				'api_key'        => get_option( 'hng_cielo_api_key', '' ),
+				'webhook_secret' => get_option( 'hng_cielo_webhook_secret', '' ),
+				'environment'    => get_option( 'hng_cielo_environment', 'sandbox' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config Cielo</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="cielo">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_cielo', false );
+			echo '<p><label><strong>Merchant ID:</strong></label><br>';
+			echo '<input type="text" name="merchant_id" class="regular-text" value="' . esc_attr( $configs['merchant_id'] ) . '" placeholder="Merchant ID Cielo"></p>';
+			echo '<p><label><strong>API Key:</strong></label><br>';
+			echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr( $configs['api_key'] ) . '" placeholder="API Key"></p>';
+			echo '<p><label><strong>Webhook Secret:</strong></label><br>';
+			echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr( $configs['webhook_secret'] ) . '" placeholder="Chave do webhook"></p>';
+			echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
+			echo '<option value="sandbox" ' . selected( $configs['environment'], 'sandbox', false ) . '>Sandbox (Testes)</option>';
+			echo '<option value="production" ' . selected( $configs['environment'], 'production', false ) . '>Produção</option>';
+			echo '</select></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
+		} elseif ( $gatewayId === 'rede' ) {
+			$configs = array(
+				'pv'             => get_option( 'hng_rede_pv', '' ),
+				'token'          => get_option( 'hng_rede_token', '' ),
+				'webhook_secret' => get_option( 'hng_rede_webhook_secret', '' ),
+				'environment'    => get_option( 'hng_rede_environment', 'sandbox' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config Rede</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="rede">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_rede', false );
+			echo '<p><label><strong>PV (Point of Sale):</strong></label><br>';
+			echo '<input type="text" name="pv" class="regular-text" value="' . esc_attr( $configs['pv'] ) . '" placeholder="PV Rede"></p>';
+			echo '<p><label><strong>Token:</strong></label><br>';
+			echo '<input type="password" name="token" class="regular-text" value="' . esc_attr( $configs['token'] ) . '" placeholder="Token Rede"></p>';
+			echo '<p><label><strong>Webhook Secret:</strong></label><br>';
+			echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr( $configs['webhook_secret'] ) . '" placeholder="Chave do webhook"></p>';
+			echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
+			echo '<option value="sandbox" ' . selected( $configs['environment'], 'sandbox', false ) . '>Sandbox (Testes)</option>';
+			echo '<option value="production" ' . selected( $configs['environment'], 'production', false ) . '>Produção</option>';
+			echo '</select></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
+		} elseif ( $gatewayId === 'getnet' ) {
+			$configs = array(
+				'client_id'     => get_option( 'hng_getnet_client_id', '' ),
+				'client_secret' => get_option( 'hng_getnet_client_secret', '' ),
+				'webhook_token' => get_option( 'hng_getnet_webhook_token', '' ),
+				'environment'   => get_option( 'hng_getnet_environment', 'sandbox' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config GetNet</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="getnet">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_getnet', false );
+			echo '<p><label><strong>Client ID:</strong></label><br>';
+			echo '<input type="text" name="client_id" class="regular-text" value="' . esc_attr( $configs['client_id'] ) . '" placeholder="Client ID"></p>';
+			echo '<p><label><strong>Client Secret:</strong></label><br>';
+			echo '<input type="password" name="client_secret" class="regular-text" value="' . esc_attr( $configs['client_secret'] ) . '" placeholder="Client Secret"></p>';
+			echo '<p><label><strong>Webhook Token:</strong></label><br>';
+			echo '<input type="text" name="webhook_token" class="regular-text" value="' . esc_attr( $configs['webhook_token'] ) . '" placeholder="Webhook ID"></p>';
+			echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
+			echo '<option value="sandbox" ' . selected( $configs['environment'], 'sandbox', false ) . '>Sandbox (Testes)</option>';
+			echo '<option value="production" ' . selected( $configs['environment'], 'production', false ) . '>Produção</option>';
+			echo '</select></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
+		} elseif ( $gatewayId === 'stone' ) {
+			$configs = array(
+				'api_key'        => get_option( 'hng_stone_api_key', '' ),
+				'webhook_secret' => get_option( 'hng_stone_webhook_secret', '' ),
+				'environment'    => get_option( 'hng_stone_environment', 'sandbox' ),
+			);
+			echo '<h3 style="margin-top: 0;">Config Stone</h3>';
+			echo '<form class="gateway-config-form-inner" data-gateway="stone">';
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_stone', false );
+			echo '<p><label><strong>API Key:</strong></label><br>';
+			echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr( $configs['api_key'] ) . '" placeholder="API Key Stone"></p>';
+			echo '<p><label><strong>Webhook Secret:</strong></label><br>';
+			echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr( $configs['webhook_secret'] ) . '" placeholder="Chave do webhook"></p>';
+			echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
+			echo '<option value="sandbox" ' . selected( $configs['environment'], 'sandbox', false ) . '>Sandbox (Testes)</option>';
+			echo '<option value="production" ' . selected( $configs['environment'], 'production', false ) . '>Produção</option>';
+			echo '</select></p>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '</form>';
 
-            echo '</p>';
+			// Gateways de formulário removidos: nubank, inter, c6bank, bb, itau, bradesco, santander
+			// Motivo: Não suportam split payment
 
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
+		} else {
 
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+			$saved = get_option( 'hng_gateway_' . $gatewayId . '_config', '' );
 
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
+			echo '<h3 style="margin-top: 0;">Config ' . esc_html( $gateway['name'] ) . '</h3>';
 
-            echo '</form>';
+			echo '<p><em>Configuracao generica (JSON)</em></p>';
 
-        } elseif ($gatewayId === 'stripe') {
-            $configs = [
-                'secret_key' => get_option('hng_stripe_secret_key', ''),
-                'publishable_key' => get_option('hng_stripe_publishable_key', ''),
-                'webhook_secret' => get_option('hng_stripe_webhook_secret', '')
-            ];
-            echo '<h3 style="margin-top: 0;">Config Stripe</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="stripe">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_stripe', false);
-            echo '<p><label><strong>Secret Key:</strong></label><br>';
-            echo '<input type="password" name="secret_key" class="regular-text" value="' . esc_attr($configs['secret_key']) . '" placeholder="sk_live_..."></p>';
-            echo '<p><label><strong>Publishable Key:</strong></label><br>';
-            echo '<input type="text" name="publishable_key" class="regular-text" value="' . esc_attr($configs['publishable_key']) . '" placeholder="pk_live_..."></p>';
-            echo '<p><label><strong>Webhook Secret:</strong></label><br>';
-            echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr($configs['webhook_secret']) . '" placeholder="whsec_..."></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
-        } elseif ($gatewayId === 'paypal') {
-            $configs = [
-                'client_id' => get_option('hng_paypal_client_id', ''),
-                'client_secret' => get_option('hng_paypal_client_secret', ''),
-                'webhook_token' => get_option('hng_paypal_webhook_token', ''),
-                'environment' => get_option('hng_paypal_environment', 'sandbox')
-            ];
-            echo '<h3 style="margin-top: 0;">Config PayPal</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="paypal">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_paypal', false);
-            echo '<p><label><strong>Client ID:</strong></label><br>';
-            echo '<input type="text" name="client_id" class="regular-text" value="' . esc_attr($configs['client_id']) . '" placeholder="Client ID"></p>';
-            echo '<p><label><strong>Client Secret:</strong></label><br>';
-            echo '<input type="password" name="client_secret" class="regular-text" value="' . esc_attr($configs['client_secret']) . '" placeholder="Client Secret"></p>';
-            echo '<p><label><strong>Webhook Token:</strong></label><br>';
-            echo '<input type="text" name="webhook_token" class="regular-text" value="' . esc_attr($configs['webhook_token']) . '" placeholder="Webhook ID"></p>';
-            echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
-            echo '<option value="sandbox" ' . selected($configs['environment'], 'sandbox', false) . '>Sandbox (Testes)</option>';
-            echo '<option value="production" ' . selected($configs['environment'], 'production', false) . '>Produção</option>';
-            echo '</select></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
-        } elseif ($gatewayId === 'cielo') {
-            $configs = [
-                'merchant_id' => get_option('hng_cielo_merchant_id', ''),
-                'api_key' => get_option('hng_cielo_api_key', ''),
-                'webhook_secret' => get_option('hng_cielo_webhook_secret', ''),
-                'environment' => get_option('hng_cielo_environment', 'sandbox')
-            ];
-            echo '<h3 style="margin-top: 0;">Config Cielo</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="cielo">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_cielo', false);
-            echo '<p><label><strong>Merchant ID:</strong></label><br>';
-            echo '<input type="text" name="merchant_id" class="regular-text" value="' . esc_attr($configs['merchant_id']) . '" placeholder="Merchant ID Cielo"></p>';
-            echo '<p><label><strong>API Key:</strong></label><br>';
-            echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr($configs['api_key']) . '" placeholder="API Key"></p>';
-            echo '<p><label><strong>Webhook Secret:</strong></label><br>';
-            echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr($configs['webhook_secret']) . '" placeholder="Chave do webhook"></p>';
-            echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
-            echo '<option value="sandbox" ' . selected($configs['environment'], 'sandbox', false) . '>Sandbox (Testes)</option>';
-            echo '<option value="production" ' . selected($configs['environment'], 'production', false) . '>Produção</option>';
-            echo '</select></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
-        } elseif ($gatewayId === 'rede') {
-            $configs = [
-                'pv' => get_option('hng_rede_pv', ''),
-                'token' => get_option('hng_rede_token', ''),
-                'webhook_secret' => get_option('hng_rede_webhook_secret', ''),
-                'environment' => get_option('hng_rede_environment', 'sandbox')
-            ];
-            echo '<h3 style="margin-top: 0;">Config Rede</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="rede">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_rede', false);
-            echo '<p><label><strong>PV (Point of Sale):</strong></label><br>';
-            echo '<input type="text" name="pv" class="regular-text" value="' . esc_attr($configs['pv']) . '" placeholder="PV Rede"></p>';
-            echo '<p><label><strong>Token:</strong></label><br>';
-            echo '<input type="password" name="token" class="regular-text" value="' . esc_attr($configs['token']) . '" placeholder="Token Rede"></p>';
-            echo '<p><label><strong>Webhook Secret:</strong></label><br>';
-            echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr($configs['webhook_secret']) . '" placeholder="Chave do webhook"></p>';
-            echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
-            echo '<option value="sandbox" ' . selected($configs['environment'], 'sandbox', false) . '>Sandbox (Testes)</option>';
-            echo '<option value="production" ' . selected($configs['environment'], 'production', false) . '>Produção</option>';
-            echo '</select></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
-        } elseif ($gatewayId === 'getnet') {
-            $configs = [
-                'client_id' => get_option('hng_getnet_client_id', ''),
-                'client_secret' => get_option('hng_getnet_client_secret', ''),
-                'webhook_token' => get_option('hng_getnet_webhook_token', ''),
-                'environment' => get_option('hng_getnet_environment', 'sandbox')
-            ];
-            echo '<h3 style="margin-top: 0;">Config GetNet</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="getnet">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_getnet', false);
-            echo '<p><label><strong>Client ID:</strong></label><br>';
-            echo '<input type="text" name="client_id" class="regular-text" value="' . esc_attr($configs['client_id']) . '" placeholder="Client ID"></p>';
-            echo '<p><label><strong>Client Secret:</strong></label><br>';
-            echo '<input type="password" name="client_secret" class="regular-text" value="' . esc_attr($configs['client_secret']) . '" placeholder="Client Secret"></p>';
-            echo '<p><label><strong>Webhook Token:</strong></label><br>';
-            echo '<input type="text" name="webhook_token" class="regular-text" value="' . esc_attr($configs['webhook_token']) . '" placeholder="Webhook ID"></p>';
-            echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
-            echo '<option value="sandbox" ' . selected($configs['environment'], 'sandbox', false) . '>Sandbox (Testes)</option>';
-            echo '<option value="production" ' . selected($configs['environment'], 'production', false) . '>Produção</option>';
-            echo '</select></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
-        } elseif ($gatewayId === 'stone') {
-            $configs = [
-                'api_key' => get_option('hng_stone_api_key', ''),
-                'webhook_secret' => get_option('hng_stone_webhook_secret', ''),
-                'environment' => get_option('hng_stone_environment', 'sandbox')
-            ];
-            echo '<h3 style="margin-top: 0;">Config Stone</h3>';
-            echo '<form class="gateway-config-form-inner" data-gateway="stone">';
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_stone', false);
-            echo '<p><label><strong>API Key:</strong></label><br>';
-            echo '<input type="password" name="api_key" class="regular-text" value="' . esc_attr($configs['api_key']) . '" placeholder="API Key Stone"></p>';
-            echo '<p><label><strong>Webhook Secret:</strong></label><br>';
-            echo '<input type="password" name="webhook_secret" class="regular-text" value="' . esc_attr($configs['webhook_secret']) . '" placeholder="Chave do webhook"></p>';
-            echo '<p><label><strong>Ambiente:</strong></label><br><select name="environment" class="regular-text">';
-            echo '<option value="sandbox" ' . selected($configs['environment'], 'sandbox', false) . '>Sandbox (Testes)</option>';
-            echo '<option value="production" ' . selected($configs['environment'], 'production', false) . '>Produção</option>';
-            echo '</select></p>';
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
-            echo '</form>';
+			echo '<form class="gateway-config-form-inner" data-gateway="' . esc_attr( $gatewayId ) . '">';
 
-        // Gateways de formulário removidos: nubank, inter, c6bank, bb, itau, bradesco, santander
-        // Motivo: Não suportam split payment
+			wp_nonce_field( 'hng_save_gateway_config', '_wpnonce_' . $gatewayId, false );
 
-        } else {
+			echo '<p><label><strong>Configuracao (JSON):</strong></label><br>';
 
-            $saved = get_option('hng_gateway_' . $gatewayId . '_config', '');
+			echo '<textarea name="generic_config" rows="8" class="large-text" placeholder=\'{"api_key":"...","sandbox":1}\'>' . esc_textarea( $saved ) . '</textarea></p>';
 
-            echo '<h3 style="margin-top: 0;">Config ' . esc_html($gateway['name']) . '</h3>';
+			echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            echo '<p><em>Configuracao generica (JSON)</em></p>';
+			echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
 
-            echo '<form class="gateway-config-form-inner" data-gateway="' . esc_attr($gatewayId) . '">';
+			echo '<div class="test-result" style="margin-top: 10px;"></div>';
 
-            wp_nonce_field('hng_save_gateway_config', '_wpnonce_' . $gatewayId, false);
+			echo '</form>';
 
-            echo '<p><label><strong>Configuracao (JSON):</strong></label><br>';
+		}
+	}
 
-            echo '<textarea name="generic_config" rows="8" class="large-text" placeholder=\'{"api_key":"...","sandbox":1}\'>' . esc_textarea($saved) . '</textarea></p>';
 
-            echo '<p style="display: flex; gap: 10px;"><button type="button" class="button button-primary save-gateway-config"><span class="dashicons dashicons-saved"></span> Salvar</button>';
 
-            echo '<button type="button" class="button button-secondary test-gateway-inline"><span class="dashicons dashicons-yes"></span> Testar Conexao</button></p>';
+	/**
 
-            echo '<div class="test-result" style="margin-top: 10px;"></div>';
+	 * Salva configuracao do gateway via AJAX
+	 */
+	public function save_gateway_config() {
 
-            echo '</form>';
+		// Obtém o gateway do POST
+		$post_data = wp_unslash( $_POST );
 
-        }
+		$gateway = sanitize_text_field( $post_data['gateway'] ?? '' );
 
-    }
+		if ( empty( $gateway ) ) {
 
-    
+			wp_send_json_error( array( 'message' => 'Gateway inválido' ), 400 );
 
-    /**
+		}
 
-     * Salva configuracao do gateway via AJAX
+		// Procura por qualquer nonce no POST (eles têm padrão _wpnonce_*)
 
-     */
+		$nonce_found = false;
 
-    public function save_gateway_config() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Custom nonce discovery loop validates nonce before any write operation.
+		foreach ( $_POST as $key => $value ) {
 
-        // Obtém o gateway do POST
+			if ( strpos( $key, '_wpnonce_' ) === 0 ) {
 
-        $gateway = sanitize_text_field($_POST['gateway'] ?? '');
+				$clean_nonce = sanitize_text_field( function_exists( 'wp_unslash' ) ? wp_unslash( $value ) : $value );
 
-        
+				if ( wp_verify_nonce( $clean_nonce, 'hng_save_gateway_config' ) ) {
 
-        if (empty($gateway)) {
+					$nonce_found = true;
 
-            wp_send_json_error(['message' => 'Gateway inválido'], 400);
+					break;
 
-        }
+				}
+			}
+		}
 
+		if ( ! $nonce_found ) {
 
+			wp_send_json_error( array( 'message' => 'Nonce inválido ou expirado' ), 400 );
 
-        // Procura por qualquer nonce no POST (eles têm padrão _wpnonce_*)
+		}
 
-        $nonce_found = false;
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-        foreach ($_POST as $key => $value) {
+			wp_send_json_error( array( 'message' => 'Permissao negada' ), 403 );
 
-            if (strpos($key, '_wpnonce_') === 0) {
+		}
 
-                $clean_nonce = sanitize_text_field(function_exists('wp_unslash') ? wp_unslash($value) : $value);
+		switch ( $gateway ) {
 
-                if (wp_verify_nonce($clean_nonce, 'hng_save_gateway_config')) {
+			case 'asaas':
+				update_option( 'hng_asaas_api_key', sanitize_text_field( $post_data['api_key'] ?? '' ) );
 
-                    $nonce_found = true;
+				update_option( 'hng_asaas_sandbox', isset( $post_data['sandbox'] ) ? 1 : 0 );
 
-                    break;
+				wp_send_json_success( array( 'message' => 'Config Asaas salva!' ) );
 
-                }
+				break;
 
-            }
+			case 'mercadopago':
+				update_option( 'hng_mercadopago_access_token', sanitize_text_field( $post_data['access_token'] ?? '' ) );
 
-        }
+				update_option( 'hng_mercadopago_public_key', sanitize_text_field( $post_data['public_key'] ?? '' ) );
 
+				update_option( 'hng_mercadopago_sandbox', isset( $post_data['sandbox'] ) ? 1 : 0 );
 
+				wp_send_json_success( array( 'message' => 'Config Mercado Pago salva!' ) );
 
-        if (!$nonce_found) {
+				break;
 
-            wp_send_json_error(['message' => 'Nonce inválido ou expirado'], 400);
+			case 'pagseguro':
+				update_option( 'hng_ps_token', sanitize_text_field( $post_data['token'] ?? '' ) );
 
-        }
+				update_option( 'hng_ps_email', sanitize_email( $post_data['email'] ?? '' ) );
 
+				update_option( 'hng_ps_sandbox', isset( $post_data['sandbox'] ) ? 'yes' : 'no' );
 
+				wp_send_json_success( array( 'message' => 'Config PagSeguro salva!' ) );
 
-        if (!current_user_can('manage_options')) {
+				break;
 
-            wp_send_json_error(['message' => 'Permissao negada'], 403);
+			case 'pagarme':
+				update_option( 'hng_pagarme_secret_key', sanitize_text_field( $post_data['secret_key'] ?? '' ) );
 
-        }
+				update_option( 'hng_pagarme_public_key', sanitize_text_field( $post_data['public_key'] ?? '' ) );
 
+				update_option( 'hng_pagarme_enabled', isset( $post_data['enabled'] ) ? 'yes' : 'no' );
 
+				wp_send_json_success( array( 'message' => 'Config Pagar.me salva!' ) );
 
-        switch($gateway) {
+				break;
 
-            case 'asaas':
+			// Gateways removidos: nubank, inter, c6bank, bb, itau, bradesco, santander
+			// Motivo: Não suportam split payment
 
-                update_option('hng_asaas_api_key', sanitize_text_field($_POST['api_key'] ?? ''));
+			case 'stripe':
+				update_option( 'hng_stripe_secret_key', sanitize_text_field( $post_data['secret_key'] ?? '' ) );
+				update_option( 'hng_stripe_publishable_key', sanitize_text_field( $post_data['publishable_key'] ?? '' ) );
+				update_option( 'hng_stripe_webhook_secret', sanitize_text_field( $post_data['webhook_secret'] ?? '' ) );
+				wp_send_json_success( array( 'message' => 'Config Stripe salva!' ) );
+				break;
 
-                update_option('hng_asaas_sandbox', isset($_POST['sandbox']) ? 1 : 0);
+			case 'paypal':
+				update_option( 'hng_paypal_client_id', sanitize_text_field( $post_data['client_id'] ?? '' ) );
+				update_option( 'hng_paypal_client_secret', sanitize_text_field( $post_data['client_secret'] ?? '' ) );
+				update_option( 'hng_paypal_webhook_token', sanitize_text_field( $post_data['webhook_token'] ?? '' ) );
+				update_option( 'hng_paypal_environment', sanitize_text_field( $post_data['environment'] ?? 'sandbox' ) );
+				wp_send_json_success( array( 'message' => 'Config PayPal salva!' ) );
+				break;
 
-                wp_send_json_success(['message' => 'Config Asaas salva!']);
+			// case 'picpay' removido - não suporta split payment
 
-                break;
+			case 'cielo':
+				update_option( 'hng_cielo_merchant_id', sanitize_text_field( $post_data['merchant_id'] ?? '' ) );
+				update_option( 'hng_cielo_api_key', sanitize_text_field( $post_data['api_key'] ?? '' ) );
+				update_option( 'hng_cielo_webhook_secret', sanitize_text_field( $post_data['webhook_secret'] ?? '' ) );
+				update_option( 'hng_cielo_environment', sanitize_text_field( $post_data['environment'] ?? 'sandbox' ) );
+				wp_send_json_success( array( 'message' => 'Config Cielo salva!' ) );
+				break;
 
-                
+			case 'rede':
+				update_option( 'hng_rede_pv', sanitize_text_field( $post_data['pv'] ?? '' ) );
+				update_option( 'hng_rede_token', sanitize_text_field( $post_data['token'] ?? '' ) );
+				update_option( 'hng_rede_webhook_secret', sanitize_text_field( $post_data['webhook_secret'] ?? '' ) );
+				update_option( 'hng_rede_environment', sanitize_text_field( $post_data['environment'] ?? 'sandbox' ) );
+				wp_send_json_success( array( 'message' => 'Config Rede salva!' ) );
+				break;
 
-            case 'mercadopago':
+			case 'getnet':
+				update_option( 'hng_getnet_client_id', sanitize_text_field( $post_data['client_id'] ?? '' ) );
+				update_option( 'hng_getnet_client_secret', sanitize_text_field( $post_data['client_secret'] ?? '' ) );
+				update_option( 'hng_getnet_webhook_token', sanitize_text_field( $post_data['webhook_token'] ?? '' ) );
+				update_option( 'hng_getnet_environment', sanitize_text_field( $post_data['environment'] ?? 'sandbox' ) );
+				wp_send_json_success( array( 'message' => 'Config GetNet salva!' ) );
+				break;
 
-                update_option('hng_mercadopago_access_token', sanitize_text_field($_POST['access_token'] ?? ''));
+			case 'stone':
+				update_option( 'hng_stone_api_key', sanitize_text_field( $post_data['api_key'] ?? '' ) );
+				update_option( 'hng_stone_webhook_secret', sanitize_text_field( $post_data['webhook_secret'] ?? '' ) );
+				update_option( 'hng_stone_environment', sanitize_text_field( $post_data['environment'] ?? 'sandbox' ) );
+				wp_send_json_success( array( 'message' => 'Config Stone salva!' ) );
+				break;
 
-                update_option('hng_mercadopago_public_key', sanitize_text_field($_POST['public_key'] ?? ''));
+			default:
+				update_option( 'hng_gateway_' . $gateway . '_config', sanitize_textarea_field( $post_data['generic_config'] ?? '' ) );
 
-                update_option('hng_mercadopago_sandbox', isset($_POST['sandbox']) ? 1 : 0);
+				wp_send_json_success( array( 'message' => 'Config salva!' ) );
 
-                wp_send_json_success(['message' => 'Config Mercado Pago salva!']);
+				break;
 
-                break;
+		}
+	}
 
-                
 
-            case 'pagseguro':
 
-                update_option('hng_ps_token', sanitize_text_field($_POST['token'] ?? ''));
+	/**
 
-                update_option('hng_ps_email', sanitize_email($_POST['email'] ?? ''));
+	 * Verifica status do gateway via AJAX (sem nonce para auto-check)
 
-                update_option('hng_ps_sandbox', isset($_POST['sandbox']) ? 'yes' : 'no');
+	 * Esta é uma versão simplificada apenas para verificação automática de status
 
-                wp_send_json_success(['message' => 'Config PagSeguro salva!']);
+	 * Se full_test=1, executa um teste completo da conexão
+	 */
+	public function check_gateway_status() {
 
-                break;
+		if ( ! check_ajax_referer( 'hng-commerce-admin', 'nonce', false ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'Nonce inválido ou expirado',
+					'status'  => 'error',
+				),
+				403
+			);
+		}
 
-                
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'Permissao negada',
+					'status'  => 'error',
+				),
+				403
+			);
+		}
 
-            case 'pagarme':
+		$post_data = wp_unslash( $_POST );
 
-                update_option('hng_pagarme_secret_key', sanitize_text_field($_POST['secret_key'] ?? ''));
+		$gateway = sanitize_text_field( $post_data['gateway'] ?? '' );
 
-                update_option('hng_pagarme_public_key', sanitize_text_field($_POST['public_key'] ?? ''));
+		error_log( 'HNG check_gateway_status: Gateway = ' . $gateway );
 
-                update_option('hng_pagarme_enabled', isset($_POST['enabled']) ? 'yes' : 'no');
+		if ( empty( $gateway ) ) {
 
-                wp_send_json_success(['message' => 'Config Pagar.me salva!']);
+			wp_send_json_error(
+				array(
+					'message' => 'Gateway inválido',
+					'status'  => 'error',
+				)
+			);
 
-                break;
+		}
 
-            // Gateways removidos: nubank, inter, c6bank, bb, itau, bradesco, santander
-            // Motivo: Não suportam split payment
+		// Se full_test=1, executa teste completo ao invés de apenas verificar credenciais
 
-            case 'stripe':
-                update_option('hng_stripe_secret_key', sanitize_text_field($_POST['secret_key'] ?? ''));
-                update_option('hng_stripe_publishable_key', sanitize_text_field($_POST['publishable_key'] ?? ''));
-                update_option('hng_stripe_webhook_secret', sanitize_text_field($_POST['webhook_secret'] ?? ''));
-                wp_send_json_success(['message' => 'Config Stripe salva!']);
-                break;
-                
-            case 'paypal':
-                update_option('hng_paypal_client_id', sanitize_text_field($_POST['client_id'] ?? ''));
-                update_option('hng_paypal_client_secret', sanitize_text_field($_POST['client_secret'] ?? ''));
-                update_option('hng_paypal_webhook_token', sanitize_text_field($_POST['webhook_token'] ?? ''));
-                update_option('hng_paypal_environment', sanitize_text_field($_POST['environment'] ?? 'sandbox'));
-                wp_send_json_success(['message' => 'Config PayPal salva!']);
-                break;
-                
-            // case 'picpay' removido - não suporta split payment
-                
-            case 'cielo':
-                update_option('hng_cielo_merchant_id', sanitize_text_field($_POST['merchant_id'] ?? ''));
-                update_option('hng_cielo_api_key', sanitize_text_field($_POST['api_key'] ?? ''));
-                update_option('hng_cielo_webhook_secret', sanitize_text_field($_POST['webhook_secret'] ?? ''));
-                update_option('hng_cielo_environment', sanitize_text_field($_POST['environment'] ?? 'sandbox'));
-                wp_send_json_success(['message' => 'Config Cielo salva!']);
-                break;
-                
-            case 'rede':
-                update_option('hng_rede_pv', sanitize_text_field($_POST['pv'] ?? ''));
-                update_option('hng_rede_token', sanitize_text_field($_POST['token'] ?? ''));
-                update_option('hng_rede_webhook_secret', sanitize_text_field($_POST['webhook_secret'] ?? ''));
-                update_option('hng_rede_environment', sanitize_text_field($_POST['environment'] ?? 'sandbox'));
-                wp_send_json_success(['message' => 'Config Rede salva!']);
-                break;
-                
-            case 'getnet':
-                update_option('hng_getnet_client_id', sanitize_text_field($_POST['client_id'] ?? ''));
-                update_option('hng_getnet_client_secret', sanitize_text_field($_POST['client_secret'] ?? ''));
-                update_option('hng_getnet_webhook_token', sanitize_text_field($_POST['webhook_token'] ?? ''));
-                update_option('hng_getnet_environment', sanitize_text_field($_POST['environment'] ?? 'sandbox'));
-                wp_send_json_success(['message' => 'Config GetNet salva!']);
-                break;
-                
-            case 'stone':
-                update_option('hng_stone_api_key', sanitize_text_field($_POST['api_key'] ?? ''));
-                update_option('hng_stone_webhook_secret', sanitize_text_field($_POST['webhook_secret'] ?? ''));
-                update_option('hng_stone_environment', sanitize_text_field($_POST['environment'] ?? 'sandbox'));
-                wp_send_json_success(['message' => 'Config Stone salva!']);
-                break;
-                
-            default:
+		$full_test = isset( $post_data['full_test'] ) && intval( $post_data['full_test'] ) === 1;
 
-                update_option('hng_gateway_' . $gateway . '_config', sanitize_textarea_field($_POST['generic_config'] ?? ''));
+		error_log( 'HNG check_gateway_status: full_test = ' . ( $full_test ? 'YES' : 'NO' ) );
 
-                wp_send_json_success(['message' => 'Config salva!']);
+		if ( $full_test ) {
 
-                break;
+			// Teste completo: chama o método de teste real
 
-        }
+			error_log( 'HNG check_gateway_status: Calling test_single_gateway(' . $gateway . ')' );
 
-    }
+			$result = self::test_single_gateway( $gateway );
 
-    
+			error_log( 'HNG check_gateway_status: Result = ' . print_r( $result, true ) );
 
-    /**
+			if ( is_wp_error( $result ) ) {
 
-     * Verifica status do gateway via AJAX (sem nonce para auto-check)
+				// Salvar status de erro
 
-     * Esta é uma versão simplificada apenas para verificação automática de status
+				update_option( 'hng_gateway_' . $gateway . '_test_status', 'error' );
 
-     * Se full_test=1, executa um teste completo da conexão
+				update_option( 'hng_gateway_' . $gateway . '_tested_at', time() );
 
-     */
+				wp_send_json_error(
+					array(
 
-    public function check_gateway_status() {
+						'message' => $result->get_error_message(),
 
-        if (!check_ajax_referer('hng-commerce-admin', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Nonce inválido ou expirado', 'status' => 'error'], 403);
-        }
+						'status'  => 'error',
 
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => 'Permissao negada', 'status' => 'error'], 403);
-        }
+					)
+				);
 
-        
+			}
 
-        $gateway = sanitize_text_field($_POST['gateway'] ?? '');
+			// Salvar status do teste
 
-        error_log('HNG check_gateway_status: Gateway = ' . $gateway);
+			$status = $result['status'] ?? 'success';
 
-        
+			update_option( 'hng_gateway_' . $gateway . '_test_status', $status );
 
-        if (empty($gateway)) {
+			update_option( 'hng_gateway_' . $gateway . '_tested_at', time() );
 
-            wp_send_json_error(['message' => 'Gateway inválido', 'status' => 'error']);
+			wp_send_json_success(
+				array(
 
-        }
+					'message' => $result['message'] ?? 'Teste concluído',
 
-        
+					'status'  => $status,
 
-        // Se full_test=1, executa teste completo ao invés de apenas verificar credenciais
+					'gateway' => $gateway,
 
-        $full_test = isset($_POST['full_test']) && intval($_POST['full_test']) === 1;
+				)
+			);
 
-        error_log('HNG check_gateway_status: full_test = ' . ($full_test ? 'YES' : 'NO'));
+		}
 
-        
+		// Caso contrário, apenas verifica se as credenciais existem (auto-check rápido)
 
-        if ($full_test) {
+		$options = get_option( 'hng_commerce_options', array() );
 
-            // Teste completo: chama o método de teste real
+		$has_credentials = false;
 
-            error_log('HNG check_gateway_status: Calling test_single_gateway(' . $gateway . ')');
+		// Verifica se gateway tem credenciais configuradas
 
-            $result = self::test_single_gateway($gateway);
+		switch ( $gateway ) {
 
-            error_log('HNG check_gateway_status: Result = ' . print_r($result, true));
+			case 'asaas':
+				$has_credentials = ! empty( $options['asaas_api_key'] );
 
-            
+				break;
 
-            if (is_wp_error($result)) {
+			case 'mercadopago':
+				$has_credentials = ! empty( $options['mercadopago_access_token'] );
 
-                // Salvar status de erro
+				break;
 
-                update_option('hng_gateway_' . $gateway . '_test_status', 'error');
+			case 'pagseguro':
+				// Credenciais do PagSeguro são salvas em hng_ps_email e hng_ps_token
 
-                update_option('hng_gateway_' . $gateway . '_tested_at', time());
+				$ps_email = get_option( 'hng_ps_email', '' );
 
-                
+				$ps_token = get_option( 'hng_ps_token', '' );
 
-                wp_send_json_error([
+				$has_credentials = ! empty( $ps_email ) && ! empty( $ps_token );
 
-                    'message' => $result->get_error_message(),
+				break;
 
-                    'status' => 'error'
+			case 'pagarme':
+				$has_credentials = ! empty( $options['pagarme_api_key'] );
 
-                ]);
+				break;
 
-            }
+			// Gateways removidos: nubank, inter, bradesco, bb, c6bank, santander, itau
+			// Não suportam split payment
 
-            
+			default:
+				wp_send_json_error(
+					array(
+						'message' => 'Gateway não suportado',
+						'status'  => 'error',
+					)
+				);
 
-            // Salvar status do teste
+		}
 
-            $status = $result['status'] ?? 'success';
+		if ( $has_credentials ) {
 
-            update_option('hng_gateway_' . $gateway . '_test_status', $status);
+			wp_send_json_success(
+				array(
 
-            update_option('hng_gateway_' . $gateway . '_tested_at', time());
+					'message' => 'Credenciais configuradas',
 
-            
+					'status'  => 'warning', // Amarelo: configurado mas não testado
 
-            wp_send_json_success([
+					'gateway' => $gateway,
 
-                'message' => $result['message'] ?? 'Teste concluído',
+				)
+			);
 
-                'status' => $status,
+		} else {
 
-                'gateway' => $gateway
+			wp_send_json_success(
+				array(
 
-            ]);
+					'message' => 'Não configurado',
 
-        }
+					'status'  => 'error', // Vermelho: sem credenciais
 
-        
+					'gateway' => $gateway,
 
-        // Caso contrário, apenas verifica se as credenciais existem (auto-check rápido)
+				)
+			);
 
-        $options = get_option('hng_commerce_options', []);
+		}
+	}
 
-        $has_credentials = false;
 
-        
 
-        // Verifica se gateway tem credenciais configuradas
+	/**
 
-        switch ($gateway) {
+	 * Testa conexao com gateway via AJAX
 
-            case 'asaas':
+	 * NONCE REMOVIDO: Esta é uma ação read-only que não modifica dados
+	 */
+	public function test_gateway_connection() {
 
-                $has_credentials = !empty($options['asaas_api_key']);
+		// LOG DETALHADO PARA DEBUG
 
-                break;
+		error_log( '========================================' );
 
-            case 'mercadopago':
+		error_log( 'HNG Gateway Test: INICIADO' );
 
-                $has_credentials = !empty($options['mercadopago_access_token']);
+		error_log( 'User ID: ' . get_current_user_id() );
 
-                break;
+		error_log( 'Is admin: ' . ( current_user_can( 'manage_options' ) ? 'YES' : 'NO' ) );
 
-            case 'pagseguro':
+		$post_data = wp_unslash( $_POST );
 
-                // Credenciais do PagSeguro são salvas em hng_ps_email e hng_ps_token
+		error_log( 'Gateway: ' . ( $post_data['gateway'] ?? 'none' ) );
 
-                $ps_email = get_option('hng_ps_email', '');
+		error_log( 'Action: ' . ( $post_data['action'] ?? 'none' ) );
 
-                $ps_token = get_option('hng_ps_token', '');
+		error_log( '========================================' );
 
-                $has_credentials = !empty($ps_email) && !empty($ps_token);
+		if ( ! check_ajax_referer( 'hng-commerce-admin', 'nonce', false ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'Nonce inválido ou expirado',
+					'status'  => 'error',
+				),
+				403
+			);
+		}
 
-                break;
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'Permissao negada',
+					'status'  => 'error',
+				),
+				403
+			);
+		}
 
-            case 'pagarme':
+		if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
-                $has_credentials = !empty($options['pagarme_api_key']);
+			error_log( 'HNG Gateway Test: Checking rate limit...' );
 
-                break;
+			$rl = HNG_Rate_Limiter::enforce( 'gateway_test_connection', 5, 30 );
 
-            // Gateways removidos: nubank, inter, bradesco, bb, c6bank, santander, itau
-            // Não suportam split payment
+			if ( is_wp_error( $rl ) ) {
 
-            default:
+				error_log( 'HNG Gateway Test: Rate limit exceeded' );
 
-                wp_send_json_error(['message' => 'Gateway não suportado', 'status' => 'error']);
+				wp_send_json_error(
+					array(
+						'message' => $rl->get_error_message(),
+						'status'  => 'error',
+					),
+					429
+				);
 
-        }
+			}
+		}
 
-        
+		error_log( 'HNG Gateway Test: Processing gateway test...' );
 
-        if ($has_credentials) {
+		$gateway = sanitize_text_field( $post_data['gateway'] ?? '' );
 
-            wp_send_json_success([
+		if ( empty( $gateway ) ) {
 
-                'message' => 'Credenciais configuradas',
+			error_log( 'HNG Gateway Test: Gateway field is empty' );
 
-                'status' => 'warning', // Amarelo: configurado mas não testado
+			wp_send_json_error( array( 'message' => 'Gateway inválido' ) );
 
-                'gateway' => $gateway
+		}
 
-            ]);
+		// Test based on gateway type
 
-        } else {
+		$result = self::test_single_gateway( $gateway );
 
-            wp_send_json_success([
+		if ( is_wp_error( $result ) ) {
 
-                'message' => 'Não configurado',
+			error_log( 'HNG Gateway Test: Error testing gateway - ' . $result->get_error_message() );
 
-                'status' => 'error', // Vermelho: sem credenciais
+			// Salvar status de erro
 
-                'gateway' => $gateway
+			update_option( 'hng_gateway_' . $gateway . '_test_status', 'error' );
 
-            ]);
+			update_option( 'hng_gateway_' . $gateway . '_tested_at', time() );
 
-        }
+			wp_send_json_error(
+				array(
 
-    }
+					'message' => $result->get_error_message(),
 
+					'status'  => 'error',
 
+				)
+			);
 
-    /**
+		}
 
-     * Testa conexao com gateway via AJAX
+		// Salvar status do teste
 
-     * NONCE REMOVIDO: Esta é uma ação read-only que não modifica dados
+		$status = $result['status'] ?? 'success';
 
-     */
+		update_option( 'hng_gateway_' . $gateway . '_test_status', $status );
 
-    public function test_gateway_connection() {
+		update_option( 'hng_gateway_' . $gateway . '_tested_at', time() );
 
-        // LOG DETALHADO PARA DEBUG
+		error_log( 'HNG Gateway Test: Success for ' . $gateway );
 
-        error_log('========================================');
+		wp_send_json_success(
+			array(
 
-        error_log('HNG Gateway Test: INICIADO');
+				'message' => $result['message'],
 
-        error_log('User ID: ' . get_current_user_id());
+				'status'  => $result['status'],
 
-        error_log('Is admin: ' . (current_user_can('manage_options') ? 'YES' : 'NO'));
+			)
+		);
+	}
 
-        error_log('Gateway: ' . ($_POST['gateway'] ?? 'none'));
 
-        error_log('Action: ' . ($_POST['action'] ?? 'none'));
 
-        error_log('========================================');
+	/**
 
-        
+	 * Test a single gateway connection
+	 */
+	private static function test_single_gateway( $gateway ) {
 
-        if (!check_ajax_referer('hng-commerce-admin', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Nonce inválido ou expirado', 'status' => 'error'], 403);
-        }
+		switch ( $gateway ) {
 
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => 'Permissao negada', 'status' => 'error'], 403);
-        }
+			case 'asaas':
+				return self::test_asaas_connection();
 
-        
+			case 'mercadopago':  // Corrigido: sem underscore
+			case 'mercado_pago': // Manter para compatibilidade
+				return self::test_mercado_pago_connection();
 
-        if (class_exists('HNG_Rate_Limiter')) {
+			case 'pagseguro':
+				return self::test_pagseguro_connection();
 
-            error_log('HNG Gateway Test: Checking rate limit...');
+			case 'pagarme':      // Corrigido: sem underscore
+			case 'pagar_me':     // Manter para compatibilidade
+				return self::test_pagar_me_connection();
 
-            $rl = HNG_Rate_Limiter::enforce('gateway_test_connection', 5, 30);
+			// Cases removidos: nubank, inter, c6bank, bb, bradesco, itau, santander, picpay
 
-            if (is_wp_error($rl)) {
+			case 'stripe':
+				return self::test_stripe_connection();
+			case 'paypal':
+				return self::test_paypal_connection();
+			case 'cielo':
+				return self::test_cielo_connection();
+			case 'rede':
+				return self::test_rede_connection();
+			case 'getnet':
+				return self::test_getnet_connection();
+			case 'stone':
+				return self::test_stone_connection();
+			default:
+				return new WP_Error( 'invalid_gateway', 'Gateway não encontrado' );
 
-                error_log('HNG Gateway Test: Rate limit exceeded');
+		}
+	}
 
-                wp_send_json_error(['message' => $rl->get_error_message(), 'status' => 'error'], 429);
 
-            }
 
-        }
+	/**
 
-        
+	 * Test Asaas connection
+	 */
+	private static function test_asaas_connection() {
 
-        error_log('HNG Gateway Test: Processing gateway test...');
+		error_log( 'HNG Test Asaas: Starting test...' );
 
-        
+		$api_key = get_option( 'hng_asaas_api_key', '' );
 
-        $gateway = sanitize_text_field($_POST['gateway'] ?? '');
+		if ( empty( $api_key ) ) {
 
-        if (empty($gateway)) {
+			error_log( 'HNG Test Asaas: No API key configured' );
 
-            error_log('HNG Gateway Test: Gateway field is empty');
+			return new WP_Error( 'no_credentials', 'Credenciais Asaas não configuradas' );
 
-            wp_send_json_error(['message' => 'Gateway inválido']);
+		}
 
-        }
+		error_log( 'HNG Test Asaas: API Key found, making request to https://api.asaas.com/v3/myAccount' );
 
-        
+		$response = wp_remote_get(
+			'https://api.asaas.com/v3/myAccount',
+			array(
 
-        // Test based on gateway type
+				'headers' => array( 'access_token' => $api_key ),
 
-        $result = self::test_single_gateway($gateway);
+				'timeout' => 10,
 
-        
+			)
+		);
 
-        if (is_wp_error($result)) {
+		if ( is_wp_error( $response ) ) {
 
-            error_log('HNG Gateway Test: Error testing gateway - ' . $result->get_error_message());
+			error_log( 'HNG Test Asaas: Connection error - ' . $response->get_error_message() );
 
-            
+			return new WP_Error( 'connection_error', 'Erro ao conectar com Asaas: ' . $response->get_error_message() );
 
-            // Salvar status de erro
+		}
 
-            update_option('hng_gateway_' . $gateway . '_test_status', 'error');
+		$code = wp_remote_retrieve_response_code( $response );
 
-            update_option('hng_gateway_' . $gateway . '_tested_at', time());
+		error_log( 'HNG Test Asaas: Response code - ' . $code );
 
-            
+		if ( $code === 200 ) {
 
-            wp_send_json_error([
+			error_log( 'HNG Test Asaas: Success!' );
 
-                'message' => $result->get_error_message(),
+			return array(
+				'message' => 'Asaas: Conexão bem-sucedida!',
+				'status'  => 'success',
+			);
 
-                'status' => 'error'
+		} elseif ( $code === 401 ) {
 
-            ]);
+			error_log( 'HNG Test Asaas: Invalid API key' );
 
-        }
+			return new WP_Error( 'auth_error', 'Asaas: Chave de API inválida (401)' );
 
-        
+		} elseif ( $code >= 500 ) {
 
-        // Salvar status do teste
+			error_log( 'HNG Test Asaas: Server error' );
 
-        $status = $result['status'] ?? 'success';
+			return array(
+				'message' => 'Asaas: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
 
-        update_option('hng_gateway_' . $gateway . '_test_status', $status);
+		} else {
 
-        update_option('hng_gateway_' . $gateway . '_tested_at', time());
+			error_log( 'HNG Test Asaas: API error - ' . $code );
 
-        
+			return new WP_Error( 'api_error', 'Asaas: Erro na API (código: ' . $code . ')' );
 
-        error_log('HNG Gateway Test: Success for ' . $gateway);
+		}
+	}
 
-        wp_send_json_success([
 
-            'message' => $result['message'],
 
-            'status' => $result['status']
+	/**
 
-        ]);
+	 * Test Mercado Pago connection
+	 */
+	private static function test_mercado_pago_connection() {
 
-    }
+		error_log( 'HNG Test Mercado Pago: Starting test...' );
 
-    
+		// Usar nome correto da opção (hng_mercadopago_access_token - sem underscore)
 
-    /**
+		$access_token = get_option( 'hng_mercadopago_access_token', '' );
 
-     * Test a single gateway connection
+		if ( empty( $access_token ) ) {
 
-     */
+			error_log( 'HNG Test Mercado Pago: No access token configured' );
 
-    private static function test_single_gateway($gateway) {
+			return new WP_Error( 'no_credentials', 'Credenciais Mercado Pago não configuradas' );
 
-        switch($gateway) {
+		}
 
-            case 'asaas':
+		error_log( 'HNG Test Mercado Pago: Access token found, making request to https://api.mercadopago.com/users/me' );
 
-                return self::test_asaas_connection();
+		$response = wp_remote_get(
+			'https://api.mercadopago.com/users/me',
+			array(
 
-            case 'mercadopago':  // Corrigido: sem underscore
+				'headers' => array( 'Authorization' => 'Bearer ' . $access_token ),
 
-            case 'mercado_pago': // Manter para compatibilidade
+				'timeout' => 10,
 
-                return self::test_mercado_pago_connection();
+			)
+		);
 
-            case 'pagseguro':
+		if ( is_wp_error( $response ) ) {
 
-                return self::test_pagseguro_connection();
+			error_log( 'HNG Test Mercado Pago: Connection error - ' . $response->get_error_message() );
 
-            case 'pagarme':      // Corrigido: sem underscore
+			return new WP_Error( 'connection_error', 'Erro ao conectar com Mercado Pago: ' . $response->get_error_message() );
 
-            case 'pagar_me':     // Manter para compatibilidade
+		}
 
-                return self::test_pagar_me_connection();
+		$code = wp_remote_retrieve_response_code( $response );
 
-            // Cases removidos: nubank, inter, c6bank, bb, bradesco, itau, santander, picpay
+		error_log( 'HNG Test Mercado Pago: Response code - ' . $code );
 
-            case 'stripe':
-                return self::test_stripe_connection();
-            case 'paypal':
-                return self::test_paypal_connection();
-            case 'cielo':
-                return self::test_cielo_connection();
-            case 'rede':
-                return self::test_rede_connection();
-            case 'getnet':
-                return self::test_getnet_connection();
-            case 'stone':
-                return self::test_stone_connection();
-            default:
+		if ( $code === 200 ) {
 
-                return new WP_Error('invalid_gateway', 'Gateway não encontrado');
+			error_log( 'HNG Test Mercado Pago: Success!' );
 
-        }
+			return array(
+				'message' => 'Mercado Pago: Conexão bem-sucedida!',
+				'status'  => 'success',
+			);
 
-    }
+		} elseif ( $code === 401 ) {
 
-    
+			error_log( 'HNG Test Mercado Pago: Invalid access token' );
 
-    /**
+			return new WP_Error( 'auth_error', 'Mercado Pago: Token inválido (401)' );
 
-     * Test Asaas connection
+		} elseif ( $code >= 500 ) {
 
-     */
+			error_log( 'HNG Test Mercado Pago: Server error' );
 
-    private static function test_asaas_connection() {
+			return array(
+				'message' => 'Mercado Pago: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
 
-        error_log('HNG Test Asaas: Starting test...');
+		} else {
 
-        
+			error_log( 'HNG Test Mercado Pago: API error - ' . $code );
 
-        $api_key = get_option('hng_asaas_api_key', '');
+			return new WP_Error( 'api_error', 'Mercado Pago: Erro na API (código: ' . $code . ')' );
 
-        if (empty($api_key)) {
+		}
+	}
 
-            error_log('HNG Test Asaas: No API key configured');
 
-            return new WP_Error('no_credentials', 'Credenciais Asaas não configuradas');
 
-        }
+	/**
 
-        
+	 * Test PagSeguro connection - Advanced Integration Mode
 
-        error_log('HNG Test Asaas: API Key found, making request to https://api.asaas.com/v3/myAccount');
+	 * Tests access to subscriptions API for full data integration
+	 */
+	private static function test_pagseguro_connection() {
 
-        
+		error_log( 'HNG Test PagSeguro: Starting test...' );
 
-        $response = wp_remote_get('https://api.asaas.com/v3/myAccount', [
+		// Forçar busca fresca do banco (ignorar cache de objeto)
 
-            'headers' => ['access_token' => $api_key],
+		wp_cache_delete( 'hng_ps_email', 'options' );
 
-            'timeout' => 10
+		wp_cache_delete( 'hng_ps_token', 'options' );
 
-        ]);
+		// Buscar credenciais das opções corretas (hng_ps_*)
 
-        
+		$email = get_option( 'hng_ps_email', '' );
 
-        if (is_wp_error($response)) {
+		$token = get_option( 'hng_ps_token', '' );
 
-            error_log('HNG Test Asaas: Connection error - ' . $response->get_error_message());
+		// Debug adicional: listar todas as opções hng_ps_*
 
-            return new WP_Error('connection_error', 'Erro ao conectar com Asaas: ' . $response->get_error_message());
+		global $wpdb;
 
-        }
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Debug query for admin diagnostics.
+		$all_ps_options = $wpdb->get_results( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'hng_ps%'" );
 
-        
+		error_log( 'HNG Test PagSeguro: All hng_ps_* options from DB: ' . print_r( $all_ps_options, true ) );
 
-        $code = wp_remote_retrieve_response_code($response);
+		error_log( 'HNG Test PagSeguro: Email found: ' . ( ! empty( $email ) ? 'YES (' . $email . ')' : 'NO' ) );
 
-        error_log('HNG Test Asaas: Response code - ' . $code);
+		error_log( 'HNG Test PagSeguro: Token found: ' . ( ! empty( $token ) ? 'YES (' . strlen( $token ) . ' chars)' : 'NO' ) );
 
-        
+		if ( empty( $token ) ) {
 
-        if ($code === 200) {
+			error_log( 'HNG Test PagSeguro: No token configured' );
 
-            error_log('HNG Test Asaas: Success!');
+			return new WP_Error( 'no_credentials', 'Token PagSeguro/PagBank não configurado' );
 
-            return ['message' => 'Asaas: Conexão bem-sucedida!', 'status' => 'success'];
+		}
 
-        } else if ($code === 401) {
+		// A nova API do PagBank usa Bearer token na API v4
 
-            error_log('HNG Test Asaas: Invalid API key');
+		// Tenta primeiro a nova API (api.pagseguro.com), depois a legada (ws.pagseguro.uol.com.br)
 
-            return new WP_Error('auth_error', 'Asaas: Chave de API inválida (401)');
+		error_log( 'HNG Test PagSeguro: Testing with new PagBank API v4 (Bearer token)...' );
 
-        } else if ($code >= 500) {
+		// Testar com a nova API do PagBank usando Bearer token
 
-            error_log('HNG Test Asaas: Server error');
+		// Endpoint de consultar chave pública (leve e rápido)
 
-            return ['message' => 'Asaas: Servidores com instabilidade', 'status' => 'warning'];
+		$response = wp_remote_get(
+			'https://api.pagseguro.com/public-keys/card',
+			array(
 
-        } else {
+				'timeout' => 15,
 
-            error_log('HNG Test Asaas: API error - ' . $code);
+				'headers' => array(
 
-            return new WP_Error('api_error', 'Asaas: Erro na API (código: ' . $code . ')');
+					'Authorization' => 'Bearer ' . $token,
 
-        }
+					'Accept'        => 'application/json',
 
-    }
+					'Content-Type'  => 'application/json',
 
-    
+				),
 
-    /**
+			)
+		);
 
-     * Test Mercado Pago connection
+		if ( is_wp_error( $response ) ) {
 
-     */
+			error_log( 'HNG Test PagSeguro: Connection error - ' . $response->get_error_message() );
 
-    private static function test_mercado_pago_connection() {
+			return new WP_Error( 'connection_error', 'Erro ao conectar com PagSeguro: ' . $response->get_error_message() );
 
-        error_log('HNG Test Mercado Pago: Starting test...');
+		}
 
-        
+		$code = wp_remote_retrieve_response_code( $response );
 
-        // Usar nome correto da opção (hng_mercadopago_access_token - sem underscore)
+		$body = wp_remote_retrieve_body( $response );
 
-        $access_token = get_option('hng_mercadopago_access_token', '');
+		error_log( 'HNG Test PagSeguro: API v4 Response code - ' . $code );
 
-        if (empty($access_token)) {
+		error_log( 'HNG Test PagSeguro: API v4 Response body - ' . substr( $body, 0, 500 ) );
 
-            error_log('HNG Test Mercado Pago: No access token configured');
+		// Respostas esperadas:
 
-            return new WP_Error('no_credentials', 'Credenciais Mercado Pago não configuradas');
+		// 200/201 = Sucesso
 
-        }
+		// 401 = Token inválido
 
-        
+		// 403 = Sem permissão
 
-        error_log('HNG Test Mercado Pago: Access token found, making request to https://api.mercadopago.com/users/me');
+		// 404 = Pode significar que precisa criar a chave pública primeiro (mas token é válido)
 
-        
+		if ( $code === 200 || $code === 201 ) {
 
-        $response = wp_remote_get('https://api.mercadopago.com/users/me', [
+			error_log( 'HNG Test PagSeguro: Success with PagBank API v4!' );
 
-            'headers' => ['Authorization' => 'Bearer ' . $access_token],
+			return array(
+				'message' => 'PagSeguro/PagBank: Conexão bem-sucedida!',
+				'status'  => 'success',
+			);
 
-            'timeout' => 10
+		} elseif ( $code === 404 ) {
 
-        ]);
+			// 404 no endpoint de chave pública pode significar que ainda não foi criada
 
-        
+			// Mas o token é válido. Vamos confirmar testando outro endpoint.
 
-        if (is_wp_error($response)) {
+			error_log( 'HNG Test PagSeguro: 404 on public-keys, trying alternative validation...' );
 
-            error_log('HNG Test Mercado Pago: Connection error - ' . $response->get_error_message());
+			// Tentar criar uma chave pública (isso valida o token)
 
-            return new WP_Error('connection_error', 'Erro ao conectar com Mercado Pago: ' . $response->get_error_message());
+			$alt_response = wp_remote_post(
+				'https://api.pagseguro.com/public-keys',
+				array(
 
-        }
+					'timeout' => 15,
 
-        
+					'headers' => array(
 
-        $code = wp_remote_retrieve_response_code($response);
+						'Authorization' => 'Bearer ' . $token,
 
-        error_log('HNG Test Mercado Pago: Response code - ' . $code);
+						'Accept'        => 'application/json',
 
-        
+						'Content-Type'  => 'application/json',
 
-        if ($code === 200) {
+					),
 
-            error_log('HNG Test Mercado Pago: Success!');
+					'body'    => wp_json_encode( array( 'type' => 'card' ) ),
 
-            return ['message' => 'Mercado Pago: Conexão bem-sucedida!', 'status' => 'success'];
+				)
+			);
 
-        } else if ($code === 401) {
+			if ( ! is_wp_error( $alt_response ) ) {
 
-            error_log('HNG Test Mercado Pago: Invalid access token');
+				$alt_code = wp_remote_retrieve_response_code( $alt_response );
 
-            return new WP_Error('auth_error', 'Mercado Pago: Token inválido (401)');
+				error_log( 'HNG Test PagSeguro: Alternative check code - ' . $alt_code );
 
-        } else if ($code >= 500) {
+				if ( $alt_code === 200 || $alt_code === 201 || $alt_code === 409 ) {
 
-            error_log('HNG Test Mercado Pago: Server error');
+					// 409 = Conflict = já existe uma chave, o que significa que o token é válido
 
-            return ['message' => 'Mercado Pago: Servidores com instabilidade', 'status' => 'warning'];
+					return array(
+						'message' => 'PagSeguro/PagBank: Conexão bem-sucedida!',
+						'status'  => 'success',
+					);
 
-        } else {
+				}
+			}
 
-            error_log('HNG Test Mercado Pago: API error - ' . $code);
+			// Se chegou aqui, talvez o token seja do formato antigo (email+token)
 
-            return new WP_Error('api_error', 'Mercado Pago: Erro na API (código: ' . $code . ')');
+			// Tentar API legada
 
-        }
+			return self::test_pagseguro_legacy( $email, $token );
 
-    }
+		} elseif ( $code === 401 ) {
 
-    
+			error_log( 'HNG Test PagSeguro: Invalid token (401)' );
 
-    /**
+			// Pode ser um token do formato antigo, tentar API legada
 
-     * Test PagSeguro connection - Advanced Integration Mode
+			if ( ! empty( $email ) ) {
 
-     * Tests access to subscriptions API for full data integration
+				error_log( 'HNG Test PagSeguro: Trying legacy API with email+token...' );
 
-     */
+				return self::test_pagseguro_legacy( $email, $token );
 
-    private static function test_pagseguro_connection() {
+			}
 
-        error_log('HNG Test PagSeguro: Starting test...');
+			return new WP_Error( 'auth_error', 'PagSeguro: Token inválido. Gere um novo token no painel do PagBank.' );
 
-        
+		} elseif ( $code === 403 ) {
 
-        // Forçar busca fresca do banco (ignorar cache de objeto)
+			error_log( 'HNG Test PagSeguro: Forbidden (403)' );
 
-        wp_cache_delete('hng_ps_email', 'options');
+			return new WP_Error( 'auth_error', 'PagSeguro: Token sem permissões necessárias (403)' );
 
-        wp_cache_delete('hng_ps_token', 'options');
+		} elseif ( $code >= 500 ) {
 
-        
+			error_log( 'HNG Test PagSeguro: Server error' );
 
-        // Buscar credenciais das opções corretas (hng_ps_*)
+			return array(
+				'message' => 'PagSeguro: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
 
-        $email = get_option('hng_ps_email', '');
+		} else {
 
-        $token = get_option('hng_ps_token', '');
+			error_log( 'HNG Test PagSeguro: API error - ' . $code );
 
-        
+			return new WP_Error( 'api_error', 'PagSeguro: Erro na API (código: ' . $code . ')' );
 
-        // Debug adicional: listar todas as opções hng_ps_*
+		}
+	}
 
-        global $wpdb;
 
-        $all_ps_options = $wpdb->get_results("SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'hng_ps%'");
 
-        error_log('HNG Test PagSeguro: All hng_ps_* options from DB: ' . print_r($all_ps_options, true));
+	/**
 
-        
+	 * Test PagSeguro connection using legacy API (email+token format)
+	 */
+	private static function test_pagseguro_legacy( $email, $token ) {
 
-        error_log('HNG Test PagSeguro: Email found: ' . (!empty($email) ? 'YES (' . $email . ')' : 'NO'));
+		error_log( 'HNG Test PagSeguro Legacy: Testing with v2 API (email+token)...' );
 
-        error_log('HNG Test PagSeguro: Token found: ' . (!empty($token) ? 'YES (' . strlen($token) . ' chars)' : 'NO'));
+		if ( empty( $email ) ) {
 
-        
+			return new WP_Error( 'no_credentials', 'PagSeguro: Email não configurado para API legada' );
 
-        if (empty($token)) {
+		}
 
-            error_log('HNG Test PagSeguro: No token configured');
+		$response = wp_remote_post(
+			'https://ws.pagseguro.uol.com.br/v2/sessions',
+			array(
 
-            return new WP_Error('no_credentials', 'Token PagSeguro/PagBank não configurado');
+				'timeout' => 15,
 
-        }
+				'headers' => array(
 
-        
+					'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
 
-        // A nova API do PagBank usa Bearer token na API v4
+					'Accept'       => 'application/xml',
 
-        // Tenta primeiro a nova API (api.pagseguro.com), depois a legada (ws.pagseguro.uol.com.br)
+				),
 
-        error_log('HNG Test PagSeguro: Testing with new PagBank API v4 (Bearer token)...');
+				'body'    => http_build_query(
+					array(
 
-        
+						'email' => $email,
 
-        // Testar com a nova API do PagBank usando Bearer token
+						'token' => $token,
 
-        // Endpoint de consultar chave pública (leve e rápido)
+					)
+				),
 
-        $response = wp_remote_get('https://api.pagseguro.com/public-keys/card', [
+			)
+		);
 
-            'timeout' => 15,
+		if ( is_wp_error( $response ) ) {
 
-            'headers' => [
+			error_log( 'HNG Test PagSeguro Legacy: Connection error - ' . $response->get_error_message() );
 
-                'Authorization' => 'Bearer ' . $token,
+			return new WP_Error( 'connection_error', 'Erro ao conectar com PagSeguro: ' . $response->get_error_message() );
 
-                'Accept' => 'application/json',
+		}
 
-                'Content-Type' => 'application/json'
+		$code = wp_remote_retrieve_response_code( $response );
 
-            ]
+		$body = wp_remote_retrieve_body( $response );
 
-        ]);
+		error_log( 'HNG Test PagSeguro Legacy: Response code - ' . $code );
 
-        
+		error_log( 'HNG Test PagSeguro Legacy: Response body - ' . substr( $body, 0, 500 ) );
 
-        if (is_wp_error($response)) {
+		if ( $code === 200 ) {
 
-            error_log('HNG Test PagSeguro: Connection error - ' . $response->get_error_message());
+			error_log( 'HNG Test PagSeguro Legacy: Success!' );
 
-            return new WP_Error('connection_error', 'Erro ao conectar com PagSeguro: ' . $response->get_error_message());
+			return array(
+				'message' => 'PagSeguro: Conexão bem-sucedida (API legada)!',
+				'status'  => 'success',
+			);
 
-        }
+		} elseif ( $code === 401 || $code === 403 || $code === 406 ) {
 
-        
+			error_log( 'HNG Test PagSeguro Legacy: Auth error - ' . $code );
 
-        $code = wp_remote_retrieve_response_code($response);
+			return new WP_Error( 'auth_error', 'PagSeguro: Credenciais inválidas. Use o token gerado no Portal do Desenvolvedor PagBank.' );
 
-        $body = wp_remote_retrieve_body($response);
+		} elseif ( $code >= 500 ) {
 
-        error_log('HNG Test PagSeguro: API v4 Response code - ' . $code);
+			return array(
+				'message' => 'PagSeguro: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
 
-        error_log('HNG Test PagSeguro: API v4 Response body - ' . substr($body, 0, 500));
+		} else {
 
-        
+			return new WP_Error( 'api_error', 'PagSeguro: Erro na API (código: ' . $code . ')' );
 
-        // Respostas esperadas:
+		}
+	}
 
-        // 200/201 = Sucesso
 
-        // 401 = Token inválido
 
-        // 403 = Sem permissão
+	/**
 
-        // 404 = Pode significar que precisa criar a chave pública primeiro (mas token é válido)
+	 * Test Pagar.me connection
+	 */
+	private static function test_pagar_me_connection() {
 
-        
+		error_log( 'HNG Test Pagar.me: Starting test...' );
 
-        if ($code === 200 || $code === 201) {
+		// Usar nome correto da opção (hng_pagarme_secret_key)
 
-            error_log('HNG Test PagSeguro: Success with PagBank API v4!');
+		$api_key = get_option( 'hng_pagarme_secret_key', '' );
 
-            return ['message' => 'PagSeguro/PagBank: Conexão bem-sucedida!', 'status' => 'success'];
+		if ( empty( $api_key ) ) {
 
-        } else if ($code === 404) {
+			error_log( 'HNG Test Pagar.me: No API key configured' );
 
-            // 404 no endpoint de chave pública pode significar que ainda não foi criada
+			return new WP_Error( 'no_credentials', 'Credenciais Pagar.me não configuradas' );
 
-            // Mas o token é válido. Vamos confirmar testando outro endpoint.
+		}
 
-            error_log('HNG Test PagSeguro: 404 on public-keys, trying alternative validation...');
+		error_log( 'HNG Test Pagar.me: API key found, making request to https://api.pagar.me/core/v5/accounts' );
 
-            
+		$response = wp_remote_get(
+			'https://api.pagar.me/core/v5/accounts',
+			array(
 
-            // Tentar criar uma chave pública (isso valida o token)
+				'headers' => array( 'Authorization' => 'Bearer ' . $api_key ),
 
-            $alt_response = wp_remote_post('https://api.pagseguro.com/public-keys', [
+				'timeout' => 10,
 
-                'timeout' => 15,
+			)
+		);
 
-                'headers' => [
+		if ( is_wp_error( $response ) ) {
 
-                    'Authorization' => 'Bearer ' . $token,
+			error_log( 'HNG Test Pagar.me: Connection error - ' . $response->get_error_message() );
 
-                    'Accept' => 'application/json',
+			return new WP_Error( 'connection_error', 'Erro ao conectar com Pagar.me: ' . $response->get_error_message() );
 
-                    'Content-Type' => 'application/json'
+		}
 
-                ],
+		$code = wp_remote_retrieve_response_code( $response );
 
-                'body' => wp_json_encode(['type' => 'card'])
+		error_log( 'HNG Test Pagar.me: Response code - ' . $code );
 
-            ]);
+		if ( $code === 200 ) {
 
-            
+			error_log( 'HNG Test Pagar.me: Success!' );
 
-            if (!is_wp_error($alt_response)) {
+			return array(
+				'message' => 'Pagar.me: Conexão bem-sucedida!',
+				'status'  => 'success',
+			);
 
-                $alt_code = wp_remote_retrieve_response_code($alt_response);
+		} elseif ( $code === 401 ) {
 
-                error_log('HNG Test PagSeguro: Alternative check code - ' . $alt_code);
+			error_log( 'HNG Test Pagar.me: Invalid API key' );
 
-                
+			return new WP_Error( 'auth_error', 'Pagar.me: Chave de API inválida (401)' );
 
-                if ($alt_code === 200 || $alt_code === 201 || $alt_code === 409) {
+		} elseif ( $code >= 500 ) {
 
-                    // 409 = Conflict = já existe uma chave, o que significa que o token é válido
+			error_log( 'HNG Test Pagar.me: Server error' );
 
-                    return ['message' => 'PagSeguro/PagBank: Conexão bem-sucedida!', 'status' => 'success'];
+			return array(
+				'message' => 'Pagar.me: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
 
-                }
+		} else {
 
-            }
+			error_log( 'HNG Test Pagar.me: API error - ' . $code );
 
-            
+			return new WP_Error( 'api_error', 'Pagar.me: Erro na API (código: ' . $code . ')' );
 
-            // Se chegou aqui, talvez o token seja do formato antigo (email+token)
+		}
+	}
 
-            // Tentar API legada
 
-            return self::test_pagseguro_legacy($email, $token);
+	// Funções de teste removidas:
+	// test_nubank_connection, test_inter_connection, test_c6bank_connection,
+	// test_bb_connection, test_bradesco_connection, test_itau_connection,
+	// test_santander_connection, test_picpay_connection
+	// Motivo: Gateways não suportam split payment
 
-            
+	/**
+	 * Test Stripe connection
+	 */
+	private static function test_stripe_connection() {
+		$secret_key = get_option( 'hng_stripe_secret_key', '' );
+		if ( empty( $secret_key ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais Stripe não configuradas' );
+		}
 
-        } else if ($code === 401) {
+		$response = wp_remote_get(
+			'https://api.stripe.com/v1/balance',
+			array(
+				'headers' => array( 'Authorization' => 'Bearer ' . $secret_key ),
+				'timeout' => 10,
+			)
+		);
 
-            error_log('HNG Test PagSeguro: Invalid token (401)');
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error( 'connection_error', 'Erro ao conectar com Stripe: ' . $response->get_error_message() );
+		}
 
-            
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code === 200 ) {
+			return array(
+				'message' => 'Stripe: Conexão bem-sucedida!',
+				'status'  => 'success',
+			);
+		} elseif ( $code === 401 ) {
+			return new WP_Error( 'auth_error', 'Stripe: Chave de API inválida (401)' );
+		} elseif ( $code >= 500 ) {
+			return array(
+				'message' => 'Stripe: Servidores com instabilidade',
+				'status'  => 'warning',
+			);
+		} else {
+			return new WP_Error( 'api_error', 'Stripe: Erro na API (código: ' . $code . ')' );
+		}
+	}
 
-            // Pode ser um token do formato antigo, tentar API legada
+	/**
+	 * Test PayPal connection
+	 */
+	private static function test_paypal_connection() {
+		$client_id = get_option( 'hng_paypal_client_id', '' );
+		if ( empty( $client_id ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais PayPal não configuradas' );
+		}
+		return array(
+			'message' => 'PayPal: Conexão verificada',
+			'status'  => 'success',
+		);
+	}
 
-            if (!empty($email)) {
+	/**
+	 * Test Cielo connection
+	 */
+	private static function test_cielo_connection() {
+		$merchant_id = get_option( 'hng_cielo_merchant_id', '' );
+		if ( empty( $merchant_id ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais Cielo não configuradas' );
+		}
+		return array(
+			'message' => 'Cielo: Conexão verificada',
+			'status'  => 'success',
+		);
+	}
 
-                error_log('HNG Test PagSeguro: Trying legacy API with email+token...');
+	/**
+	 * Test Rede connection
+	 */
+	private static function test_rede_connection() {
+		$pv = get_option( 'hng_rede_pv', '' );
+		if ( empty( $pv ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais Rede não configuradas' );
+		}
+		return array(
+			'message' => 'Rede: Conexão verificada',
+			'status'  => 'success',
+		);
+	}
 
-                return self::test_pagseguro_legacy($email, $token);
+	/**
+	 * Test GetNet connection
+	 */
+	private static function test_getnet_connection() {
+		$client_id = get_option( 'hng_getnet_client_id', '' );
+		if ( empty( $client_id ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais GetNet não configuradas' );
+		}
+		return array(
+			'message' => 'GetNet: Conexão verificada',
+			'status'  => 'success',
+		);
+	}
 
-            }
+	/**
+	 * Test Stone connection
+	 */
+	private static function test_stone_connection() {
+		$api_key = get_option( 'hng_stone_api_key', '' );
+		if ( empty( $api_key ) ) {
+			return new WP_Error( 'no_credentials', 'Credenciais Stone não configuradas' );
+		}
+		return array(
+			'message' => 'Stone: Conexão verificada',
+			'status'  => 'success',
+		);
+	}
 
-            
+	/**
 
-            return new WP_Error('auth_error', 'PagSeguro: Token inválido. Gere um novo token no painel do PagBank.');
+	 * Teste rapido de gateway
+	 */
+	public function quick_test_gateway() {
 
-        } else if ($code === 403) {
+		check_ajax_referer( 'hng-commerce-admin', 'nonce' );
 
-            error_log('HNG Test PagSeguro: Forbidden (403)');
+		if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
-            return new WP_Error('auth_error', 'PagSeguro: Token sem permissões necessárias (403)');
+			$rl = HNG_Rate_Limiter::enforce( 'gateway_quick_test', 5, 30 );
 
-        } else if ($code >= 500) {
+			if ( is_wp_error( $rl ) ) {
 
-            error_log('HNG Test PagSeguro: Server error');
+				wp_send_json_error( array( 'message' => $rl->get_error_message() ), 429 );
 
-            return ['message' => 'PagSeguro: Servidores com instabilidade', 'status' => 'warning'];
+			}
+		}
 
-        } else {
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-            error_log('HNG Test PagSeguro: API error - ' . $code);
+			wp_send_json_error( array( 'message' => 'Permissao negada' ) );
 
-            return new WP_Error('api_error', 'PagSeguro: Erro na API (código: ' . $code . ')');
+		}
 
-        }
+		wp_send_json_success( array( 'message' => 'Teste rapido concluido' ) );
+	}
 
-    }
 
-    
 
-    /**
+	/**
 
-     * Test PagSeguro connection using legacy API (email+token format)
+	 * Ativar/desativar gateway
+	 */
+	public function toggle_gateway() {
 
-     */
+		check_ajax_referer( 'hng-commerce-admin', 'nonce' );
 
-    private static function test_pagseguro_legacy($email, $token) {
+		if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
-        error_log('HNG Test PagSeguro Legacy: Testing with v2 API (email+token)...');
+			$rl = HNG_Rate_Limiter::enforce( 'gateway_toggle', 10, 60 );
 
-        
+			if ( is_wp_error( $rl ) ) {
 
-        if (empty($email)) {
+				wp_send_json_error( array( 'message' => $rl->get_error_message() ), 429 );
 
-            return new WP_Error('no_credentials', 'PagSeguro: Email não configurado para API legada');
+			}
+		}
 
-        }
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-        
+			wp_send_json_error( array( 'message' => 'Permissao negada' ) );
 
-        $response = wp_remote_post('https://ws.pagseguro.uol.com.br/v2/sessions', [
+		}
 
-            'timeout' => 15,
+		$post_data = wp_unslash( $_POST );
 
-            'headers' => [
+		$gateway = sanitize_text_field( $post_data['gateway'] ?? '' );
 
-                'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
+		$enabled = isset( $post_data['enabled'] ) && $post_data['enabled'] === 'true';
 
-                'Accept' => 'application/xml'
+		if ( empty( $gateway ) ) {
 
-            ],
+			wp_send_json_error( array( 'message' => 'Gateway inválido' ) );
 
-            'body' => http_build_query([
+		}
 
-                'email' => $email,
+		update_option( 'hng_gateway_' . $gateway . '_enabled', $enabled ? 'yes' : 'no' );
 
-                'token' => $token
+		$disabled = array();
 
-            ])
+		if ( $enabled ) {
 
-        ]);
+			$all = array_keys( self::get_gateways() );
 
-        
+			foreach ( $all as $id ) {
 
-        if (is_wp_error($response)) {
+				if ( $id === $gateway ) {
+					continue; }
 
-            error_log('HNG Test PagSeguro Legacy: Connection error - ' . $response->get_error_message());
+				if ( get_option( 'hng_gateway_' . $id . '_enabled', 'no' ) === 'yes' ) {
 
-            return new WP_Error('connection_error', 'Erro ao conectar com PagSeguro: ' . $response->get_error_message());
+					update_option( 'hng_gateway_' . $id . '_enabled', 'no' );
 
-        }
+					$disabled[] = $id;
 
-        
+				}
+			}
 
-        $code = wp_remote_retrieve_response_code($response);
+			update_option( 'hng_default_gateway', $gateway );
 
-        $body = wp_remote_retrieve_body($response);
+		}
 
-        error_log('HNG Test PagSeguro Legacy: Response code - ' . $code);
+		wp_send_json_success(
+			array(
 
-        error_log('HNG Test PagSeguro Legacy: Response body - ' . substr($body, 0, 500));
+				'message'          => 'Gateway ' . ( $enabled ? 'ativado' : 'desativado' ),
 
-        
+				'disabledGateways' => $disabled,
 
-        if ($code === 200) {
+				'defaultGateway'   => $enabled ? $gateway : get_option( 'hng_default_gateway', '' ),
 
-            error_log('HNG Test PagSeguro Legacy: Success!');
+			)
+		);
+	}
 
-            return ['message' => 'PagSeguro: Conexão bem-sucedida (API legada)!', 'status' => 'success'];
 
-        } else if ($code === 401 || $code === 403 || $code === 406) {
 
-            error_log('HNG Test PagSeguro Legacy: Auth error - ' . $code);
+	/**
+	 * Atualizar taxas da API
+	 */
+	public function refresh_fees_from_api() {
+		check_ajax_referer( 'hng-commerce-admin', 'nonce' );
 
-            return new WP_Error('auth_error', 'PagSeguro: Credenciais inválidas. Use o token gerado no Portal do Desenvolvedor PagBank.');
+		// Limpar cache de taxas
+		delete_transient( 'hng_api_fees_data' );
 
-        } else if ($code >= 500) {
+		// Buscar novas taxas
+		if ( class_exists( 'HNG_Fee_Calculator' ) ) {
+			$fee_calculator = HNG_Fee_Calculator::instance();
+			$tiers          = $fee_calculator->get_all_tiers();
 
-            return ['message' => 'PagSeguro: Servidores com instabilidade', 'status' => 'warning'];
+			wp_send_json_success(
+				array(
+					'message'    => 'Taxas atualizadas com sucesso!',
+					'tiers'      => $tiers,
+					'updated_at' => current_time( 'mysql' ),
+				)
+			);
+		} else {
+			wp_send_json_error( array( 'message' => 'Classe HNG_Fee_Calculator não encontrada' ), 500 );
+		}
+	}
 
-        } else {
+	/**
 
-            return new WP_Error('api_error', 'PagSeguro: Erro na API (código: ' . $code . ')');
+	 * Testar todos os gateways
+	 */
+	public function test_all_gateways() {
 
-        }
+		check_ajax_referer( 'hng-commerce-admin', 'nonce' );
 
-    }
+		if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
-    
+			$rl = HNG_Rate_Limiter::enforce( 'gateway_test_all', 3, 60 );
 
-    /**
+			if ( is_wp_error( $rl ) ) {
 
-     * Test Pagar.me connection
+				wp_send_json_error( array( 'message' => $rl->get_error_message() ), 429 );
 
-     */
+			}
+		}
 
-    private static function test_pagar_me_connection() {
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-        error_log('HNG Test Pagar.me: Starting test...');
+			wp_send_json_error( array( 'message' => 'Permissao negada' ) );
 
-        
+		}
 
-        // Usar nome correto da opção (hng_pagarme_secret_key)
+		wp_send_json_success( array( 'message' => 'Teste de todos os gateways iniciado' ) );
+	}
 
-        $api_key = get_option('hng_pagarme_secret_key', '');
 
-        if (empty($api_key)) {
 
-            error_log('HNG Test Pagar.me: No API key configured');
+	/**
 
-            return new WP_Error('no_credentials', 'Credenciais Pagar.me não configuradas');
+	 * Toggle advanced integration for gateway
+	 */
+	public function toggle_advanced_integration() {
 
-        }
+		check_ajax_referer( 'hng-commerce-admin', 'nonce' );
 
-        
+		if ( ! current_user_can( 'manage_options' ) ) {
 
-        error_log('HNG Test Pagar.me: API key found, making request to https://api.pagar.me/core/v5/accounts');
+			wp_send_json_error( array( 'message' => 'Permissao negada' ) );
 
-        
+		}
 
-        $response = wp_remote_get('https://api.pagar.me/core/v5/accounts', [
+		$post_data = wp_unslash( $_POST );
 
-            'headers' => ['Authorization' => 'Bearer ' . $api_key],
+		$gateway = sanitize_text_field( $post_data['gateway'] ?? '' );
 
-            'timeout' => 10
+		$enabled = isset( $post_data['enabled'] ) && $post_data['enabled'] === 'true';
 
-        ]);
+		if ( empty( $gateway ) ) {
 
-        
+			wp_send_json_error( array( 'message' => 'Gateway inválido' ) );
 
-        if (is_wp_error($response)) {
+		}
 
-            error_log('HNG Test Pagar.me: Connection error - ' . $response->get_error_message());
+		$opt_name = 'hng_' . $gateway . '_advanced_integration';
 
-            return new WP_Error('connection_error', 'Erro ao conectar com Pagar.me: ' . $response->get_error_message());
+		update_option( $opt_name, $enabled ? 'yes' : 'no' );
 
-        }
+		if ( ! function_exists( 'hng_hide_gateway_data' ) ) {
 
-        
+			$helper = HNG_COMMERCE_PATH . 'includes/helpers/hng-gateway-data.php';
 
-        $code = wp_remote_retrieve_response_code($response);
+			if ( file_exists( $helper ) ) {
 
-        error_log('HNG Test Pagar.me: Response code - ' . $code);
+				require_once $helper;
 
-        
+			}
+		}
 
-        if ($code === 200) {
+		if ( $enabled ) {
 
-            error_log('HNG Test Pagar.me: Success!');
+			if ( function_exists( 'hng_restore_gateway_data' ) ) {
 
-            return ['message' => 'Pagar.me: Conexão bem-sucedida!', 'status' => 'success'];
+				hng_restore_gateway_data( $gateway );
 
-        } else if ($code === 401) {
+			}
+		} elseif ( function_exists( 'hng_hide_gateway_data' ) ) {
 
-            error_log('HNG Test Pagar.me: Invalid API key');
+				hng_hide_gateway_data( $gateway, false );
+		}
 
-            return new WP_Error('auth_error', 'Pagar.me: Chave de API inválida (401)');
+		// Trigger gateway-specific actions
 
-        } else if ($code >= 500) {
+		if ( $gateway === 'asaas' ) {
 
-            error_log('HNG Test Pagar.me: Server error');
+			do_action( $enabled ? 'hng_asaas_advanced_integration_activated' : 'hng_asaas_advanced_integration_deactivated' );
 
-            return ['message' => 'Pagar.me: Servidores com instabilidade', 'status' => 'warning'];
+		} elseif ( $gateway === 'pagseguro' ) {
 
-        } else {
+			do_action( $enabled ? 'hng_pagseguro_advanced_integration_activated' : 'hng_pagseguro_advanced_integration_deactivated' );
 
-            error_log('HNG Test Pagar.me: API error - ' . $code);
+		} elseif ( $gateway === 'mercadopago' ) {
 
-            return new WP_Error('api_error', 'Pagar.me: Erro na API (código: ' . $code . ')');
+			do_action( $enabled ? 'hng_mercadopago_advanced_integration_activated' : 'hng_mercadopago_advanced_integration_deactivated' );
 
-        }
+		} elseif ( $gateway === 'pagarme' ) {
 
-    }
+			do_action( $enabled ? 'hng_pagarme_advanced_integration_activated' : 'hng_pagarme_advanced_integration_deactivated' );
 
-    
-    // Funções de teste removidas:
-    // test_nubank_connection, test_inter_connection, test_c6bank_connection,
-    // test_bb_connection, test_bradesco_connection, test_itau_connection,
-    // test_santander_connection, test_picpay_connection
-    // Motivo: Gateways não suportam split payment
+		}
 
-    /**
-     * Test Stripe connection
-     */
-    private static function test_stripe_connection() {
-        $secret_key = get_option('hng_stripe_secret_key', '');
-        if (empty($secret_key)) {
-            return new WP_Error('no_credentials', 'Credenciais Stripe não configuradas');
-        }
-        
-        $response = wp_remote_get('https://api.stripe.com/v1/balance', [
-            'headers' => ['Authorization' => 'Bearer ' . $secret_key],
-            'timeout' => 10
-        ]);
-        
-        if (is_wp_error($response)) {
-            return new WP_Error('connection_error', 'Erro ao conectar com Stripe: ' . $response->get_error_message());
-        }
-        
-        $code = wp_remote_retrieve_response_code($response);
-        if ($code === 200) {
-            return ['message' => 'Stripe: Conexão bem-sucedida!', 'status' => 'success'];
-        } else if ($code === 401) {
-            return new WP_Error('auth_error', 'Stripe: Chave de API inválida (401)');
-        } else if ($code >= 500) {
-            return ['message' => 'Stripe: Servidores com instabilidade', 'status' => 'warning'];
-        } else {
-            return new WP_Error('api_error', 'Stripe: Erro na API (código: ' . $code . ')');
-        }
-    }
-    
-    /**
-     * Test PayPal connection
-     */
-    private static function test_paypal_connection() {
-        $client_id = get_option('hng_paypal_client_id', '');
-        if (empty($client_id)) {
-            return new WP_Error('no_credentials', 'Credenciais PayPal não configuradas');
-        }
-        return ['message' => 'PayPal: Conexão verificada', 'status' => 'success'];
-    }
-    
-    /**
-     * Test Cielo connection
-     */
-    private static function test_cielo_connection() {
-        $merchant_id = get_option('hng_cielo_merchant_id', '');
-        if (empty($merchant_id)) {
-            return new WP_Error('no_credentials', 'Credenciais Cielo não configuradas');
-        }
-        return ['message' => 'Cielo: Conexão verificada', 'status' => 'success'];
-    }
-    
-    /**
-     * Test Rede connection
-     */
-    private static function test_rede_connection() {
-        $pv = get_option('hng_rede_pv', '');
-        if (empty($pv)) {
-            return new WP_Error('no_credentials', 'Credenciais Rede não configuradas');
-        }
-        return ['message' => 'Rede: Conexão verificada', 'status' => 'success'];
-    }
-    
-    /**
-     * Test GetNet connection
-     */
-    private static function test_getnet_connection() {
-        $client_id = get_option('hng_getnet_client_id', '');
-        if (empty($client_id)) {
-            return new WP_Error('no_credentials', 'Credenciais GetNet não configuradas');
-        }
-        return ['message' => 'GetNet: Conexão verificada', 'status' => 'success'];
-    }
-    
-    /**
-     * Test Stone connection
-     */
-    private static function test_stone_connection() {
-        $api_key = get_option('hng_stone_api_key', '');
-        if (empty($api_key)) {
-            return new WP_Error('no_credentials', 'Credenciais Stone não configuradas');
-        }
-        return ['message' => 'Stone: Conexão verificada', 'status' => 'success'];
-    }
-    
-    /**
-
-     * Teste rapido de gateway
-
-     */
-
-    public function quick_test_gateway() {
-
-        check_ajax_referer('hng-commerce-admin', 'nonce');
-
-
-
-        if (class_exists('HNG_Rate_Limiter')) {
-
-            $rl = HNG_Rate_Limiter::enforce('gateway_quick_test', 5, 30);
-
-            if (is_wp_error($rl)) {
-
-                wp_send_json_error(['message' => $rl->get_error_message()], 429);
-
-            }
-
-        }
-
-        
-
-        if (!current_user_can('manage_options')) {
-
-            wp_send_json_error(['message' => 'Permissao negada']);
-
-        }
-
-        
-
-        wp_send_json_success(['message' => 'Teste rapido concluido']);
-
-    }
-
-    
-
-    /**
-
-     * Ativar/desativar gateway
-
-     */
-
-    public function toggle_gateway() {
-
-        check_ajax_referer('hng-commerce-admin', 'nonce');
-
-
-
-        if (class_exists('HNG_Rate_Limiter')) {
-
-            $rl = HNG_Rate_Limiter::enforce('gateway_toggle', 10, 60);
-
-            if (is_wp_error($rl)) {
-
-                wp_send_json_error(['message' => $rl->get_error_message()], 429);
-
-            }
-
-        }
-
-        
-
-        if (!current_user_can('manage_options')) {
-
-            wp_send_json_error(['message' => 'Permissao negada']);
-
-        }
-
-        
-
-        $gateway = sanitize_text_field($_POST['gateway'] ?? '');
-
-        $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
-
-        if (empty($gateway)) {
-
-            wp_send_json_error(['message' => 'Gateway inválido']);
-
-        }
-
-        update_option('hng_gateway_' . $gateway . '_enabled', $enabled ? 'yes' : 'no');
-
-
-
-        $disabled = [];
-
-        if ($enabled) {
-
-            $all = array_keys(self::get_gateways());
-
-            foreach ($all as $id) {
-
-                if ($id === $gateway) { continue; }
-
-                if (get_option('hng_gateway_' . $id . '_enabled', 'no') === 'yes') {
-
-                    update_option('hng_gateway_' . $id . '_enabled', 'no');
-
-                    $disabled[] = $id;
-
-                }
-
-            }
-
-            update_option('hng_default_gateway', $gateway);
-
-        }
-
-
-
-        wp_send_json_success([
-
-            'message' => 'Gateway ' . ($enabled ? 'ativado' : 'desativado'),
-
-            'disabledGateways' => $disabled,
-
-            'defaultGateway' => $enabled ? $gateway : get_option('hng_default_gateway', '')
-
-        ]);
-
-    }
-
-    
-
-    /**
-     * Atualizar taxas da API
-     */
-    public function refresh_fees_from_api() {
-        check_ajax_referer('hng-commerce-admin', 'nonce');
-        
-        // Limpar cache de taxas
-        delete_transient('hng_api_fees_data');
-        
-        // Buscar novas taxas
-        if (class_exists('HNG_Fee_Calculator')) {
-            $fee_calculator = HNG_Fee_Calculator::instance();
-            $tiers = $fee_calculator->get_all_tiers();
-            
-            wp_send_json_success([
-                'message' => 'Taxas atualizadas com sucesso!',
-                'tiers' => $tiers,
-                'updated_at' => current_time('mysql')
-            ]);
-        } else {
-            wp_send_json_error(['message' => 'Classe HNG_Fee_Calculator não encontrada'], 500);
-        }
-    }
-
-    /**
-
-     * Testar todos os gateways
-
-     */
-
-    public function test_all_gateways() {
-
-        check_ajax_referer('hng-commerce-admin', 'nonce');
-
-
-
-        if (class_exists('HNG_Rate_Limiter')) {
-
-            $rl = HNG_Rate_Limiter::enforce('gateway_test_all', 3, 60);
-
-            if (is_wp_error($rl)) {
-
-                wp_send_json_error(['message' => $rl->get_error_message()], 429);
-
-            }
-
-        }
-
-        
-
-        if (!current_user_can('manage_options')) {
-
-            wp_send_json_error(['message' => 'Permissao negada']);
-
-        }
-
-        
-
-        wp_send_json_success(['message' => 'Teste de todos os gateways iniciado']);
-
-    }
-
-
-
-    /**
-
-     * Toggle advanced integration for gateway
-
-     */
-
-    public function toggle_advanced_integration() {
-
-        check_ajax_referer('hng-commerce-admin', 'nonce');
-
-
-
-        if (!current_user_can('manage_options')) {
-
-            wp_send_json_error(['message' => 'Permissao negada']);
-
-        }
-
-
-
-        $gateway = sanitize_text_field($_POST['gateway'] ?? '');
-
-        $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
-
-
-
-        if (empty($gateway)) {
-
-            wp_send_json_error(['message' => 'Gateway inválido']);
-
-        }
-
-
-
-        $opt_name = 'hng_' . $gateway . '_advanced_integration';
-
-        update_option($opt_name, $enabled ? 'yes' : 'no');
-
-
-
-        if (!function_exists('hng_hide_gateway_data')) {
-
-            $helper = HNG_COMMERCE_PATH . 'includes/helpers/hng-gateway-data.php';
-
-            if (file_exists($helper)) {
-
-                require_once $helper;
-
-            }
-
-        }
-
-
-
-        if ($enabled) {
-
-            if (function_exists('hng_restore_gateway_data')) {
-
-                hng_restore_gateway_data($gateway);
-
-            }
-
-        } else {
-
-            if (function_exists('hng_hide_gateway_data')) {
-
-                hng_hide_gateway_data($gateway, false);
-
-            }
-
-        }
-
-
-
-        // Trigger gateway-specific actions
-
-        if ($gateway === 'asaas') {
-
-            do_action($enabled ? 'hng_asaas_advanced_integration_activated' : 'hng_asaas_advanced_integration_deactivated');
-
-        } elseif ($gateway === 'pagseguro') {
-
-            do_action($enabled ? 'hng_pagseguro_advanced_integration_activated' : 'hng_pagseguro_advanced_integration_deactivated');
-
-        } elseif ($gateway === 'mercadopago') {
-
-            do_action($enabled ? 'hng_mercadopago_advanced_integration_activated' : 'hng_mercadopago_advanced_integration_deactivated');
-
-        } elseif ($gateway === 'pagarme') {
-
-            do_action($enabled ? 'hng_pagarme_advanced_integration_activated' : 'hng_pagarme_advanced_integration_deactivated');
-
-        }
-
-
-
-        wp_send_json_success(['message' => 'Integração avançada ' . ($enabled ? 'ativada' : 'desativada')]);
-
-    }
-
+		wp_send_json_success( array( 'message' => 'Integração avançada ' . ( $enabled ? 'ativada' : 'desativada' ) ) );
+	}
 }
-

@@ -1,730 +1,688 @@
 /**
 
  * HNG Commerce - Frontend JavaScript
-
  */
 
 
 
 (function ($) {
 
-    'use strict';
+	'use strict';
 
+	var HNG_Commerce = {
 
+		init: function () {
 
-    var HNG_Commerce = {
+			this.addToCart();
 
+			this.removeFromCart();
 
+			this.updateCartQuantity();
 
-        init: function () {
+			this.applyCoupon();
 
-            this.addToCart();
+			this.removeCoupon();
 
-            this.removeFromCart();
+		},
 
-            this.updateCartQuantity();
+		/**
 
-            this.applyCoupon();
+		 * Adicionar ao carrinho via AJAX
+		 */
 
-            this.removeCoupon();
+		addToCart: function () {
 
-        },
+			$( document ).on(
+				'submit',
+				'.hng-add-to-cart-form',
+				function (e) {
 
+					e.preventDefault();
 
+					var $form = $( this );
 
-        /**
+					var $button = $form.find( '.hng-add-to-cart-button, .add-to-cart-btn, #add-to-cart-btn, button[type="submit"]' );
 
-         * Adicionar ao carrinho via AJAX
+					var buttonText = $button.text();
 
-         */
+					// Desabilitar botão
 
-        addToCart: function () {
+					$button.prop( 'disabled', true ).text( 'Adicionando...' );
 
-            $(document).on('submit', '.hng-add-to-cart-form', function (e) {
+					// Build form data
 
-                e.preventDefault();
+					var formData = new FormData( $form[0] );
 
+					formData.set( 'action', 'hng_add_to_cart' );
 
+					// Use the correct nonce
 
-                var $form = $(this);
+					var nonce = hng_ajax.add_to_cart_nonce || $form.find( '[name="hng_cart_nonce"]' ).val() || '';
 
-                var $button = $form.find('.hng-add-to-cart-button, .add-to-cart-btn, #add-to-cart-btn, button[type="submit"]');
+					formData.set( 'nonce', nonce );
 
-                var buttonText = $button.text();
+					console.log(
+						'HNG: Adding to cart',
+						{
+							nonce: nonce,
+							product_id: formData.get( 'product_id' ),
+							quantity: formData.get( 'quantity' )
+						}
+					);
 
+					$.ajax(
+						{
 
+							url: hng_ajax.ajax_url,
 
-                // Desabilitar botão
+							type: 'POST',
 
-                $button.prop('disabled', true).text('Adicionando...');
+							data: formData,
 
+							processData: false,
 
+							contentType: false,
 
-                // Build form data
+							success: function (response) {
 
-                var formData = new FormData($form[0]);
+								if (response.success) {
 
-                formData.set('action', 'hng_add_to_cart');
+									$( '.hng-cart-count, .cart-count' ).text( response.data.cart_count );
 
+									// Check if should redirect to checkout
 
+									if (hng_ajax.redirect_to_checkout) {
 
-                // Use the correct nonce
+										window.location.href = hng_ajax.checkout_url;
 
-                var nonce = hng_ajax.add_to_cart_nonce || $form.find('[name="hng_cart_nonce"]').val() || '';
+										return;
 
-                formData.set('nonce', nonce);
+									}
 
-                
-                console.log('HNG: Adding to cart', {
-                    nonce: nonce,
-                    product_id: formData.get('product_id'),
-                    quantity: formData.get('quantity')
-                });
+									HNG_Commerce.showNotice( response.data.message, 'success' );
 
+									$button.prop( 'disabled', false ).text( 'Adicionado!' );
 
-                $.ajax({
+									setTimeout(
+										function () {
+											$button.text( buttonText ); },
+										2000
+									);
 
-                    url: hng_ajax.ajax_url,
+								} else {
 
-                    type: 'POST',
+									HNG_Commerce.showNotice( response.data.message || 'Erro ao adicionar produto.', 'error' );
 
-                    data: formData,
+									$button.prop( 'disabled', false ).text( buttonText );
 
-                    processData: false,
+								}
 
-                    contentType: false,
+							},
 
-                    success: function (response) {
+							error: function () {
 
-                        if (response.success) {
+								HNG_Commerce.showNotice( 'Erro ao adicionar produto.', 'error' );
 
-                            $('.hng-cart-count, .cart-count').text(response.data.cart_count);
+								$button.prop( 'disabled', false ).text( buttonText );
 
+							}
 
+						}
+					);
 
-                            // Check if should redirect to checkout
+				}
+			);
 
-                            if (hng_ajax.redirect_to_checkout) {
+		},
 
-                                window.location.href = hng_ajax.checkout_url;
+		// Fallback REST para add_to_cart quando admin-ajax é bloqueado (WAF/modsec)
 
-                                return;
+		restAddToCartFallback: function ($form, $button, buttonText) {
 
-                            }
+			var payload = {
 
+				product_id: $form.find( 'input[name="product_id"]' ).val(),
 
+				quantity: $form.find( 'input[name="quantity"]' ).val(),
 
-                            HNG_Commerce.showNotice(response.data.message, 'success');
+				variation_id: $form.find( 'input[name="variation_id"]' ).val() || 0,
 
-                            $button.prop('disabled', false).text('Adicionado!');
+			};
 
-                            setTimeout(function () { $button.text(buttonText); }, 2000);
+			var restUrl = (window.location.origin || '') + '/wp-json/hng/v1/add-to-cart';
 
-                        } else {
+			$.ajax(
+				{
 
-                            HNG_Commerce.showNotice(response.data.message || 'Erro ao adicionar produto.', 'error');
+					url: restUrl,
 
-                            $button.prop('disabled', false).text(buttonText);
+					type: 'POST',
 
-                        }
+					contentType: 'application/json',
 
-                    },
+					data: JSON.stringify( payload ),
 
-                    error: function () {
+					success: function (response) {
 
-                        HNG_Commerce.showNotice('Erro ao adicionar produto.', 'error');
+						if (response && ! response.data) {
 
-                        $button.prop('disabled', false).text(buttonText);
+							// WP REST pode retornar os dados diretamente
 
-                    }
+							response = { success: true, data: response };
 
-                });
+						}
 
-            });
+						if (response.success) {
 
-        },
+							$( '.hng-cart-count' ).text( response.data.cart_count );
 
+							HNG_Commerce.showNotice( response.data.message, 'success' );
 
+							$button.prop( 'disabled', false ).text( 'Adicionado!' );
 
-        // Fallback REST para add_to_cart quando admin-ajax é bloqueado (WAF/modsec)
+							setTimeout(
+								function () {
+									$button.text( buttonText ); },
+								2000
+							);
 
-        restAddToCartFallback: function ($form, $button, buttonText) {
+						} else {
 
-            var payload = {
+							HNG_Commerce.showNotice( response.data.message || 'Erro ao adicionar produto.', 'error' );
 
-                product_id: $form.find('input[name="product_id"]').val(),
+							$button.prop( 'disabled', false ).text( buttonText );
 
-                quantity: $form.find('input[name="quantity"]').val(),
+						}
 
-                variation_id: $form.find('input[name="variation_id"]').val() || 0,
+					},
 
-            };
+					error: function () {
 
+						HNG_Commerce.showNotice( 'Erro ao adicionar produto (REST).', 'error' );
 
+						$button.prop( 'disabled', false ).text( buttonText );
 
-            var restUrl = (window.location.origin || '') + '/wp-json/hng/v1/add-to-cart';
+					}
 
+				}
+			);
 
+		},
 
-            $.ajax({
+		/**
 
-                url: restUrl,
+		 * Remover do carrinho via AJAX
+		 */
 
-                type: 'POST',
+		removeFromCart: function () {
 
-                contentType: 'application/json',
+			$( document ).on(
+				'click',
+				'.hng-remove-from-cart',
+				function (e) {
 
-                data: JSON.stringify(payload),
+					e.preventDefault();
 
-                success: function (response) {
+					var $button = $( this );
 
-                    if (response && !response.data) {
+					var cartId = $button.data( 'cart-id' );
 
-                        // WP REST pode retornar os dados diretamente
+					if ( ! confirm( 'Deseja remover este produto?' )) {
 
-                        response = { success: true, data: response };
+						return;
 
-                    }
+					}
 
+					$.ajax(
+						{
 
+							url: hng_ajax.ajax_url,
 
-                    if (response.success) {
+							type: 'POST',
 
-                        $('.hng-cart-count').text(response.data.cart_count);
+							data: {
 
-                        HNG_Commerce.showNotice(response.data.message, 'success');
+								action: 'hng_remove_from_cart',
 
-                        $button.prop('disabled', false).text('Adicionado!');
+								nonce: hng_ajax.cart_nonce,
 
-                        setTimeout(function () { $button.text(buttonText); }, 2000);
+								cart_id: cartId
 
-                    } else {
+							},
 
-                        HNG_Commerce.showNotice(response.data.message || 'Erro ao adicionar produto.', 'error');
+							success: function (response) {
 
-                        $button.prop('disabled', false).text(buttonText);
+								if (response.success) {
 
-                    }
+									// Remover linha da tabela
 
-                },
+									$button.closest( '.hng-cart-item' ).fadeOut(
+										300,
+										function () {
 
-                error: function () {
+											$( this ).remove();
 
-                    HNG_Commerce.showNotice('Erro ao adicionar produto (REST).', 'error');
+											// Atualizar totais
 
-                    $button.prop('disabled', false).text(buttonText);
+											$( '.hng-cart-subtotal td' ).text( response.data.cart_subtotal );
 
-                }
+											$( '.hng-cart-subtotal' ).data( 'subtotal', parseFloat( String( response.data.cart_subtotal_raw || 0 ).replace( ',', '.' ) ) );
 
-            });
+											$( '.hng-order-total td strong' ).text( response.data.cart_total );
 
-        },
+											$( '.hng-cart-count' ).text( response.data.cart_count );
 
+											// Se estiver no checkout e existir a função de atualizar total
 
+											if (typeof window.hngUpdateCheckoutTotal === 'function') {
 
-        /**
+												window.hngUpdateCheckoutTotal();
 
-         * Remover do carrinho via AJAX
+											}
 
-         */
+											// Se carrinho vazio, recarregar página
 
-        removeFromCart: function () {
+											if (response.data.cart_count === 0) {
 
-            $(document).on('click', '.hng-remove-from-cart', function (e) {
+												location.reload();
 
-                e.preventDefault();
+											}
 
+										}
+									);
 
+									HNG_Commerce.showNotice( response.data.message, 'success' );
 
-                var $button = $(this);
+								} else {
 
-                var cartId = $button.data('cart-id');
+									HNG_Commerce.showNotice( response.data.message, 'error' );
 
+								}
 
+							},
 
-                if (!confirm('Deseja remover este produto?')) {
+							error: function () {
 
-                    return;
+								HNG_Commerce.showNotice( 'Erro ao remover produto.', 'error' );
 
-                }
+							}
 
+						}
+					);
 
+				}
+			);
 
-                $.ajax({
+		},
 
-                    url: hng_ajax.ajax_url,
+		/**
 
-                    type: 'POST',
+		 * Atualizar quantidade via AJAX
+		 */
 
-                    data: {
+		updateCartQuantity: function () {
 
-                        action: 'hng_remove_from_cart',
+			var timeout;
 
-                        nonce: hng_ajax.cart_nonce,
+			$( document ).on(
+				'change',
+				'.hng-quantity-input',
+				function () {
 
-                        cart_id: cartId
+					var $input = $( this );
 
-                    },
+					var cartId = $input.data( 'cart-id' );
 
-                    success: function (response) {
+					var quantity = parseInt( $input.val() );
 
-                        if (response.success) {
+					if (quantity < 1) {
 
-                            // Remover linha da tabela
+						$input.val( 1 );
 
-                            $button.closest('.hng-cart-item').fadeOut(300, function () {
+						return;
 
-                                $(this).remove();
+					}
 
+					clearTimeout( timeout );
 
+					timeout = setTimeout(
+						function () {
 
-                                // Atualizar totais
+							$.ajax(
+								{
 
-                                $('.hng-cart-subtotal td').text(response.data.cart_subtotal);
+									url: hng_ajax.ajax_url,
 
-                                $('.hng-cart-subtotal').data('subtotal', parseFloat(String(response.data.cart_subtotal_raw || 0).replace(',', '.')));
+									type: 'POST',
 
-                                $('.hng-order-total td strong').text(response.data.cart_total);
+									data: {
 
-                                $('.hng-cart-count').text(response.data.cart_count);
+										action: 'hng_update_cart_quantity',
 
+										nonce: hng_ajax.cart_nonce,
 
+										cart_id: cartId,
 
-                                // Se estiver no checkout e existir a função de atualizar total
+										quantity: quantity
 
-                                if (typeof window.hngUpdateCheckoutTotal === 'function') {
+									},
 
-                                    window.hngUpdateCheckoutTotal();
+									success: function (response) {
 
-                                }
+										if (response.success) {
 
+											// Atualizar subtotal do item
 
+											$input.closest( '.hng-cart-item' )
 
-                                // Se carrinho vazio, recarregar página
+											.find( '.hng-product-subtotal' )
 
-                                if (response.data.cart_count === 0) {
+											.text( response.data.item_subtotal );
 
-                                    location.reload();
+											// Atualizar totais
 
-                                }
+											$( '.hng-cart-subtotal td' ).text( response.data.cart_subtotal );
 
-                            });
+											$( '.hng-cart-subtotal' ).data( 'subtotal', parseFloat( String( response.data.cart_subtotal_raw || 0 ).replace( ',', '.' ) ) );
 
+											$( '.hng-order-total td strong' ).text( response.data.cart_total );
 
+											$( '.hng-cart-count' ).text( response.data.cart_count );
 
-                            HNG_Commerce.showNotice(response.data.message, 'success');
+											// Se estiver no checkout e existir a função de atualizar total
 
-                        } else {
+											if (typeof window.hngUpdateCheckoutTotal === 'function') {
 
-                            HNG_Commerce.showNotice(response.data.message, 'error');
+												window.hngUpdateCheckoutTotal();
 
-                        }
+											}
 
-                    },
+											HNG_Commerce.showNotice( response.data.message, 'success' );
 
-                    error: function () {
+										} else {
 
-                        HNG_Commerce.showNotice('Erro ao remover produto.', 'error');
+											HNG_Commerce.showNotice( response.data.message, 'error' );
 
-                    }
+										}
 
-                });
+									},
 
-            });
+									error: function () {
 
-        },
+										HNG_Commerce.showNotice( 'Erro ao atualizar quantidade.', 'error' );
 
+									}
 
+								}
+							);
 
-        /**
+						},
+						500
+					);
 
-         * Atualizar quantidade via AJAX
+				}
+			);
 
-         */
+		},
 
-        updateCartQuantity: function () {
+		/**
 
-            var timeout;
+		 * Aplicar cupom
+		 */
 
+		applyCoupon: function () {
 
+			$( document ).on(
+				'click',
+				'#hng_apply_coupon_btn',
+				function (e) {
 
-            $(document).on('change', '.hng-quantity-input', function () {
+					e.preventDefault();
 
-                var $input = $(this);
+					var $button = $( this );
 
-                var cartId = $input.data('cart-id');
+					var $input = $( '#hng_coupon_code' );
 
-                var quantity = parseInt($input.val());
+					var code = $input.val().trim();
 
+					var $message = $( '.hng-coupon-message' );
 
+					if ( ! code) {
 
-                if (quantity < 1) {
+						$message.removeClass( 'hng-success' ).addClass( 'hng-error' )
 
-                    $input.val(1);
+						.text( 'Digite um código de cupom.' ).show();
 
-                    return;
+						return;
 
-                }
+					}
 
+					$button.prop( 'disabled', true ).text( 'Aplicando...' );
 
+					$message.hide();
 
-                clearTimeout(timeout);
+					$.ajax(
+						{
 
+							url: hng_ajax.ajax_url,
 
+							type: 'POST',
 
-                timeout = setTimeout(function () {
+							data: {
 
-                    $.ajax({
+								action: 'hng_apply_coupon',
 
-                        url: hng_ajax.ajax_url,
+								nonce: hng_ajax.cart_nonce,
 
-                        type: 'POST',
+								coupon_code: code
 
-                        data: {
+							},
 
-                            action: 'hng_update_cart_quantity',
+							success: function (response) {
 
-                            nonce: hng_ajax.cart_nonce,
+								if (response.success) {
 
-                            cart_id: cartId,
+									$message.removeClass( 'hng-error' ).addClass( 'hng-success' )
 
-                            quantity: quantity
+									.text( response.data.message ).show();
 
-                        },
+									// Recarregar página após 1 segundo
 
-                        success: function (response) {
+									setTimeout(
+										function () {
 
-                            if (response.success) {
+											location.reload();
 
-                                // Atualizar subtotal do item
+										},
+										1000
+									);
 
-                                $input.closest('.hng-cart-item')
+								} else {
 
-                                    .find('.hng-product-subtotal')
+									$message.removeClass( 'hng-success' ).addClass( 'hng-error' )
 
-                                    .text(response.data.item_subtotal);
+									.text( response.data.message ).show();
 
+									$button.prop( 'disabled', false ).text( 'Aplicar Cupom' );
 
+								}
 
-                                // Atualizar totais
+							},
 
-                                $('.hng-cart-subtotal td').text(response.data.cart_subtotal);
+							error: function () {
 
-                                $('.hng-cart-subtotal').data('subtotal', parseFloat(String(response.data.cart_subtotal_raw || 0).replace(',', '.')));
+								$message.removeClass( 'hng-success' ).addClass( 'hng-error' )
 
-                                $('.hng-order-total td strong').text(response.data.cart_total);
+								.text( 'Erro ao aplicar cupom.' ).show();
 
-                                $('.hng-cart-count').text(response.data.cart_count);
+								$button.prop( 'disabled', false ).text( 'Aplicar Cupom' );
 
+							}
 
+						}
+					);
 
-                                // Se estiver no checkout e existir a função de atualizar total
+				}
+			);
 
-                                if (typeof window.hngUpdateCheckoutTotal === 'function') {
+			// Aplicar ao pressionar Enter
 
-                                    window.hngUpdateCheckoutTotal();
+			$( document ).on(
+				'keypress',
+				'#hng_coupon_code',
+				function (e) {
 
-                                }
+					if (e.which === 13) {
 
+						e.preventDefault();
 
+						$( '#hng_apply_coupon_btn' ).trigger( 'click' );
 
-                                HNG_Commerce.showNotice(response.data.message, 'success');
+					}
 
-                            } else {
+				}
+			);
 
-                                HNG_Commerce.showNotice(response.data.message, 'error');
+		},
 
-                            }
+		/**
 
-                        },
+		 * Remover cupom
+		 */
 
-                        error: function () {
+		removeCoupon: function () {
 
-                            HNG_Commerce.showNotice('Erro ao atualizar quantidade.', 'error');
+			$( document ).on(
+				'click',
+				'.hng-remove-coupon',
+				function (e) {
 
-                        }
+					e.preventDefault();
 
-                    });
+					var $button = $( this );
 
-                }, 500);
+					var code = $button.data( 'coupon' );
 
-            });
+					if ( ! confirm( 'Deseja remover este cupom?' )) {
 
-        },
+						return;
 
+					}
 
+					$button.prop( 'disabled', true ).text( 'Removendo...' );
 
-        /**
+					$.ajax(
+						{
 
-         * Aplicar cupom
+							url: hng_ajax.ajax_url,
 
-         */
+							type: 'POST',
 
-        applyCoupon: function () {
+							data: {
 
-            $(document).on('click', '#hng_apply_coupon_btn', function (e) {
+								action: 'hng_remove_coupon',
 
-                e.preventDefault();
+								nonce: hng_ajax.cart_nonce,
 
+								coupon_code: code
 
+							},
 
-                var $button = $(this);
+							success: function (response) {
 
-                var $input = $('#hng_coupon_code');
+								if (response.success) {
 
-                var code = $input.val().trim();
+									// Recarregar página
 
-                var $message = $('.hng-coupon-message');
+									location.reload();
 
+								} else {
 
+									alert( response.data.message );
 
-                if (!code) {
+									$button.prop( 'disabled', false ).text( 'Remover' );
 
-                    $message.removeClass('hng-success').addClass('hng-error')
+								}
 
-                        .text('Digite um código de cupom.').show();
+							},
 
-                    return;
+							error: function () {
 
-                }
+								alert( 'Erro ao remover cupom.' );
 
+								$button.prop( 'disabled', false ).text( 'Remover' );
 
+							}
 
-                $button.prop('disabled', true).text('Aplicando...');
+						}
+					);
 
-                $message.hide();
+				}
+			);
 
+		},
 
+		/**
 
-                $.ajax({
+		 * Mostrar notificação
+		 */
 
-                    url: hng_ajax.ajax_url,
+		showNotice: function (message, type) {
 
-                    type: 'POST',
+			var $notice = $( '<div class="hng-notice hng-notice-' + type + '">' + message + '</div>' );
 
-                    data: {
+			// Remover notices antigas
 
-                        action: 'hng_apply_coupon',
+			$( '.hng-notice' ).remove();
 
-                        nonce: hng_ajax.cart_nonce,
+			// Adicionar nova notice
 
-                        coupon_code: code
+			if ($( '.hng-notices' ).length) {
 
-                    },
+				$( '.hng-notices' ).prepend( $notice );
 
-                    success: function (response) {
+			} else {
 
-                        if (response.success) {
+				$( 'body' ).prepend( '<div class="hng-notices"></div>' );
 
-                            $message.removeClass('hng-error').addClass('hng-success')
+				$( '.hng-notices' ).append( $notice );
 
-                                .text(response.data.message).show();
+			}
 
+			// Scroll para o topo
 
+			$( 'html, body' ).animate( { scrollTop: 0 }, 300 );
 
-                            // Recarregar página após 1 segundo
+			// Auto-remover após 5 segundos
 
-                            setTimeout(function () {
+			setTimeout(
+				function () {
 
-                                location.reload();
+					$notice.fadeOut(
+						300,
+						function () {
 
-                            }, 1000);
+							$( this ).remove();
 
-                        } else {
+						}
+					);
 
-                            $message.removeClass('hng-success').addClass('hng-error')
+				},
+				5000
+			);
 
-                                .text(response.data.message).show();
+		}
 
-                            $button.prop('disabled', false).text('Aplicar Cupom');
+	};
 
-                        }
+	// Inicializar
 
-                    },
+	$( document ).ready(
+		function () {
 
-                    error: function () {
+			HNG_Commerce.init();
 
-                        $message.removeClass('hng-success').addClass('hng-error')
+		}
+	);
 
-                            .text('Erro ao aplicar cupom.').show();
-
-                        $button.prop('disabled', false).text('Aplicar Cupom');
-
-                    }
-
-                });
-
-            });
-
-
-
-            // Aplicar ao pressionar Enter
-
-            $(document).on('keypress', '#hng_coupon_code', function (e) {
-
-                if (e.which === 13) {
-
-                    e.preventDefault();
-
-                    $('#hng_apply_coupon_btn').trigger('click');
-
-                }
-
-            });
-
-        },
-
-
-
-        /**
-
-         * Remover cupom
-
-         */
-
-        removeCoupon: function () {
-
-            $(document).on('click', '.hng-remove-coupon', function (e) {
-
-                e.preventDefault();
-
-
-
-                var $button = $(this);
-
-                var code = $button.data('coupon');
-
-
-
-                if (!confirm('Deseja remover este cupom?')) {
-
-                    return;
-
-                }
-
-
-
-                $button.prop('disabled', true).text('Removendo...');
-
-
-
-                $.ajax({
-
-                    url: hng_ajax.ajax_url,
-
-                    type: 'POST',
-
-                    data: {
-
-                        action: 'hng_remove_coupon',
-
-                        nonce: hng_ajax.cart_nonce,
-
-                        coupon_code: code
-
-                    },
-
-                    success: function (response) {
-
-                        if (response.success) {
-
-                            // Recarregar página
-
-                            location.reload();
-
-                        } else {
-
-                            alert(response.data.message);
-
-                            $button.prop('disabled', false).text('Remover');
-
-                        }
-
-                    },
-
-                    error: function () {
-
-                        alert('Erro ao remover cupom.');
-
-                        $button.prop('disabled', false).text('Remover');
-
-                    }
-
-                });
-
-            });
-
-        },
-
-
-
-        /**
-
-         * Mostrar notificação
-
-         */
-
-        showNotice: function (message, type) {
-
-            var $notice = $('<div class="hng-notice hng-notice-' + type + '">' + message + '</div>');
-
-
-
-            // Remover notices antigas
-
-            $('.hng-notice').remove();
-
-
-
-            // Adicionar nova notice
-
-            if ($('.hng-notices').length) {
-
-                $('.hng-notices').prepend($notice);
-
-            } else {
-
-                $('body').prepend('<div class="hng-notices"></div>');
-
-                $('.hng-notices').append($notice);
-
-            }
-
-
-
-            // Scroll para o topo
-
-            $('html, body').animate({ scrollTop: 0 }, 300);
-
-
-
-            // Auto-remover após 5 segundos
-
-            setTimeout(function () {
-
-                $notice.fadeOut(300, function () {
-
-                    $(this).remove();
-
-                });
-
-            }, 5000);
-
-        }
-
-    };
-
-
-
-    // Inicializar
-
-    $(document).ready(function () {
-
-        HNG_Commerce.init();
-
-    });
-
-
-
-})(jQuery);
-
+})( jQuery );

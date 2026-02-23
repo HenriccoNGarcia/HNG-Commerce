@@ -1,1175 +1,972 @@
 <?php
-
 /**
-
  * Carrinho de Compras
-
- * 
-
+ *
  * @package HNG_Commerce
-
  * @since 1.0.0
-
  */
 
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
-
-if (!defined('ABSPATH')) {
-
-    exit;
-
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-
-
+/**
+ * Class HNG_Cart
+ *
+ * Handles shopping cart functionality.
+ *
+ * @since 1.0.0
+ */
 class HNG_Cart {
 
-    
+	/**
+	 * Instância única
+	 *
+	 * @var HNG_Cart|null
+	 */
+	private static $instance = null;
+
+	/**
+	 * Itens do carrinho
+	 *
+	 * @var array
+	 */
+	protected $cart_contents = array();
+
+	/**
+	 * Cupons aplicados
+	 *
+	 * @var array
+	 */
+	protected $applied_coupons = array();
 
-    /**
+	/**
+	 * Session key for cart
+	 *
+	 * @var string
+	 */
+	protected $session_key = 'hng_cart';
 
-     * Instância única
+	/**
+	 * Session key for coupons
+	 *
+	 * @var string
+	 */
+	protected $coupon_session_key = 'hng_cart_coupons';
 
-     */
+	/**
+	 * Session key for shipping
+	 *
+	 * @var string
+	 */
+	protected $shipping_session_key = 'hng_cart_shipping';
 
-    private static $instance = null;
+	/**
+	 * Session key for shipping rates
+	 *
+	 * @var string
+	 */
+	protected $shipping_rates_session_key = 'hng_cart_shipping_rates';
 
-    
+	/**
+	 * Shipping selection data
+	 *
+	 * @var array
+	 */
+	protected $shipping_data = array(
+		'id'        => '',
+		'method_id' => '',
+		'label'     => '',
+		'cost'      => 0,
+		'postcode'  => '',
+	);
 
-    /**
+	/**
+	 * Available shipping rates
+	 *
+	 * @var array
+	 */
+	protected $available_shipping = array(
+		'postcode'     => '',
+		'rates'        => array(),
+		'generated_at' => 0,
+	);
 
-     * Itens do carrinho
 
-     */
 
-    protected $cart_contents = [];
+	/**
 
-    
+	 * Obter instância
+	 */
+	public static function instance() {
 
-    /**
+		if ( is_null( self::$instance ) ) {
 
-     * Cupons aplicados
+			self::$instance = new self();
 
-     */
+		}
 
-    protected $applied_coupons = [];
+		return self::$instance;
+	}
 
-    
 
-    /**
 
-     * Session handler
+	/**
 
-     */
+	 * Construtor
+	 */
+	private function __construct() {
 
-    protected $session_key = 'hng_cart';
+		$this->load_cart();
 
-    protected $coupon_session_key = 'hng_cart_coupons';
+		// Método init não existe, removido
+		add_action( 'shutdown', array( $this, 'save_cart' ) );
+	}
 
-    protected $shipping_session_key = 'hng_cart_shipping';
 
-    protected $shipping_rates_session_key = 'hng_cart_shipping_rates';
 
+	/**
 
+	 * Carregar carrinho da sessão
+	 */
+	public function load_cart() {
 
-    /**
+		if ( ! session_id() ) {
 
-     * Shipping selection and available rates (persisted in session)
+			session_start();
 
-     */
+		}
 
-    protected $shipping_data = [
+		$cart_data = isset( $_SESSION[ $this->session_key ] ) ? $_SESSION[ $this->session_key ] : array();
 
-        'id' => '',
+		if ( is_array( $cart_data ) ) {
 
-        'method_id' => '',
+			$this->cart_contents = $cart_data;
 
-        'label' => '',
+		}
 
-        'cost' => 0,
+		// Carregar cupons
 
-        'postcode' => '',
+		$coupon_codes = isset( $_SESSION[ $this->coupon_session_key ] ) ? $_SESSION[ $this->coupon_session_key ] : array();
 
-    ];
+		if ( is_array( $coupon_codes ) ) {
 
+			foreach ( $coupon_codes as $code ) {
 
+				$coupon = HNG_Coupon::get_by_code( $code );
 
-    protected $available_shipping = [
+				if ( $coupon && $coupon->is_valid() ) {
 
-        'postcode' => '',
+					$this->applied_coupons[ $code ] = $coupon;
 
-        'rates' => [],
+				}
+			}
+		}
 
-        'generated_at' => 0,
+		// Carregar seleção de frete
 
-    ];
+		$shipping = isset( $_SESSION[ $this->shipping_session_key ] ) ? $_SESSION[ $this->shipping_session_key ] : array();
 
-    
+		if ( is_array( $shipping ) && ! empty( $shipping ) ) {
 
-    /**
+			$this->shipping_data = array_merge( $this->shipping_data, $shipping );
 
-     * Obter instância
+		}
 
-     */
+		// Carregar últimas cotações de frete
 
-    public static function instance() {
+		$rates = isset( $_SESSION[ $this->shipping_rates_session_key ] ) ? $_SESSION[ $this->shipping_rates_session_key ] : array();
 
-        if (is_null(self::$instance)) {
+		if ( is_array( $rates ) && ! empty( $rates ) ) {
 
-            self::$instance = new self();
+			$this->available_shipping = array_merge( $this->available_shipping, $rates );
 
-        }
+		}
+	}
 
-        return self::$instance;
 
-    }
 
-    
+	/**
 
-    /**
+	 * Salvar carrinho na sessão
+	 */
+	public function save_cart() {
 
-     * Construtor
+		// Sessão já iniciada no construtor
 
-     */
+		if ( session_id() ) {
 
-    private function __construct() {
+			$_SESSION[ $this->session_key ] = $this->cart_contents;
 
-        $this->load_cart();
+			$_SESSION[ $this->coupon_session_key ] = array_keys( $this->applied_coupons );
 
-        
+			$_SESSION[ $this->shipping_session_key ] = $this->shipping_data;
 
-        // Método init não existe, removido
-        add_action('shutdown', [$this, 'save_cart']);
+			$_SESSION[ $this->shipping_rates_session_key ] = $this->available_shipping;
 
-    }
+		}
+	}
 
-    
 
-    /**
 
-     * Carregar carrinho da sessão
+	/**
+	 * Adicionar ao carrinho
+	 *
+	 * @param int   $product_id   Product ID.
+	 * @param int   $quantity     Quantity to add.
+	 * @param int   $variation_id Variation ID.
+	 * @param array $variation    Variation attributes.
+	 *
+	 * @return string|false Cart item ID or false.
+	 */
+	public function add_to_cart( $product_id, $quantity = 1, $variation_id = 0, $variation = array() ) {
 
-     */
+		// Validar produto
 
-    public function load_cart() {
+		$product = new HNG_Product( $product_id );
 
-        if (!session_id()) {
+		if ( ! $product->get_id() ) {
 
-            session_start();
+			return false;
 
-        }
+		}
 
-        
+		if ( ! $product->is_purchasable() ) {
 
-        $cart_data = isset($_SESSION[$this->session_key]) ? $_SESSION[$this->session_key] : [];
+			return false;
 
-        
+		}
 
-        if (is_array($cart_data)) {
+		// Gerar chave única
 
-            $this->cart_contents = $cart_data;
+		$cart_id = $this->generate_cart_id( $product_id, $variation_id, $variation );
 
-        }
+		// Validar quantidade
 
-        
+		$quantity = absint( $quantity );
 
-        // Carregar cupons
+		if ( $quantity <= 0 ) {
 
-        $coupon_codes = isset($_SESSION[$this->coupon_session_key]) ? $_SESSION[$this->coupon_session_key] : [];
+			$quantity = 1;
 
-        
+		}
 
-        if (is_array($coupon_codes)) {
+		// Verificar estoque
 
-            foreach ($coupon_codes as $code) {
+		if ( $product->manages_stock() ) {
 
-                $coupon = HNG_Coupon::get_by_code($code);
+			$stock_quantity = $product->get_stock_quantity();
 
-                if ($coupon && $coupon->is_valid()) {
+			$current_in_cart = $this->get_cart_item_quantity( $cart_id );
 
-                    $this->applied_coupons[$code] = $coupon;
+			$total_quantity = $current_in_cart + $quantity;
 
-                }
+			if ( $stock_quantity < $total_quantity ) {
 
-            }
+				do_action( 'hng_cart_insufficient_stock', $product_id, $stock_quantity, $total_quantity );
 
-        }
+				return false;
 
+			}
+		}
 
+		// Produto vendido individualmente
 
-        // Carregar seleção de frete
+		if ( $product->is_sold_individually() ) {
 
-        $shipping = isset($_SESSION[$this->shipping_session_key]) ? $_SESSION[$this->shipping_session_key] : [];
+			if ( $this->find_product_in_cart( $product_id ) ) {
 
-        if (is_array($shipping) && !empty($shipping)) {
+				return false;
 
-            $this->shipping_data = array_merge($this->shipping_data, $shipping);
+			}
 
-        }
+			$quantity = 1;
 
+		}
 
+		// Filtro para customizar dados do item antes de adicionar ao carrinho
 
-        // Carregar últimas cotações de frete
+		// Capturar campos personalizados do cliente (enviados via $variation['custom_fields'] ou $_POST)
 
-        $rates = isset($_SESSION[$this->shipping_rates_session_key]) ? $_SESSION[$this->shipping_rates_session_key] : [];
+		$custom_fields = array();
 
-        if (is_array($rates) && !empty($rates)) {
+		if ( isset( $variation['custom_fields'] ) ) {
 
-            $this->available_shipping = array_merge($this->available_shipping, $rates);
+			$custom_fields = $variation['custom_fields'];
 
-        }
+		} else {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Custom fields are sanitized; nonce verified at checkout.
+			$post = function_exists( 'wp_unslash' ) ? wp_unslash( $_POST ) : $_POST;
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! empty( $post['hng_cf'] ) && is_array( $post['hng_cf'] ) ) {
 
-    }
+				foreach ( $post['hng_cf'] as $slug => $value ) {
 
-    
+					$custom_fields[ $slug ] = sanitize_text_field( $value );
 
-    /**
+				}
+			}
+		}
 
-     * Salvar carrinho na sessão
+		$cart_item_data = array(
 
-     */
+			'product_id'    => $product_id,
 
-    public function save_cart() {
+			'quantity'      => $quantity,
 
-        // Sessão já iniciada no construtor
+			'variation_id'  => $variation_id,
 
-        if (session_id()) {
+			'variation'     => $variation,
 
-            $_SESSION[$this->session_key] = $this->cart_contents;
+			'data'          => $product,
 
-            $_SESSION[$this->coupon_session_key] = array_keys($this->applied_coupons);
+			'custom_fields' => $custom_fields,
 
-            $_SESSION[$this->shipping_session_key] = $this->shipping_data;
+		);
 
-            $_SESSION[$this->shipping_rates_session_key] = $this->available_shipping;
+		$cart_item_data = apply_filters( 'hng_cart_item_data_before_add', $cart_item_data, $product_id, $quantity, $variation_id, $variation );
 
-        }
+		// Adicionar ou atualizar
 
-    }
+		if ( isset( $this->cart_contents[ $cart_id ] ) ) {
 
-    
+			$this->cart_contents[ $cart_id ]['quantity'] += $quantity;
 
-    /**
+		} else {
 
-     * Adicionar ao carrinho
+			$this->cart_contents[ $cart_id ] = $cart_item_data;
 
-     */
+		}
 
-    public function add_to_cart($product_id, $quantity = 1, $variation_id = 0, $variation = []) {
+		do_action( 'hng_add_to_cart', $cart_id, $product_id, $quantity, $variation_id, $variation, $cart_item_data );
 
-        // Validar produto
+		return $cart_id;
+	}
 
-        $product = new HNG_Product($product_id);
 
-        
 
-        if (!$product->get_id()) {
+	/**
+	 * Remover do carrinho
+	 *
+	 * @param string $cart_id Cart item ID.
+	 *
+	 * @return bool True on success.
+	 */
+	public function remove_cart_item( $cart_id ) {
 
-            return false;
+		if ( isset( $this->cart_contents[ $cart_id ] ) ) {
 
-        }
+			$product_id = $this->cart_contents[ $cart_id ]['product_id'];
 
-        
+			$cart_item = $this->cart_contents[ $cart_id ];
 
-        if (!$product->is_purchasable()) {
+			unset( $this->cart_contents[ $cart_id ] );
 
-            return false;
+			do_action( 'hng_cart_item_removed', $cart_id, $product_id, $cart_item );
 
-        }
+			return true;
 
-        
+		}
 
-        // Gerar chave única
+		return false;
+	}
 
-        $cart_id = $this->generate_cart_id($product_id, $variation_id, $variation);
 
-        
 
-        // Validar quantidade
+	/**
+	 * Atualizar quantidade
+	 *
+	 * @param string $cart_id  Cart item ID.
+	 * @param int    $quantity New quantity.
+	 *
+	 * @return bool True on success.
+	 */
+	public function set_quantity( $cart_id, $quantity = 1 ) {
 
-        $quantity = absint($quantity);
+		if ( ! isset( $this->cart_contents[ $cart_id ] ) ) {
 
-        if ($quantity <= 0) {
+			return false;
 
-            $quantity = 1;
+		}
 
-        }
+		$quantity = absint( $quantity );
 
-        
+		if ( $quantity <= 0 ) {
 
-        // Verificar estoque
+			return $this->remove_cart_item( $cart_id );
 
-        if ($product->manages_stock()) {
+		}
 
-            $stock_quantity = $product->get_stock_quantity();
+		// Verificar estoque
 
-            $current_in_cart = $this->get_cart_item_quantity($cart_id);
+		$product = $this->cart_contents[ $cart_id ]['data'];
 
-            $total_quantity = $current_in_cart + $quantity;
+		if ( $product->manages_stock() ) {
 
-            
+			$stock_quantity = $product->get_stock_quantity();
 
-            if ($stock_quantity < $total_quantity) {
+			if ( $stock_quantity < $quantity ) {
 
-                do_action('hng_cart_insufficient_stock', $product_id, $stock_quantity, $total_quantity);
+				do_action( 'hng_cart_insufficient_stock', $product->get_id(), $stock_quantity, $quantity );
 
-                return false;
+				return false;
 
-            }
+			}
+		}
 
-        }
+		$old_quantity = $this->cart_contents[ $cart_id ]['quantity'];
 
-        
+		$this->cart_contents[ $cart_id ]['quantity'] = $quantity;
 
-        // Produto vendido individualmente
+		do_action( 'hng_cart_item_quantity_updated', $cart_id, $quantity, $old_quantity );
 
-        if ($product->is_sold_individually()) {
+		return true;
+	}
 
-            if ($this->find_product_in_cart($product_id)) {
 
-                return false;
 
-            }
+	/**
 
-            $quantity = 1;
+	 * Limpar carrinho
+	 */
+	public function empty_cart() {
 
-        }
+		$old_cart = $this->cart_contents;
 
-        
+		$this->cart_contents = array();
 
-        // Filtro para customizar dados do item antes de adicionar ao carrinho
+		$this->shipping_data = array(
 
-        // Capturar campos personalizados do cliente (enviados via $variation['custom_fields'] ou $_POST)
+			'id'        => '',
 
-        $custom_fields = [];
+			'method_id' => '',
 
-        if (isset($variation['custom_fields'])) {
+			'label'     => '',
 
-            $custom_fields = $variation['custom_fields'];
+			'cost'      => 0,
 
-        } else {
+			'postcode'  => '',
 
-            $post = function_exists('wp_unslash') ? wp_unslash( $_POST ) : $_POST;
+		);
 
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Custom fields sá¡o sanitizados; nonce verificado no checkout
+		$this->available_shipping = array(
 
-            if (!empty($post['hng_cf']) && is_array($post['hng_cf'])) {
+			'postcode'     => '',
 
-                foreach ($post['hng_cf'] as $slug => $value) {
+			'rates'        => array(),
 
-                    $custom_fields[$slug] = sanitize_text_field($value);
+			'generated_at' => 0,
 
-                }
+		);
 
-            }
+		do_action( 'hng_cart_emptied', $old_cart );
+	}
 
-        }
 
 
+	/**
 
-        $cart_item_data = [
+	 * Obter conteúdo do carrinho
+	 */
+	public function get_cart() {
 
-            'product_id' => $product_id,
+		$cart = apply_filters( 'hng_cart_contents', $this->cart_contents, $this );
 
-            'quantity' => $quantity,
+		return $cart;
+	}
 
-            'variation_id' => $variation_id,
 
-            'variation' => $variation,
 
-            'data' => $product,
+	/**
+	 * Obter item do carrinho
+	 *
+	 * @param string $cart_id Cart item ID.
+	 *
+	 * @return array|null Cart item data or null.
+	 */
+	public function get_cart_item( $cart_id ) {
 
-            'custom_fields' => $custom_fields,
+		return $this->cart_contents[ $cart_id ] ?? null;
+	}
 
-        ];
 
-        $cart_item_data = apply_filters('hng_cart_item_data_before_add', $cart_item_data, $product_id, $quantity, $variation_id, $variation);
 
+	/**
+	 * Obter quantidade de um item
+	 *
+	 * @param string $cart_id Cart item ID.
+	 *
+	 * @return int Quantity.
+	 */
+	protected function get_cart_item_quantity( $cart_id ) {
 
+		return $this->cart_contents[ $cart_id ]['quantity'] ?? 0;
+	}
 
-        // Adicionar ou atualizar
 
-        if (isset($this->cart_contents[$cart_id])) {
 
-            $this->cart_contents[$cart_id]['quantity'] += $quantity;
+	/**
+	 * Procurar produto no carrinho
+	 *
+	 * @param int $product_id Product ID.
+	 *
+	 * @return bool True if found.
+	 */
+	protected function find_product_in_cart( $product_id ) {
 
-        } else {
+		foreach ( $this->cart_contents as $item ) {
 
-            $this->cart_contents[$cart_id] = $cart_item_data;
+			if ( $item['product_id'] === $product_id ) {
 
-        }
+				return true;
 
+			}
+		}
 
+		return false;
+	}
 
-        do_action('hng_add_to_cart', $cart_id, $product_id, $quantity, $variation_id, $variation, $cart_item_data);
 
 
+	/**
 
-        return $cart_id;
+	 * Contar itens
+	 */
+	public function get_cart_contents_count() {
 
-    }
+		$count = 0;
 
-    
+		foreach ( $this->cart_contents as $item ) {
 
-    /**
+			$count += $item['quantity'];
 
-     * Remover do carrinho
+		}
 
-     */
+		return $count;
+	}
 
-    public function remove_cart_item($cart_id) {
 
-        if (isset($this->cart_contents[$cart_id])) {
 
-            $product_id = $this->cart_contents[$cart_id]['product_id'];
+	/**
 
-            $cart_item = $this->cart_contents[$cart_id];
+	 * Calcular subtotal
+	 */
+	public function get_subtotal() {
 
-            unset($this->cart_contents[$cart_id]);
+		$subtotal = 0;
 
+		foreach ( $this->cart_contents as $item ) {
 
+			$product = $item['data'];
 
-            do_action('hng_cart_item_removed', $cart_id, $product_id, $cart_item);
+			$subtotal += $product->get_price() * $item['quantity'];
 
+		}
 
+		return $subtotal;
+	}
 
-            return true;
 
-        }
 
+	/**
 
+	 * Calcular total
+	 */
+	public function get_total() {
 
-        return false;
+		$total = $this->get_subtotal();
 
-    }
+		// Adicionar frete (se houver)
 
-    
+		$shipping = $this->get_shipping_total();
 
-    /**
+		$total += $shipping;
 
-     * Atualizar quantidade
+		// Subtrair desconto (se houver)
 
-     */
+		$discount = $this->get_discount_total();
 
-    public function set_quantity($cart_id, $quantity = 1) {
+		$total -= $discount;
 
-        if (!isset($this->cart_contents[$cart_id])) {
+		return max( 0, $total );
+	}
 
-            return false;
 
-        }
 
-        
+	/**
 
-        $quantity = absint($quantity);
+	 * Obter total de frete
+	 */
+	public function get_shipping_total() {
 
-        
+		return floatval( $this->shipping_data['cost'] ?? 0 );
+	}
 
-        if ($quantity <= 0) {
 
-            return $this->remove_cart_item($cart_id);
 
-        }
+	/**
+	 * Guardar cotações disponíveis para o CEP informado
+	 *
+	 * @param string $postcode Postal code.
+	 * @param array  $rates    Available rates.
+	 */
+	public function set_available_shipping_rates( $postcode, $rates ) {
 
-        
+		$this->available_shipping = array(
 
-        // Verificar estoque
+			'postcode'     => preg_replace( '/\D/', '', (string) $postcode ),
 
-        $product = $this->cart_contents[$cart_id]['data'];
+			'rates'        => is_array( $rates ) ? $rates : array(),
 
-        if ($product->manages_stock()) {
+			'generated_at' => time(),
 
-            $stock_quantity = $product->get_stock_quantity();
+		);
+	}
 
-            
 
-            if ($stock_quantity < $quantity) {
 
-                do_action('hng_cart_insufficient_stock', $product->get_id(), $stock_quantity, $quantity);
+	/**
 
-                return false;
+	 * Obter cotações em cache
+	 */
+	public function get_available_shipping_rates() {
 
-            }
+		return $this->available_shipping;
+	}
 
-        }
 
-        
 
-        $old_quantity = $this->cart_contents[$cart_id]['quantity'];
+	/**
+	 * Selecionar um método de frete a partir das cotações disponíveis
+	 *
+	 * @param string $rate_id Rate ID.
+	 *
+	 * @return bool True on success.
+	 */
+	public function select_shipping_rate( $rate_id ) {
 
-        $this->cart_contents[$cart_id]['quantity'] = $quantity;
+		$rates = $this->available_shipping['rates'] ?? array();
 
+		foreach ( $rates as $rate ) {
 
+			if ( ! isset( $rate['id'] ) ) {
 
-        do_action('hng_cart_item_quantity_updated', $cart_id, $quantity, $old_quantity);
+				continue;
 
+			}
 
+			if ( (string) $rate['id'] === (string) $rate_id ) {
 
-        return true;
+				$this->shipping_data = array(
 
-    }
+					'id'        => (string) $rate['id'],
 
-    
+					'method_id' => (string) ( $rate['method_id'] ?? '' ),
 
-    /**
+					'label'     => (string) ( $rate['label'] ?? ( $rate['service_name'] ?? '' ) ),
 
-     * Limpar carrinho
+					'cost'      => floatval( $rate['cost'] ?? 0 ),
 
-     */
+					'postcode'  => $this->available_shipping['postcode'] ?? '',
 
-    public function empty_cart() {
+				);
 
-        $old_cart = $this->cart_contents;
+				return true;
 
-        $this->cart_contents = [];
+			}
+		}
 
-        $this->shipping_data = [
+		return false;
+	}
 
-            'id' => '',
 
-            'method_id' => '',
 
-            'label' => '',
+	/**
 
-            'cost' => 0,
+	 * Obter seleção de frete atual
+	 */
+	public function get_selected_shipping() {
 
-            'postcode' => '',
+		return $this->shipping_data;
+	}
 
-        ];
 
-        $this->available_shipping = [
 
-            'postcode' => '',
+	/**
 
-            'rates' => [],
+	 * Calcular comissão total
+	 */
+	public function get_commission_total() {
 
-            'generated_at' => 0,
+		$commission = 0;
 
-        ];
+		foreach ( $this->cart_contents as $item ) {
 
+			$product = $item['data'];
 
+			$item_total = $product->get_price() * $item['quantity'];
 
-        do_action('hng_cart_emptied', $old_cart);
+			$commission += $product->calculate_commission( $item_total );
 
-    }
+		}
 
-    
+		return $commission;
+	}
 
-    /**
 
-     * Obter conteúdo do carrinho
 
-     */
+	/**
 
-    public function get_cart() {
+	 * Carrinho está vazio?
+	 */
+	public function is_empty() {
 
-        $cart = apply_filters('hng_cart_contents', $this->cart_contents, $this);
+		return empty( $this->cart_contents );
+	}
 
-        return $cart;
 
-    }
 
-    
+	/**
 
-    /**
+	 * Precisa de frete?
+	 */
+	public function needs_shipping() {
 
-     * Obter item do carrinho
+		foreach ( $this->cart_contents as $item ) {
 
-     */
+			$product = $item['data'];
 
-    public function get_cart_item($cart_id) {
+			if ( ! $product->is_virtual() ) {
 
-        return $this->cart_contents[$cart_id] ?? null;
+				return true;
 
-    }
+			}
+		}
 
-    
+		return false;
+	}
 
-    /**
 
-     * Obter quantidade de um item
 
-     */
+	/**
+	 * Gerar ID único para item
+	 *
+	 * @param int   $product_id   Product ID.
+	 * @param int   $variation_id Variation ID.
+	 * @param array $variation    Variation attributes.
+	 *
+	 * @return string Cart item ID hash.
+	 */
+	protected function generate_cart_id( $product_id, $variation_id = 0, $variation = array() ) {
 
-    protected function get_cart_item_quantity($cart_id) {
+		$id_parts = array( $product_id );
 
-        return $this->cart_contents[$cart_id]['quantity'] ?? 0;
+		if ( $variation_id ) {
 
-    }
+			$id_parts[] = $variation_id;
 
-    
+		}
 
-    /**
+		if ( ! empty( $variation ) ) {
 
-     * Procurar produto no carrinho
+			ksort( $variation );
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Used for generating unique cart item ID hash.
+			$id_parts[] = md5( serialize( $variation ) );
 
-     */
+		}
 
-    protected function find_product_in_cart($product_id) {
+		return md5( implode( '_', $id_parts ) );
+	}
 
-        foreach ($this->cart_contents as $item) {
 
-            if ($item['product_id'] == $product_id) {
 
-                return true;
+	/**
+	 * Aplicar cupom
+	 *
+	 * @param string $code Coupon code.
+	 *
+	 * @return bool True on success.
+	 * @throws Exception If coupon is invalid.
+	 */
+	public function apply_coupon( $code ) {
 
-            }
+		$code = strtoupper( sanitize_text_field( $code ) );
 
-        }
+		// Verificar se já está aplicado
 
-        return false;
+		if ( isset( $this->applied_coupons[ $code ] ) ) {
 
-    }
+			throw new Exception( esc_html( __( 'Este cupom já está aplicado.', 'hng-commerce' ) ) );
 
-    
+		}
 
-    /**
+		// Buscar cupom
 
-     * Contar itens
+		$coupon = HNG_Coupon::get_by_code( $code );
 
-     */
+		if ( ! $coupon ) {
 
-    public function get_cart_contents_count() {
+			throw new Exception( esc_html( __( 'Cupom inválido.', 'hng-commerce' ) ) );
 
-        $count = 0;
+		}
 
-        
+		// Validar cupom
 
-        foreach ($this->cart_contents as $item) {
+		if ( ! $coupon->is_valid() ) {
+			throw new Exception( esc_html( __( 'Este cupom não é válido.', 'hng-commerce' ) ) );
+		}
 
-            $count += $item['quantity'];
+		// Validar para o carrinho
 
-        }
+		$coupon->validate_for_cart( $this );
 
-        
+		// Adicionar à lista de cupons aplicados
 
-        return $count;
+		$this->applied_coupons[ $code ] = $coupon;
 
-    }
+		do_action( 'hng_applied_coupon', $code );
 
-    
+		return true;
+	}
 
-    /**
 
-     * Calcular subtotal
 
-     */
+	/**
+	 * Remover cupom
+	 *
+	 * @param string $code Coupon code.
+	 *
+	 * @return bool True on success.
+	 */
+	public function remove_coupon( $code ) {
 
-    public function get_subtotal() {
+		$code = strtoupper( sanitize_text_field( $code ) );
 
-        $subtotal = 0;
+		if ( isset( $this->applied_coupons[ $code ] ) ) {
 
-        
+			unset( $this->applied_coupons[ $code ] );
 
-        foreach ($this->cart_contents as $item) {
+			do_action( 'hng_removed_coupon', $code );
 
-            $product = $item['data'];
+			return true;
 
-            $subtotal += $product->get_price() * $item['quantity'];
+		}
 
-        }
+		return false;
+	}
 
-        
 
-        return $subtotal;
 
-    }
+	/**
 
-    
+	 * Obter cupons aplicados
+	 */
+	public function get_applied_coupons() {
 
-    /**
+		return $this->applied_coupons;
+	}
 
-     * Calcular total
 
-     */
 
-    public function get_total() {
+	/**
 
-        $total = $this->get_subtotal();
+	 * Obter códigos dos cupons
+	 */
+	public function get_coupon_codes() {
 
-        
+		return array_keys( $this->applied_coupons );
+	}
 
-        // Adicionar frete (se houver)
 
-        $shipping = $this->get_shipping_total();
 
-        $total += $shipping;
+	/**
+	 * Tem cupom aplicado?
+	 *
+	 * @param string|null $code Coupon code to check, or null for any.
+	 *
+	 * @return bool True if coupon applied.
+	 */
+	public function has_coupon( $code = null ) {
 
-        
+		if ( $code ) {
 
-        // Subtrair desconto (se houver)
+			$code = strtoupper( $code );
 
-        $discount = $this->get_discount_total();
+			return isset( $this->applied_coupons[ $code ] );
 
-        $total -= $discount;
+		}
 
-        
+		return ! empty( $this->applied_coupons );
+	}
 
-        return max(0, $total);
 
-    }
 
-    
+	/**
 
-    /**
+	 * Calcular desconto total dos cupons
+	 */
+	public function get_discount_total() {
 
-     * Obter total de frete
+		$discount = 0;
 
-     */
+		foreach ( $this->applied_coupons as $coupon ) {
 
-    public function get_shipping_total() {
+			$discount += $coupon->get_discount_amount_for_cart( $this );
 
-        return floatval($this->shipping_data['cost'] ?? 0);
+		}
 
-    }
+		return $discount;
+	}
 
 
 
-    /**
+	/**
 
-     * Guardar cotações disponíveis para o CEP informado
+	 * Tem frete grátis por cupom?
+	 */
+	public function has_free_shipping() {
 
-     */
+		foreach ( $this->applied_coupons as $coupon ) {
 
-    public function set_available_shipping_rates($postcode, $rates) {
+			if ( $coupon->get_free_shipping() ) {
 
-        $this->available_shipping = [
+				return true;
 
-            'postcode' => preg_replace('/\D/', '', (string) $postcode),
+			}
+		}
 
-            'rates' => is_array($rates) ? $rates : [],
+		return false;
+	}
 
-            'generated_at' => time(),
 
-        ];
 
-    }
+	/**
 
+	 * Obter dados do carrinho como array
+	 */
+	public function get_cart_for_session() {
 
+		$cart_session = array();
 
-    /**
+		foreach ( $this->cart_contents as $cart_id => $item ) {
 
-     * Obter cotações em cache
+			$cart_session[ $cart_id ] = array(
 
-     */
+				'product_id'   => $item['product_id'],
 
-    public function get_available_shipping_rates() {
+				'quantity'     => $item['quantity'],
 
-        return $this->available_shipping;
+				'variation_id' => $item['variation_id'],
 
-    }
+				'variation'    => $item['variation'],
 
+			);
 
+		}
 
-    /**
-
-     * Selecionar um método de frete a partir das cotações disponíveis
-
-     */
-
-    public function select_shipping_rate($rate_id) {
-
-        $rates = $this->available_shipping['rates'] ?? [];
-
-        foreach ($rates as $rate) {
-
-            if (!isset($rate['id'])) {
-
-                continue;
-
-            }
-
-
-
-            if ((string) $rate['id'] === (string) $rate_id) {
-
-                $this->shipping_data = [
-
-                    'id' => (string) $rate['id'],
-
-                    'method_id' => (string) ($rate['method_id'] ?? ''),
-
-                    'label' => (string) ($rate['label'] ?? ($rate['service_name'] ?? '')),
-
-                    'cost' => floatval($rate['cost'] ?? 0),
-
-                    'postcode' => $this->available_shipping['postcode'] ?? '',
-
-                ];
-
-                return true;
-
-            }
-
-        }
-
-
-
-        return false;
-
-    }
-
-
-
-    /**
-
-     * Obter seleção de frete atual
-
-     */
-
-    public function get_selected_shipping() {
-
-        return $this->shipping_data;
-
-    }
-
-    
-
-    /**
-
-     * Calcular comissão total
-
-     */
-
-    public function get_commission_total() {
-
-        $commission = 0;
-
-        
-
-        foreach ($this->cart_contents as $item) {
-
-            $product = $item['data'];
-
-            $item_total = $product->get_price() * $item['quantity'];
-
-            $commission += $product->calculate_commission($item_total);
-
-        }
-
-        
-
-        return $commission;
-
-    }
-
-    
-
-    /**
-
-     * Carrinho está vazio?
-
-     */
-
-    public function is_empty() {
-
-        return empty($this->cart_contents);
-
-    }
-
-    
-
-    /**
-
-     * Precisa de frete?
-
-     */
-
-    public function needs_shipping() {
-
-        foreach ($this->cart_contents as $item) {
-
-            $product = $item['data'];
-
-            if (!$product->is_virtual()) {
-
-                return true;
-
-            }
-
-        }
-
-        return false;
-
-    }
-
-    
-
-    /**
-
-     * Gerar ID único para item
-
-     */
-
-    protected function generate_cart_id($product_id, $variation_id = 0, $variation = []) {
-
-        $id_parts = [$product_id];
-
-        
-
-        if ($variation_id) {
-
-            $id_parts[] = $variation_id;
-
-        }
-
-        
-
-        if (!empty($variation)) {
-
-            ksort($variation);
-
-            $id_parts[] = md5(serialize($variation));
-
-        }
-
-        
-
-        return md5(implode('_', $id_parts));
-
-    }
-
-    
-
-    /**
-
-     * Aplicar cupom
-
-     */
-
-    public function apply_coupon($code) {
-
-        $code = strtoupper(sanitize_text_field($code));
-
-        
-
-        // Verificar se já está aplicado
-
-        if (isset($this->applied_coupons[$code])) {
-
-            throw new Exception(esc_html(__('Este cupom já está aplicado.', 'hng-commerce')));
-
-        }
-
-        
-
-        // Buscar cupom
-
-        $coupon = HNG_Coupon::get_by_code($code);
-
-        
-
-        if (!$coupon) {
-
-            throw new Exception(esc_html(__('Cupom inválido.', 'hng-commerce')));
-
-        }
-
-        
-
-        // Validar cupom
-
-        if (!$coupon->is_valid()) {
-
-            // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not output directly
-
-        }
-
-        
-
-        // Validar para o carrinho
-
-        $coupon->validate_for_cart($this);
-
-        
-
-        // Adicionar à lista de cupons aplicados
-
-        $this->applied_coupons[$code] = $coupon;
-
-        
-
-        do_action('hng_applied_coupon', $code);
-
-        
-
-        return true;
-
-    }
-
-    
-
-    /**
-
-     * Remover cupom
-
-     */
-
-    public function remove_coupon($code) {
-
-        $code = strtoupper(sanitize_text_field($code));
-
-        
-
-        if (isset($this->applied_coupons[$code])) {
-
-            unset($this->applied_coupons[$code]);
-
-            
-
-            do_action('hng_removed_coupon', $code);
-
-            
-
-            return true;
-
-        }
-
-        
-
-        return false;
-
-    }
-
-    
-
-    /**
-
-     * Obter cupons aplicados
-
-     */
-
-    public function get_applied_coupons() {
-
-        return $this->applied_coupons;
-
-    }
-
-    
-
-    /**
-
-     * Obter códigos dos cupons
-
-     */
-
-    public function get_coupon_codes() {
-
-        return array_keys($this->applied_coupons);
-
-    }
-
-    
-
-    /**
-
-     * Tem cupom aplicado?
-
-     */
-
-    public function has_coupon($code = null) {
-
-        if ($code) {
-
-            $code = strtoupper($code);
-
-            return isset($this->applied_coupons[$code]);
-
-        }
-
-        
-
-        return !empty($this->applied_coupons);
-
-    }
-
-    
-
-    /**
-
-     * Calcular desconto total dos cupons
-
-     */
-
-    public function get_discount_total() {
-
-        $discount = 0;
-
-        
-
-        foreach ($this->applied_coupons as $coupon) {
-
-            $discount += $coupon->get_discount_amount_for_cart($this);
-
-        }
-
-        
-
-        return $discount;
-
-    }
-
-    
-
-    /**
-
-     * Tem frete grátis por cupom?
-
-     */
-
-    public function has_free_shipping() {
-
-        foreach ($this->applied_coupons as $coupon) {
-
-            if ($coupon->get_free_shipping()) {
-
-                return true;
-
-            }
-
-        }
-
-        
-
-        return false;
-
-    }
-
-    
-
-    /**
-
-     * Obter dados do carrinho como array
-
-     */
-
-    public function get_cart_for_session() {
-
-        $cart_session = [];
-
-        
-
-        foreach ($this->cart_contents as $cart_id => $item) {
-
-            $cart_session[$cart_id] = [
-
-                'product_id' => $item['product_id'],
-
-                'quantity' => $item['quantity'],
-
-                'variation_id' => $item['variation_id'],
-
-                'variation' => $item['variation'],
-
-            ];
-
-        }
-
-        
-
-        return $cart_session;
-
-    }
-
+		return $cart_session;
+	}
 }
-

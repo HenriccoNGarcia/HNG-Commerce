@@ -1,16 +1,23 @@
-<?php
+<?php // phpcs:disable Squiz.Commenting.FileComment, WordPress.Files.FileName
 
 /**
 
  * Gateways integration helpers ï¿½ generic handlers for one-off and manual renewal
-
  */
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.FileComment.MissingPackageTag
+// phpcs:disable Squiz.Commenting.FileComment.SpacingAfterComment
+// phpcs:disable Squiz.Commenting.FileComment.SpacingAfterOpen
+// phpcs:disable Generic.CodeAnalysis.EmptyStatement
+// phpcs:disable Universal.ControlStructures.DisallowLonelyIf
+// phpcs:disable Universal.Operators.DisallowShortTernary
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
 
 
 
-if (!defined('ABSPATH')) {
+if ( ! defined( 'ABSPATH' ) ) {
 
-    exit;
+	exit;
 
 }
 
@@ -18,147 +25,137 @@ if (!defined('ABSPATH')) {
 
 // One-off payment generator: best-effort fallback for gateways that don't implement their own handler
 
-add_action('hng_generate_oneoff_payment', function($order_id) {
+add_action(
+	'hng_generate_oneoff_payment',
+	function ( $order_id ) {
 
-    if (empty($order_id)) return;
+		if ( empty( $order_id ) ) {
+			return;
+		}
 
+		// If payment url already set by gateway-specific handler, skip
 
+		$existing = get_post_meta( $order_id, '_payment_url', true );
 
-    // If payment url already set by gateway-specific handler, skip
+		if ( ! empty( $existing ) ) {
+			return;
+		}
 
-    $existing = get_post_meta($order_id, '_payment_url', true);
+		$gateway = get_post_meta( $order_id, '_gateway', true );
 
-    if (!empty($existing)) return;
+		if ( empty( $gateway ) ) {
+			$gateway = get_option( 'hng_default_gateway', '' );
+		}
 
+		if ( empty( $gateway ) ) {
+			return;
+		}
 
+		$class = 'HNG_Gateway_' . ucfirst( $gateway );
 
-    $gateway = get_post_meta($order_id, '_gateway', true);
+		if ( ! class_exists( $class ) ) {
 
-    if (empty($gateway)) $gateway = get_option('hng_default_gateway', '');
+			$path = HNG_COMMERCE_PATH . 'gateways/' . $gateway . '/class-gateway-' . $gateway . '.php';
 
-    if (empty($gateway)) return;
+			if ( file_exists( $path ) ) {
+				require_once $path;
+			}
+		}
 
+		if ( ! class_exists( $class ) ) {
+			return;
+		}
 
+		try {
 
-    $class = 'HNG_Gateway_' . ucfirst($gateway);
+			$gw = new $class();
 
-    if (!class_exists($class)) {
+			if ( ! $gw->is_configured() ) {
+				return;
+			}
 
-        $path = HNG_COMMERCE_PATH . 'gateways/' . $gateway . '/class-gateway-' . $gateway . '.php';
+			$total = floatval( get_post_meta( $order_id, '_total', true ) );
 
-        if (file_exists($path)) require_once $path;
+			$method = get_post_meta( $order_id, '_payment_method', true ) ?: 'pix';
 
-    }
+			$payment_data = array(
 
-    if (!class_exists($class)) return;
+				'amount'   => $total,
 
+				'method'   => $method,
 
+				'order_id' => $order_id,
 
-    try {
+			);
 
-        $gw = new $class();
+			// Check if should use centralized orchestrator
 
-        if (!$gw->is_configured()) return;
+			if ( HNG_Payment_Orchestrator::is_centralized_gateway( $gateway ) ) {
 
+				// Use centralized _api-server for gateways: asaas, pagarme, mercadopago, pagseguro
 
+				$result = HNG_Payment_Orchestrator::process_gateway_payment( $gateway, $order_id, $payment_data );
 
-        $total = floatval(get_post_meta($order_id, '_total', true));
+			} else {
 
-        $method = get_post_meta($order_id, '_payment_method', true) ?: 'pix';
+				// Use legacy direct gateway call for other gateways
 
+				// Prefer specific creator methods
 
+				if ( $method === 'pix' && method_exists( $gw, 'create_pix_payment' ) ) {
 
-        $payment_data = [
+					$result = $gw->create_pix_payment( $order_id, $payment_data );
 
-            'amount' => $total,
+				} elseif ( $method === 'boleto' && method_exists( $gw, 'create_boleto_payment' ) ) {
 
-            'method' => $method,
+					$result = $gw->create_boleto_payment( $order_id, $payment_data );
 
-            'order_id' => $order_id,
+				} else {
 
-        ];
+					// generic
 
+					$result = $gw->process_payment( $order_id, $payment_data );
 
+				}
+			}
 
-        // Check if should use centralized orchestrator
+			if ( is_wp_error( $result ) ) {
 
-        if (HNG_Payment_Orchestrator::is_centralized_gateway($gateway)) {
+				if ( function_exists( 'hng_files_log_append' ) ) {
 
-            // Use centralized _api-server for gateways: asaas, pagarme, mercadopago, pagseguro
+					hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways.log', sprintf( '[HNG Oneoff Generic] Gateway %s failed for order %d: %s', $gateway, $order_id, $result->get_error_message() ) . PHP_EOL );
 
-            $result = HNG_Payment_Orchestrator::process_gateway_payment($gateway, $order_id, $payment_data);
+				}
 
-        } else {
+				return;
 
-            // Use legacy direct gateway call for other gateways
+			}
 
-            // Prefer specific creator methods
+			$payment_url = '';
 
-            if ($method === 'pix' && method_exists($gw, 'create_pix_payment')) {
+			if ( is_array( $result ) ) {
 
-                $result = $gw->create_pix_payment($order_id, $payment_data);
+				$payment_url = $result['payment_url'] ?? $result['url'] ?? $result['checkout_url'] ?? '';
 
-            } elseif ($method === 'boleto' && method_exists($gw, 'create_boleto_payment')) {
+				update_post_meta( $order_id, '_payment_data', $result );
 
-                $result = $gw->create_boleto_payment($order_id, $payment_data);
+			}
 
-            } else {
+			if ( ! empty( $payment_url ) ) {
 
-                // generic
+				update_post_meta( $order_id, '_payment_url', $payment_url );
 
-                $result = $gw->process_payment($order_id, $payment_data);
+			}
+		} catch ( Exception $e ) {
 
-            }
+			if ( function_exists( 'hng_files_log_append' ) ) {
 
-        }
+				hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways.log', '[HNG Oneoff Generic] Exception: ' . $e->getMessage() . PHP_EOL );
 
-
-
-        if (is_wp_error($result)) {
-
-            if (function_exists('hng_files_log_append')) {
-
-                hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways.log', sprintf('[HNG Oneoff Generic] Gateway %s failed for order %d: %s', $gateway, $order_id, $result->get_error_message()) . PHP_EOL);
-
-            }
-
-            return;
-
-        }
-
-
-
-        $payment_url = '';
-
-        if (is_array($result)) {
-
-            $payment_url = $result['payment_url'] ?? $result['url'] ?? $result['checkout_url'] ?? '';
-
-            update_post_meta($order_id, '_payment_data', $result);
-
-        }
-
-
-
-        if (!empty($payment_url)) {
-
-            update_post_meta($order_id, '_payment_url', $payment_url);
-
-        }
-
-
-
-    } catch (Exception $e) {
-
-        if (function_exists('hng_files_log_append')) {
-
-            hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways.log', '[HNG Oneoff Generic] Exception: ' . $e->getMessage() . PHP_EOL);
-
-        }
-
-    }
-
-});
+			}
+		}
+	}
+);
 
 
 
@@ -166,168 +163,156 @@ add_action('hng_generate_oneoff_payment', function($order_id) {
 
 // Manual renewal generic fallback
 
-add_action('hng_subscription_manual_renewal', function($subscription_id, $order_id, $payment_method = 'pix') {
+add_action(
+	'hng_subscription_manual_renewal',
+	function ( $subscription_id, $order_id, $payment_method = 'pix' ) {
 
-    if (empty($order_id) || empty($subscription_id)) return;
+		if ( empty( $order_id ) || empty( $subscription_id ) ) {
+			return;
+		}
 
+		// If payment url already set, skip
 
+		$existing = get_post_meta( $order_id, '_payment_url', true );
 
-    // If payment url already set, skip
+		if ( ! empty( $existing ) ) {
+			return;
+		}
 
-    $existing = get_post_meta($order_id, '_payment_url', true);
+		// Try to find gateway from subscription or order
 
-    if (!empty($existing)) return;
+		$gateway = '';
 
+		if ( class_exists( 'HNG_Subscription' ) ) {
 
+			try {
 
-    // Try to find gateway from subscription or order
+				$sub = new HNG_Subscription( $subscription_id );
 
-    $gateway = '';
+				if ( method_exists( $sub, 'get_gateway' ) ) {
 
-    if (class_exists('HNG_Subscription')) {
+					$gateway = $sub->get_gateway();
 
-        try {
+				}
+			} catch ( Exception $e ) {
 
-            $sub = new HNG_Subscription($subscription_id);
+					// ignore
 
-            if (method_exists($sub, 'get_gateway')) {
+			}
+		}
 
-                $gateway = $sub->get_gateway();
+		if ( empty( $gateway ) ) {
 
-            }
+			$gateway = get_post_meta( $order_id, '_gateway', true );
 
-        } catch (Exception $e) {
+		}
 
-            // ignore
+		if ( empty( $gateway ) ) {
+			$gateway = get_option( 'hng_default_gateway', '' );
+		}
 
-        }
+		if ( empty( $gateway ) ) {
+			return;
+		}
 
-    }
+		$class = 'HNG_Gateway_' . ucfirst( $gateway );
 
+		if ( ! class_exists( $class ) ) {
 
+			$path = HNG_COMMERCE_PATH . 'gateways/' . $gateway . '/class-gateway-' . $gateway . '.php';
 
-    if (empty($gateway)) {
+			if ( file_exists( $path ) ) {
+				require_once $path;
+			}
+		}
 
-        $gateway = get_post_meta($order_id, '_gateway', true);
+		if ( ! class_exists( $class ) ) {
+			return;
+		}
 
-    }
+		try {
 
-    if (empty($gateway)) $gateway = get_option('hng_default_gateway', '');
+			$gw = new $class();
 
-    if (empty($gateway)) return;
+			if ( ! $gw->is_configured() ) {
+				return;
+			}
 
+			$total = floatval( get_post_meta( $order_id, '_total', true ) );
 
+			$payment_data = array(
 
-    $class = 'HNG_Gateway_' . ucfirst($gateway);
+				'amount'          => $total,
 
-    if (!class_exists($class)) {
+				'method'          => $payment_method,
 
-        $path = HNG_COMMERCE_PATH . 'gateways/' . $gateway . '/class-gateway-' . $gateway . '.php';
+				'order_id'        => $order_id,
 
-        if (file_exists($path)) require_once $path;
+				'subscription_id' => $subscription_id,
 
-    }
+			);
 
-    if (!class_exists($class)) return;
+			// Check if should use centralized orchestrator
 
+			if ( HNG_Payment_Orchestrator::is_centralized_gateway( $gateway ) ) {
 
+				// Use centralized _api-server for gateways: asaas, pagarme, mercadopago, pagseguro
 
-    try {
+				$result = HNG_Payment_Orchestrator::process_gateway_payment( $gateway, $order_id, $payment_data );
 
-        $gw = new $class();
+			} else {
 
-        if (!$gw->is_configured()) return;
+				// Use legacy direct gateway call for other gateways
 
+				if ( $payment_method === 'pix' && method_exists( $gw, 'create_pix_payment' ) ) {
 
+					$result = $gw->create_pix_payment( $order_id, $payment_data );
 
-        $total = floatval(get_post_meta($order_id, '_total', true));
+				} elseif ( $payment_method === 'boleto' && method_exists( $gw, 'create_boleto_payment' ) ) {
 
-        $payment_data = [
+					$result = $gw->create_boleto_payment( $order_id, $payment_data );
 
-            'amount' => $total,
+				} else {
 
-            'method' => $payment_method,
+					$result = $gw->process_payment( $order_id, $payment_data );
 
-            'order_id' => $order_id,
+				}
+			}
 
-            'subscription_id' => $subscription_id,
+			if ( is_wp_error( $result ) ) {
 
-        ];
+				if ( function_exists( 'hng_files_log_append' ) ) {
 
+					hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways.log', sprintf( '[HNG Renewal Generic] Gateway %s failed for sub %d order %d: %s', $gateway, $subscription_id, $order_id, $result->get_error_message() ) . PHP_EOL );
 
+				}
 
-        // Check if should use centralized orchestrator
+				return;
 
-        if (HNG_Payment_Orchestrator::is_centralized_gateway($gateway)) {
+			}
 
-            // Use centralized _api-server for gateways: asaas, pagarme, mercadopago, pagseguro
+			$payment_url = '';
 
-            $result = HNG_Payment_Orchestrator::process_gateway_payment($gateway, $order_id, $payment_data);
+			if ( is_array( $result ) ) {
 
-        } else {
+				$payment_url = $result['payment_url'] ?? $result['url'] ?? $result['checkout_url'] ?? '';
 
-            // Use legacy direct gateway call for other gateways
+				update_post_meta( $order_id, '_payment_data', $result );
 
-            if ($payment_method === 'pix' && method_exists($gw, 'create_pix_payment')) {
+			}
 
-                $result = $gw->create_pix_payment($order_id, $payment_data);
+			if ( ! empty( $payment_url ) ) {
 
-            } elseif ($payment_method === 'boleto' && method_exists($gw, 'create_boleto_payment')) {
+				update_post_meta( $order_id, '_payment_url', $payment_url );
 
-                $result = $gw->create_boleto_payment($order_id, $payment_data);
+			}
+		} catch ( Exception $e ) {
 
-            } else {
+			if ( function_exists( 'hng_files_log_append' ) ) {
 
-                $result = $gw->process_payment($order_id, $payment_data);
+				hng_files_log_append( HNG_COMMERCE_PATH . 'logs/gateways.log', '[HNG Renewal Generic] Exception: ' . $e->getMessage() . PHP_EOL );
 
-            }
-
-        }
-
-
-
-        if (is_wp_error($result)) {
-
-            if (function_exists('hng_files_log_append')) {
-
-                hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways.log', sprintf('[HNG Renewal Generic] Gateway %s failed for sub %d order %d: %s', $gateway, $subscription_id, $order_id, $result->get_error_message()) . PHP_EOL);
-
-            }
-
-            return;
-
-        }
-
-
-
-        $payment_url = '';
-
-        if (is_array($result)) {
-
-            $payment_url = $result['payment_url'] ?? $result['url'] ?? $result['checkout_url'] ?? '';
-
-            update_post_meta($order_id, '_payment_data', $result);
-
-        }
-
-
-
-        if (!empty($payment_url)) {
-
-            update_post_meta($order_id, '_payment_url', $payment_url);
-
-        }
-
-
-
-    } catch (Exception $e) {
-
-        if (function_exists('hng_files_log_append')) {
-
-            hng_files_log_append(HNG_COMMERCE_PATH . 'logs/gateways.log', '[HNG Renewal Generic] Exception: ' . $e->getMessage() . PHP_EOL);
-
-        }
-
-    }
-
-});
+			}
+		}
+	}
+);

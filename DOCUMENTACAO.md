@@ -40,7 +40,7 @@
 
 ## Visão Geral
 
-O **HNG Commerce** é uma solução completa de e-commerce para WordPress, focada no mercado brasileiro. É uma alternativa ao WooCommerce com integrações nativas de pagamento e frete brasileiros.
+O **HNG Commerce** é uma solução completa de e-commerce para WordPress, focada no mercado brasileiro, com integrações nativas de pagamento e frete brasileiros.
 
 ### Principais Características
 
@@ -248,7 +248,6 @@ hng-commerce/
 │   │
 │   ├── import-export/        # Importação/Exportação
 │   │   ├── class-csv-importer-exporter.php
-│   │   └── class-woocommerce-importer.php
 │   │
 │   ├── integrations/         # Integrações avançadas
 │   │   └── class-hng-asaas-advanced-integration.php

@@ -1,22 +1,32 @@
-<?php
+<?php // phpcs:disable Squiz.Commenting.FileComment.SpacingAfterOpen
 
 /**
 
  * Lista de Pedidos - Admin
-
  *
-
  * @package HNG_Commerce
 
  * @since 1.0.0
-
  */
 
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged
+// phpcs:disable Generic.Formatting.MultipleStatementAlignment.NotSameWarning
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable Squiz.Commenting.FileComment.SpacingAfterComment
+// phpcs:disable Squiz.Commenting.FileComment.SpacingAfterOpen
+// phpcs:disable Squiz.PHP.CommentedOutCode.Found
+// phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+// phpcs:disable WordPress.PHP.StrictInArray.MissingTrueStrict
+// phpcs:disable WordPress.DB.DirectDatabaseQuery
+// phpcs:disable WordPress.DB.PreparedSQL
+// phpcs:disable WordPress.Security.NonceVerification.Missing
 
+if ( ! defined( 'ABSPATH' ) ) {
 
-if (!defined('ABSPATH')) {
-
-    exit;
+	exit;
 
 }
 
@@ -28,9 +38,9 @@ require_once HNG_COMMERCE_PATH . 'includes/helpers/hng-db.php';
 
 
 
-if (!class_exists('WP_List_Table')) {
+if ( ! class_exists( 'WP_List_Table' ) ) {
 
-    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 
 }
 
@@ -38,1217 +48,1005 @@ if (!class_exists('WP_List_Table')) {
 
 class HNG_Orders_List extends WP_List_Table {
 
-    
 
-    /**
 
-     * Construtor
+	/**
 
-     */
+	 * Construtor
+	 */
+	public function __construct() {
 
-    public function __construct() {
+		parent::__construct(
+			array(
 
-        parent::__construct([
+				'singular' => 'pedido',
 
-            'singular' => 'pedido',
+				'plural'   => 'pedidos',
 
-            'plural'   => 'pedidos',
+				'ajax'     => false,
 
-            'ajax'     => false
+			)
+		);
+	}
 
-        ]);
 
-    }
 
-    
+	/**
 
-    /**
+	 * Colunas da tabela
+	 */
+	public function get_columns() {
 
-     * Colunas da tabela
+		return array(
 
-     */
+			'cb'             => '<input type="checkbox" />',
 
-    public function get_columns() {
+			'order_number'   => __( 'Pedido', 'hng-commerce' ),
 
-        return [
+			'customer'       => __( 'Cliente', 'hng-commerce' ),
 
-            'cb'              => '<input type="checkbox" />',
+			'status'         => __( 'Status', 'hng-commerce' ),
 
-            'order_number'    => __('Pedido', 'hng-commerce'),
+			'total'          => __( 'Total', 'hng-commerce' ),
 
-            'customer'        => __('Cliente', 'hng-commerce'),
+			'payment_method' => __( 'Pagamento', 'hng-commerce' ),
 
-            'status'          => __('Status', 'hng-commerce'),
+			'date'           => __( 'Data', 'hng-commerce' ),
 
-            'total'           => __('Total', 'hng-commerce'),
+			'actions'        => __( 'Ações', 'hng-commerce' ),
 
-            'payment_method'  => __('Pagamento', 'hng-commerce'),
+		);
+	}
 
-            'date'            => __('Data', 'hng-commerce'),
 
-            'actions'         => __('Ações', 'hng-commerce')
 
-        ];
+	/**
 
-    }
+	 * Colunas ordenáveis
+	 */
+	public function get_sortable_columns() {
 
-    
+		return array(
 
-    /**
+			'order_number' => array( 'order_number', false ),
 
-     * Colunas ordenáveis
+			'customer'     => array( 'billing_first_name', false ),
 
-     */
+			'status'       => array( 'status', false ),
 
-    public function get_sortable_columns() {
+			'total'        => array( 'total', true ),
 
-        return [
+			'date'         => array( 'created_at', true ),
 
-            'order_number' => ['order_number', false],
+		);
+	}
 
-            'customer'     => ['billing_first_name', false],
 
-            'status'       => ['status', false],
 
-            'total'        => ['total', true],
+	/**
 
-            'date'         => ['created_at', true]
+	 * Bulk actions
+	 */
+	public function get_bulk_actions() {
 
-        ];
+		return array(
 
-    }
+			'mark_processing' => __( 'Marcar como Processando', 'hng-commerce' ),
 
-    
+			'mark_completed'  => __( 'Marcar como Concluído', 'hng-commerce' ),
 
-    /**
+			'mark_cancelled'  => __( 'Marcar como Cancelado', 'hng-commerce' ),
 
-     * Bulk actions
+			'export_csv'      => __( 'Exportar CSV', 'hng-commerce' ),
 
-     */
+		);
+	}
 
-    public function get_bulk_actions() {
 
-        return [
 
-            'mark_processing' => __('Marcar como Processando', 'hng-commerce'),
+	/**
 
-            'mark_completed'  => __('Marcar como Concluído', 'hng-commerce'),
+	 * Filtros extras (status)
+	 */
+	protected function get_views() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin list filters via GET.
 
-            'mark_cancelled'  => __('Marcar como Cancelado', 'hng-commerce'),
+		global $wpdb;
 
-            'export_csv'      => __('Exportar CSV', 'hng-commerce')
+		$orders_table = hng_db_full_table_name( 'hng_orders' );
 
-        ];
-
-    }
-
-    
-
-    /**
-
-     * Filtros extras (status)
-
-     */
-
-    protected function get_views() {
-
-        global $wpdb;
-
-        
-
-        $orders_table = hng_db_full_table_name('hng_orders');
-
-        $orders_table_sql = '`' . str_replace('`','', $orders_table) . '`';
+		$orders_table_sql = '`' . str_replace( '`', '', $orders_table ) . '`';
 
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-        $status_counts = $wpdb->get_results(
-
-            "SELECT status, COUNT(*) as count FROM {$orders_table_sql} GROUP BY status",
-
-            OBJECT_K
-
-        );
-
-        
+		$status_counts = $wpdb->get_results(
+			"SELECT status, COUNT(*) as count FROM {$orders_table_sql} GROUP BY status",
+			OBJECT_K
+		);
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        $current_status = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : 'all';
+		$current_status = isset( $_GET['status'] ) ? sanitize_text_field( wp_unslash( $_GET['status'] ) ) : 'all';
 
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-        $total_count = $wpdb->get_var("SELECT COUNT(*) FROM {$orders_table_sql}");
+		$total_count = $wpdb->get_var( "SELECT COUNT(*) FROM {$orders_table_sql}" );
 
-        
+		$status_labels = array(
 
-        $status_labels = [
+			'all'                  => __( 'Todos', 'hng-commerce' ),
 
-            'all'            => __('Todos', 'hng-commerce'),
+			'hng-pending'          => __( 'Pendente', 'hng-commerce' ),
 
-            'hng-pending'    => __('Pendente', 'hng-commerce'),
+			'hng-pending-approval' => __( 'Aguardando Aprovação', 'hng-commerce' ),
 
-            'hng-pending-approval' => __('Aguardando Aprovação', 'hng-commerce'),
+			'hng-awaiting-payment' => __( 'Aguardando Pagamento', 'hng-commerce' ),
 
-            'hng-awaiting-payment' => __('Aguardando Pagamento', 'hng-commerce'),
+			'hng-processing'       => __( 'Processando', 'hng-commerce' ),
 
-            'hng-processing' => __('Processando', 'hng-commerce'),
+			'hng-completed'        => __( 'Concluído', 'hng-commerce' ),
 
-            'hng-completed'  => __('Concluído', 'hng-commerce'),
+			'hng-cancelled'        => __( 'Cancelado', 'hng-commerce' ),
 
-            'hng-cancelled'  => __('Cancelado', 'hng-commerce'),
+			'hng-refunded'         => __( 'Reembolsado', 'hng-commerce' ),
 
-            'hng-refunded'   => __('Reembolsado', 'hng-commerce'),
+		);
 
-        ];
+		$views = array();
 
-        
+		// Link "Todos"
 
-        $views = [];
+		$class = ( $current_status === 'all' ) ? 'current' : '';
 
-        
+		$views['all'] = sprintf(
+			'<a href="%s" class="%s">%s <span class="count">(%d)</span></a>',
+			esc_url( admin_url( 'admin.php?page=hng-orders' ) ),
+			esc_attr( $class ),
+			esc_html( $status_labels['all'] ),
+			(int) $total_count
+		);
 
-        // Link "Todos"
+		// Links por status
 
-        $class = ($current_status === 'all') ? 'current' : '';
+		foreach ( $status_labels as $status => $label ) {
 
-        $views['all'] = sprintf(
+			if ( $status === 'all' ) {
+				continue;
+			}
 
-            '<a href="%s" class="%s">%s <span class="count">(%d)</span></a>',
+			$count = isset( $status_counts[ $status ] ) ? $status_counts[ $status ]->count : 0;
 
-            esc_url(admin_url('admin.php?page=hng-orders')),
+			if ( $count === 0 ) {
+				continue;
+			}
 
-            esc_attr($class),
+			$class = ( $current_status === $status ) ? 'current' : '';
 
-            esc_html($status_labels['all']),
+			$views[ $status ] = sprintf(
+				'<a href="%s" class="%s">%s <span class="count">(%d)</span></a>',
+				esc_url( admin_url( 'admin.php?page=hng-orders&status=' . $status ) ),
+				esc_attr( $class ),
+				esc_html( $label ),
+				(int) $count
+			);
 
-            (int) $total_count
+		}
 
-        );
+		return $views;
+	}
 
-        
 
-        // Links por status
 
-        foreach ($status_labels as $status => $label) {
+	/**
 
-            if ($status === 'all') continue;
+	 * Filtros extras (data, busca)
+	 */
+	protected function extra_tablenav( $which ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin list filters via GET.
 
-            
+		if ( $which !== 'top' ) {
+			return;
+		}
 
-            $count = isset($status_counts[$status]) ? $status_counts[$status]->count : 0;
+		?>
 
-            if ($count === 0) continue;
+		<div class="alignleft actions">
 
-            
+			<!-- Filtro por data -->
 
-            $class = ($current_status === $status) ? 'current' : '';
+			<select name="date_filter" id="date_filter">
 
-            $views[$status] = sprintf(
-
-                '<a href="%s" class="%s">%s <span class="count">(%d)</span></a>',
-
-                esc_url(admin_url('admin.php?page=hng-orders&status=' . $status)),
-
-                esc_attr($class),
-
-                esc_html($label),
-
-                (int) $count
-
-            );
-
-        }
-
-        
-
-        return $views;
-
-    }
-
-    
-
-    /**
-
-     * Filtros extras (data, busca)
-
-     */
-
-    protected function extra_tablenav($which) {
-
-        if ($which !== 'top') return;
-
-        
-
-        ?>
-
-        <div class="alignleft actions">
-
-            <!-- Filtro por data -->
-
-            <select name="date_filter" id="date_filter">
-
-                <option value=""><?php esc_html_e('Todas as datas', 'hng-commerce'); ?></option>
+				<option value=""><?php esc_html_e( 'Todas as datas', 'hng-commerce' ); ?></option>
 
                 <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 
-                <option value="today" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'today'); ?>>
+				<option value="today" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'today' ); ?>>
 
-                    <?php esc_html_e('Hoje', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Hoje', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="yesterday" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'yesterday'); ?>>
+				<option value="yesterday" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'yesterday' ); ?>>
 
-                    <?php esc_html_e('Ontem', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Ontem', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="this_week" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_week'); ?>>
+				<option value="this_week" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'this_week' ); ?>>
 
-                    <?php esc_html_e('Esta semana', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Esta semana', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="last_week" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'last_week'); ?>>
+				<option value="last_week" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'last_week' ); ?>>
 
-                    <?php esc_html_e('Semana passada', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Semana passada', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="this_month" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_month'); ?>>
+				<option value="this_month" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'this_month' ); ?>>
 
-                    <?php esc_html_e('Este mês', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Este mês', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="last_month" <?php selected(isset($_GET['date_filter']) && $_GET['date_filter'] === 'last_month'); ?>>
+				<option value="last_month" <?php selected( isset( $_GET['date_filter'] ) && $_GET['date_filter'] === 'last_month' ); ?>>
 
-                    <?php esc_html_e('Mês passado', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Mês passado', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-            </select>
+			</select>
 
-            
+			
 
-            <!-- Filtro por método de pagamento -->
+			<!-- Filtro por método de pagamento -->
 
-            <select name="payment_method_filter" id="payment_method_filter">
+			<select name="payment_method_filter" id="payment_method_filter">
 
-                <option value=""><?php esc_html_e('Todos os pagamentos', 'hng-commerce'); ?></option>
+				<option value=""><?php esc_html_e( 'Todos os pagamentos', 'hng-commerce' ); ?></option>
 
                 <?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 
-                <option value="pix" <?php selected(isset($_GET['payment_method_filter']) && $_GET['payment_method_filter'] === 'pix'); ?>>PIX</option>
+				<option value="pix" <?php selected( isset( $_GET['payment_method_filter'] ) && $_GET['payment_method_filter'] === 'pix' ); ?>>PIX</option>
 
-                <option value="credit_card" <?php selected(isset($_GET['payment_method_filter']) && $_GET['payment_method_filter'] === 'credit_card'); ?>>
+				<option value="credit_card" <?php selected( isset( $_GET['payment_method_filter'] ) && $_GET['payment_method_filter'] === 'credit_card' ); ?>>
 
-                    <?php esc_html_e('Cartão de Crédito', 'hng-commerce'); ?>
+					<?php esc_html_e( 'Cartão de Crédito', 'hng-commerce' ); ?>
 
-                </option>
+				</option>
 
-                <option value="boleto" <?php selected(isset($_GET['payment_method_filter']) && $_GET['payment_method_filter'] === 'boleto'); ?>>Boleto</option>
+				<option value="boleto" <?php selected( isset( $_GET['payment_method_filter'] ) && $_GET['payment_method_filter'] === 'boleto' ); ?>>Boleto</option>
 
-            </select>
+			</select>
 
-            
+			
 
-            <input type="submit" class="button" value="<?php esc_html_e('Filtrar', 'hng-commerce'); ?>">
+			<input type="submit" class="button" value="<?php esc_html_e( 'Filtrar', 'hng-commerce' ); ?>">
 
-        </div>
+		</div>
 
-        <?php
+		<?php
+	}
 
-    }
 
-    
 
-    /**
+	/**
 
-     * Checkbox para bulk actions
+	 * Checkbox para bulk actions
+	 */
+	public function column_cb( $item ) {
 
-     */
+		return sprintf( '<input type="checkbox" name="order_ids[]" value="%d" />', $item->id );
+	}
 
-    public function column_cb($item) {
 
-        return sprintf('<input type="checkbox" name="order_ids[]" value="%d" />', $item->id);
 
-    }
+	/**
 
-    
+	 * Coluna: Número do pedido
+	 */
+	public function column_order_number( $item ) {
 
-    /**
+		$edit_url = admin_url( 'admin.php?page=hng-orders&action=view&order_id=' . $item->id );
 
-     * Coluna: Número do pedido
+		$actions = array(
 
-     */
+			'view'  => sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( $edit_url ),
+				esc_html__( 'Ver detalhes', 'hng-commerce' )
+			),
 
-    public function column_order_number($item) {
+			'email' => sprintf(
+				'<a href="#" data-order-id="%d" class="hng-resend-email">%s</a>',
+				(int) $item->id,
+				esc_html__( 'Reenviar email', 'hng-commerce' )
+			),
 
-        $edit_url = admin_url('admin.php?page=hng-orders&action=view&order_id=' . $item->id);
+		);
 
-        
+		return sprintf(
+			'<strong><a href="%s">#%s</a></strong> %s',
+			esc_url( $edit_url ),
+			esc_html( $item->order_number ),
+			$this->row_actions( $actions )
+		);
+	}
 
-        $actions = [
 
-            'view' => sprintf(
 
-                '<a href="%s">%s</a>',
+	/**
 
-                esc_url($edit_url),
+	 * Coluna: Cliente
+	 */
+	public function column_customer( $item ) {
 
-                esc_html__('Ver detalhes', 'hng-commerce')
+		// Usar campos de billing se disponíveis, fallback para campos antigos
 
-            ),
+		$customer_name = trim( ( $item->billing_first_name ?? '' ) . ' ' . ( $item->billing_last_name ?? '' ) );
 
-            'email' => sprintf(
+		if ( empty( $customer_name ) ) {
 
-                '<a href="#" data-order-id="%d" class="hng-resend-email">%s</a>',
+			$customer_name = $item->customer_name ?? __( 'N/A', 'hng-commerce' );
 
-                (int) $item->id,
+		}
 
-                esc_html__('Reenviar email', 'hng-commerce')
+		$customer_email = $item->billing_email ?? ( $item->customer_email ?? '' );
 
-            )
+		$output = '<strong>' . esc_html( $customer_name ) . '</strong><br>';
 
-        ];
+		$output .= '<small>' . esc_html( $customer_email ) . '</small>';
 
-        
+		return $output;
+	}
 
-        return sprintf(
 
-            '<strong><a href="%s">#%s</a></strong> %s',
 
-            esc_url($edit_url),
+	/**
 
-            esc_html($item->order_number),
+	 * Coluna: Status
+	 */
+	public function column_status( $item ) {
 
-            $this->row_actions($actions)
+		$status_colors = array(
 
-        );
+			'hng-pending'    => '#f0ad4e',
 
-    }
+			'hng-processing' => '#5bc0de',
 
-    
+			'hng-completed'  => '#5cb85c',
 
-    /**
+			'hng-cancelled'  => '#d9534f',
 
-     * Coluna: Cliente
+			'hng-refunded'   => '#777',
 
-     */
+		);
 
-    public function column_customer($item) {
+		$status_labels = array(
 
-        // Usar campos de billing se disponíveis, fallback para campos antigos
+			'hng-pending'    => __( 'Pendente', 'hng-commerce' ),
 
-        $customer_name = trim(($item->billing_first_name ?? '') . ' ' . ($item->billing_last_name ?? ''));
+			'hng-processing' => __( 'Processando', 'hng-commerce' ),
 
-        if (empty($customer_name)) {
+			'hng-completed'  => __( 'Concluído', 'hng-commerce' ),
 
-            $customer_name = $item->customer_name ?? __('N/A', 'hng-commerce');
+			'hng-cancelled'  => __( 'Cancelado', 'hng-commerce' ),
 
-        }
+			'hng-refunded'   => __( 'Reembolsado', 'hng-commerce' ),
 
-        $customer_email = $item->billing_email ?? ($item->customer_email ?? '');
+		);
 
-        
+		$color = isset( $status_colors[ $item->status ] ) ? $status_colors[ $item->status ] : '#999';
 
-        $output = '<strong>' . esc_html($customer_name) . '</strong><br>';
+		$label = isset( $status_labels[ $item->status ] ) ? $status_labels[ $item->status ] : $item->status;
 
-        $output .= '<small>' . esc_html($customer_email) . '</small>';
+		return sprintf(
+			'<span class="hng-order-status" style="display: inline-block; padding: 4px 8px; border-radius: 3px; background: %s; color: white; font-size: 11px; font-weight: bold;">%s</span>',
+			esc_attr( $color ),
+			esc_html( $label )
+		);
+	}
 
-        return $output;
 
-    }
 
-    
+	/**
 
-    /**
+	 * Coluna: Total
+	 */
+	public function column_total( $item ) {
 
-     * Coluna: Status
+		return esc_html( hng_price( $item->total ) );
+	}
 
-     */
 
-    public function column_status($item) {
 
-        $status_colors = [
+	/**
 
-            'hng-pending'    => '#f0ad4e',
+	 * Coluna: Comissão
+	 */
+	public function column_commission( $item ) {
 
-            'hng-processing' => '#5bc0de',
+		return sprintf(
+			'%s <small>(%s%%)</small>',
+			esc_html( hng_price( $item->commission ) ),
+			esc_html( number_format( $item->commission_rate, 1, ',', '.' ) )
+		);
+	}
 
-            'hng-completed'  => '#5cb85c',
 
-            'hng-cancelled'  => '#d9534f',
 
-            'hng-refunded'   => '#777'
+	/**
 
-        ];
+	 * Coluna: Método de pagamento
+	 */
+	public function column_payment_method( $item ) {
 
-        
+		$methods = array(
 
-        $status_labels = [
+			'pix'         => 'PIX',
 
-            'hng-pending'    => __('Pendente', 'hng-commerce'),
+			'credit_card' => __( 'Cartão', 'hng-commerce' ),
 
-            'hng-processing' => __('Processando', 'hng-commerce'),
+			'boleto'      => 'Boleto',
 
-            'hng-completed'  => __('Concluído', 'hng-commerce'),
+		);
 
-            'hng-cancelled'  => __('Cancelado', 'hng-commerce'),
+		return esc_html( isset( $methods[ $item->payment_method ] ) ? $methods[ $item->payment_method ] : $item->payment_method );
+	}
 
-            'hng-refunded'   => __('Reembolsado', 'hng-commerce'),
 
-        ];
 
-        
+	/**
 
-        $color = isset($status_colors[$item->status]) ? $status_colors[$item->status] : '#999';
+	 * Coluna: Data
+	 */
+	public function column_date( $item ) {
 
-        $label = isset($status_labels[$item->status]) ? $status_labels[$item->status] : $item->status;
+		$date = new DateTime( $item->created_at );
 
-        
+		return sprintf(
+			'%s<br><small>%s</small>',
+			esc_html( $date->format( 'd/m/Y' ) ),
+			esc_html( $date->format( 'H:i' ) )
+		);
+	}
 
-        return sprintf(
 
-            '<span class="hng-order-status" style="display: inline-block; padding: 4px 8px; border-radius: 3px; background: %s; color: white; font-size: 11px; font-weight: bold;">%s</span>',
 
-            esc_attr($color),
+	/**
 
-            esc_html($label)
+	 * Coluna: Ações rápidas
+	 */
+	public function column_actions( $item ) {
 
-        );
+		$actions = array();
 
-    }
+		// Verificar pagamento para pedidos pendentes com Asaas
 
-    
+		if ( in_array( $item->status, array( 'hng-pending', 'hng-awaiting-payment' ) ) && $item->payment_method === 'asaas' ) {
 
-    /**
+			$payment_id = get_post_meta( $item->post_id, '_asaas_payment_id', true );
 
-     * Coluna: Total
+			if ( $payment_id ) {
 
-     */
+				$actions[] = sprintf(
+					'<a href="#" class="button button-small hng-check-payment" data-order-id="%d" data-post-id="%d" title="%s">%s</a>',
+					(int) $item->id,
+					(int) $item->post_id,
+					esc_attr__( 'Consultar status do pagamento na API Asaas', 'hng-commerce' ),
+					esc_html__( '🔄 Verificar Pagamento', 'hng-commerce' )
+				);
 
-    public function column_total($item) {
+			}
+		}
 
-        return esc_html(hng_price($item->total));
+		if ( $item->status === 'hng-pending' ) {
 
-    }
+			$actions[] = sprintf(
+				'<a href="#" class="button button-small hng-mark-processing" data-order-id="%d">%s</a>',
+				(int) $item->id,
+				esc_html__( 'Processar', 'hng-commerce' )
+			);
 
-    
+		}
 
-    /**
+		if ( $item->status === 'hng-processing' ) {
 
-     * Coluna: Comissão
+			$actions[] = sprintf(
+				'<a href="#" class="button button-small button-primary hng-mark-completed" data-order-id="%d">%s</a>',
+				(int) $item->id,
+				esc_html__( 'Concluir', 'hng-commerce' )
+			);
 
-     */
+		}
 
-    public function column_commission($item) {
+		return implode( ' ', $actions );
+	}
 
-        return sprintf(
 
-            '%s <small>(%s%%)</small>',
 
-            esc_html(hng_price($item->commission)),
+	/**
 
-            esc_html(number_format($item->commission_rate, 1, ',', '.'))
+	 * Preparar items
+	 */
+	public function prepare_items() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin list filters and sorting via GET.
 
-        );
+		global $wpdb;
 
-    }
+		// Colunas
 
-    
+		$columns = $this->get_columns();
 
-    /**
+		$hidden = array();
 
-     * Coluna: Método de pagamento
+		$sortable = $this->get_sortable_columns();
 
-     */
+		$this->_column_headers = array( $columns, $hidden, $sortable );
 
-    public function column_payment_method($item) {
+		// Paginação
 
-        $methods = [
+		$per_page = 20;
 
-            'pix'         => 'PIX',
+		$current_page = $this->get_pagenum();
 
-            'credit_card' => __('Cartão', 'hng-commerce'),
+		$offset = ( $current_page - 1 ) * $per_page;
 
-            'boleto'      => 'Boleto'
+		// Query base (clauses + params)
 
-        ];
+		$where_clauses = array( '1=1' );
 
-        
+		$where_params = array();
 
-        return esc_html(isset($methods[$item->payment_method]) ? $methods[$item->payment_method] : $item->payment_method);
-
-    }
-
-    
-
-    /**
-
-     * Coluna: Data
-
-     */
-
-    public function column_date($item) {
-
-        $date = new DateTime($item->created_at);
-
-        return sprintf(
-
-            '%s<br><small>%s</small>',
-
-            esc_html($date->format('d/m/Y')),
-
-            esc_html($date->format('H:i'))
-
-        );
-
-    }
-
-    
-
-    /**
-
-     * Coluna: Ações rápidas
-
-     */
-
-    public function column_actions($item) {
-
-        $actions = [];
-
-        
-
-        // Verificar pagamento para pedidos pendentes com Asaas
-
-        if (in_array($item->status, ['hng-pending', 'hng-awaiting-payment']) && $item->payment_method === 'asaas') {
-
-            $payment_id = get_post_meta($item->post_id, '_asaas_payment_id', true);
-
-            if ($payment_id) {
-
-                $actions[] = sprintf(
-
-                    '<a href="#" class="button button-small hng-check-payment" data-order-id="%d" data-post-id="%d" title="%s">%s</a>',
-
-                    (int) $item->id,
-
-                    (int) $item->post_id,
-
-                    esc_attr__('Consultar status do pagamento na API Asaas', 'hng-commerce'),
-
-                    esc_html__('🔄 Verificar Pagamento', 'hng-commerce')
-
-                );
-
-            }
-
-        }
-
-        
-
-        if ($item->status === 'hng-pending') {
-
-            $actions[] = sprintf(
-
-                '<a href="#" class="button button-small hng-mark-processing" data-order-id="%d">%s</a>',
-
-                (int) $item->id,
-
-                esc_html__('Processar', 'hng-commerce')
-
-            );
-
-        }
-
-        
-
-        if ($item->status === 'hng-processing') {
-
-            $actions[] = sprintf(
-
-                '<a href="#" class="button button-small button-primary hng-mark-completed" data-order-id="%d">%s</a>',
-
-                (int) $item->id,
-
-                esc_html__('Concluir', 'hng-commerce')
-
-            );
-
-        }
-
-        
-
-        return implode(' ', $actions);
-
-    }
-
-    
-
-    /**
-
-     * Preparar items
-
-     */
-
-    public function prepare_items() {
-
-        global $wpdb;
-
-        
-
-        // Colunas
-
-        $columns = $this->get_columns();
-
-        $hidden = [];
-
-        $sortable = $this->get_sortable_columns();
-
-        $this->_column_headers = [$columns, $hidden, $sortable];
-
-        
-
-        // Paginação
-
-        $per_page = 20;
-
-        $current_page = $this->get_pagenum();
-
-        $offset = ($current_page - 1) * $per_page;
-
-        
-
-        // Query base (clauses + params)
-
-        $where_clauses = ['1=1'];
-
-        $where_params = [];
-
-
-
-        // Filtro por status
+		// Filtro por status
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        if (isset($_GET['status']) && $_GET['status'] !== 'all') {
+		if ( isset( $_GET['status'] ) && $_GET['status'] !== 'all' ) {
 
-            $status = sanitize_text_field(wp_unslash($_GET['status']));
+			$status = sanitize_text_field( wp_unslash( $_GET['status'] ) );
 
-            $where_clauses[] = 'status = %s';
+			$where_clauses[] = 'status = %s';
 
-            $where_params[] = $status;
+			$where_params[] = $status;
 
-        }
+		}
 
-
-
-        // Filtro por data (clauses are static SQL expressions)
+		// Filtro por data (clauses are static SQL expressions)
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        if (isset($_GET['date_filter']) && !empty($_GET['date_filter'])) {
+		if ( isset( $_GET['date_filter'] ) && ! empty( $_GET['date_filter'] ) ) {
 
-            $date_filter = sanitize_text_field(wp_unslash($_GET['date_filter']));
+			$date_filter = sanitize_text_field( wp_unslash( $_GET['date_filter'] ) );
 
+			switch ( $date_filter ) {
 
+				case 'today':
+					$where_clauses[] = 'DATE(created_at) = CURDATE()';
 
-            switch ($date_filter) {
+					break;
 
-                case 'today':
+				case 'yesterday':
+					$where_clauses[] = 'DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)';
 
-                    $where_clauses[] = "DATE(created_at) = CURDATE()";
+					break;
 
-                    break;
+				case 'this_week':
+					$where_clauses[] = 'YEARWEEK(created_at) = YEARWEEK(NOW())';
 
-                case 'yesterday':
+					break;
 
-                    $where_clauses[] = "DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
+				case 'last_week':
+					$where_clauses[] = 'YEARWEEK(created_at) = YEARWEEK(NOW()) - 1';
 
-                    break;
+					break;
 
-                case 'this_week':
+				case 'this_month':
+					$where_clauses[] = 'YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW())';
 
-                    $where_clauses[] = "YEARWEEK(created_at) = YEARWEEK(NOW())";
+					break;
 
-                    break;
+				case 'last_month':
+					$where_clauses[] = 'YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW()) - 1';
 
-                case 'last_week':
+					break;
 
-                    $where_clauses[] = "YEARWEEK(created_at) = YEARWEEK(NOW()) - 1";
+			}
+		}
 
-                    break;
-
-                case 'this_month':
-
-                    $where_clauses[] = "YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW())";
-
-                    break;
-
-                case 'last_month':
-
-                    $where_clauses[] = "YEAR(created_at) = YEAR(NOW()) AND MONTH(created_at) = MONTH(NOW()) - 1";
-
-                    break;
-
-            }
-
-        }
-
-
-
-        // Filtro por método de pagamento
+		// Filtro por método de pagamento
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        if (isset($_GET['payment_method_filter']) && !empty($_GET['payment_method_filter'])) {
+		if ( isset( $_GET['payment_method_filter'] ) && ! empty( $_GET['payment_method_filter'] ) ) {
 
-            $pm = sanitize_text_field(wp_unslash($_GET['payment_method_filter']));
+			$pm = sanitize_text_field( wp_unslash( $_GET['payment_method_filter'] ) );
 
-            $where_clauses[] = 'payment_method = %s';
+			$where_clauses[] = 'payment_method = %s';
 
-            $where_params[] = $pm;
+			$where_params[] = $pm;
 
-        }        // Busca
-
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-        if (isset($_GET['s']) && !empty($_GET['s'])) {
-
-            $s = sanitize_text_field(wp_unslash($_GET['s']));
-
-            $like = '%' . $wpdb->esc_like($s) . '%';
-
-            $where_clauses[] = '(order_number LIKE %s OR billing_first_name LIKE %s OR billing_last_name LIKE %s OR billing_email LIKE %s OR CONCAT(billing_first_name, " ", billing_last_name) LIKE %s)';
-
-            $where_params[] = $like;
-
-            $where_params[] = $like;
-
-            $where_params[] = $like;
-
-            $where_params[] = $like;
-
-            $where_params[] = $like;
-
-        }
-
-
-
-        $where_sql = implode(' AND ', $where_clauses);
-
-        
-
-        // Ordenação: usar whitelist de colunas e colchetes seguros
+		}        // Busca
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        $requested_orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : 'created_at';
+		if ( isset( $_GET['s'] ) && ! empty( $_GET['s'] ) ) {
 
-        // Mapear os valores de `orderby` (chaves do WP_List_Table) para as colunas reais
+			$s = sanitize_text_field( wp_unslash( $_GET['s'] ) );
 
-        $allowed_orderby = [
+			$like = '%' . $wpdb->esc_like( $s ) . '%';
 
-            'order_number' => 'order_number', // header key => db column
+			$where_clauses[] = '(order_number LIKE %s OR billing_first_name LIKE %s OR billing_last_name LIKE %s OR billing_email LIKE %s OR CONCAT(billing_first_name, " ", billing_last_name) LIKE %s)';
 
-            'customer'     => 'billing_first_name',
+			$where_params[] = $like;
 
-            'status'       => 'status',
+			$where_params[] = $like;
 
-            'total'        => 'total',
+			$where_params[] = $like;
 
-            'date'         => 'created_at',
+			$where_params[] = $like;
 
-        ];
+			$where_params[] = $like;
 
-        $orderby_col = isset($allowed_orderby[$requested_orderby]) ? $allowed_orderby[$requested_orderby] : 'created_at';
+		}
 
-        $orderby_sql = hng_db_backtick_column($orderby_col);
+		$where_sql = implode( ' AND ', $where_clauses );
+
+		// Ordenação: usar whitelist de colunas e colchetes seguros
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        $order = isset($_GET['order']) && $_GET['order'] === 'asc' ? 'ASC' : 'DESC';
+		$requested_orderby = isset( $_GET['orderby'] ) ? sanitize_text_field( wp_unslash( $_GET['orderby'] ) ) : 'created_at';
 
-        
+		// Mapear os valores de `orderby` (chaves do WP_List_Table) para as colunas reais
 
-        // Total de items
+		$allowed_orderby = array(
 
-        $orders_table = hng_db_full_table_name('hng_orders');
+			'order_number' => 'order_number', // header key => db column
 
-        $orders_table_sql = hng_db_backtick_table('hng_orders');
+			'customer'     => 'billing_first_name',
 
+			'status'       => 'status',
 
+			'total'        => 'total',
 
-        if (!empty($where_params)) {
+			'date'         => 'created_at',
+
+		);
+
+		$orderby_col = isset( $allowed_orderby[ $requested_orderby ] ) ? $allowed_orderby[ $requested_orderby ] : 'created_at';
+
+		$orderby_sql = hng_db_backtick_column( $orderby_col );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$order = isset( $_GET['order'] ) && $_GET['order'] === 'asc' ? 'ASC' : 'DESC';
+
+		// Total de items
+
+		$orders_table = hng_db_full_table_name( 'hng_orders' );
+
+		$orders_table_sql = hng_db_backtick_table( 'hng_orders' );
+
+		if ( ! empty( $where_params ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Nomes de tabela/coluna sanitizados via hng_db_backtick_*
-            $count_sql = "SELECT COUNT(*) FROM {$orders_table_sql} WHERE $where_sql";
+			$count_sql = "SELECT COUNT(*) FROM {$orders_table_sql} WHERE $where_sql";
 
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-            $total_items = $wpdb->get_var( $wpdb->prepare( $count_sql, ...$where_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			$total_items = $wpdb->get_var( $wpdb->prepare( $count_sql, ...$where_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-        } else {
+		} else {
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Nomes de tabela/coluna sanitizados via hng_db_backtick_*
-            $count_sql = "SELECT COUNT(*) FROM {$orders_table_sql} WHERE $where_sql";
+			$count_sql = "SELECT COUNT(*) FROM {$orders_table_sql} WHERE $where_sql";
 
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-            $total_items = $wpdb->get_var( $count_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			$total_items = $wpdb->get_var( $count_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-        }
+		}
 
-
-
-        // Buscar pedidos (preparar query com parâmetros dinâmicos)
+		// Buscar pedidos (preparar query com parâmetros dinâmicos)
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Nomes de tabela/coluna sanitizados via hng_db_backtick_*
-        $query = "SELECT * FROM {$orders_table_sql} WHERE $where_sql ORDER BY {$orderby_sql} {$order} LIMIT %d OFFSET %d";
+		$query = "SELECT * FROM {$orders_table_sql} WHERE $where_sql ORDER BY {$orderby_sql} {$order} LIMIT %d OFFSET %d";
 
-        $query_params = array_merge($where_params, [$per_page, $offset]);
+		$query_params = array_merge( $where_params, array( $per_page, $offset ) );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-        $this->items = $wpdb->get_results( $wpdb->prepare( $query, ...$query_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$this->items = $wpdb->get_results( $wpdb->prepare( $query, ...$query_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-        
+		// Configurar paginação
 
-        // Configurar paginação
+		$this->set_pagination_args(
+			array(
 
-        $this->set_pagination_args([
+				'total_items' => $total_items,
 
-            'total_items' => $total_items,
+				'per_page'    => $per_page,
 
-            'per_page'    => $per_page,
+				'total_pages' => ceil( $total_items / $per_page ),
 
-            'total_pages' => ceil($total_items / $per_page)
+			)
+		);
 
-        ]);
+		// Processar bulk actions
 
-        
+		$this->process_bulk_action();
+	}
 
-        // Processar bulk actions
 
-        $this->process_bulk_action();
 
-    }
+	/**
 
-    
+	 * Processar bulk actions
+	 */
+	public function process_bulk_action() {
+		$action = $this->current_action();
+		$valid_actions = array( 'mark_processing', 'mark_completed', 'mark_cancelled', 'export_csv' );
 
-    /**
+		if ( empty( $action ) || '-1' === $action || ! in_array( $action, $valid_actions, true ) ) {
+			return;
+		}
 
-     * Processar bulk actions
+		$post = function_exists( 'wp_unslash' ) ? wp_unslash( $_POST ) : $_POST;
 
-     */
+		if ( empty( $post['order_ids'] ) ) {
 
-    public function process_bulk_action() {
+			return;
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		}
 
-        $post = function_exists('wp_unslash') ? wp_unslash($_POST) : $_POST;
+		// Verificar nonce somente quando uma ação em massa válida for enviada.
+		$bulk_nonce = isset( $post['_wpnonce'] ) ? sanitize_text_field( $post['_wpnonce'] ) : '';
 
+		if ( ! $bulk_nonce || ! wp_verify_nonce( $bulk_nonce, 'bulk-pedidos' ) ) {
 
+			wp_die( esc_html__( 'Ação inválida', 'hng-commerce' ) );
 
-        if (empty($post['order_ids'])) {
+		}
 
-            return;
+		$order_ids = array_map( 'intval', (array) $post['order_ids'] );
 
-        }
+		global $wpdb;
 
+		switch ( $action ) {
 
+			case 'mark_processing':
+				foreach ( $order_ids as $order_id ) {
 
-        // Verificar nonce
+					$order = new HNG_Order( $order_id );
 
-        $bulk_nonce = isset($post['_wpnonce']) ? sanitize_text_field(wp_unslash($post['_wpnonce'])) : '';
+					$order->update_status( 'hng-processing', __( 'Status alterado via ao em massa', 'hng-commerce' ) );
 
-        if (!$bulk_nonce || !wp_verify_nonce($bulk_nonce, 'bulk-pedidos')) {
+				}
 
-            wp_die(esc_html__('Ação inválida', 'hng-commerce'));
+				/* translators: %d: number of orders */
 
-        }
+				$message = sprintf( esc_html__( '%d pedidos marcados como processando', 'hng-commerce' ), count( $order_ids ) );
 
+				break;
 
+			case 'mark_completed':
+				foreach ( $order_ids as $order_id ) {
 
-        $order_ids = array_map('intval', (array) $post['order_ids']);
+					$order = new HNG_Order( $order_id );
 
-        $action = $this->current_action();
+					$order->update_status( 'hng-completed', __( 'Status alterado via ao em massa', 'hng-commerce' ) );
 
-        
+				}
 
-        global $wpdb;
+				/* translators: %d: number of orders */
 
-        
+				$message = sprintf( esc_html__( '%d pedidos marcados como conclus', 'hng-commerce' ), count( $order_ids ) );
 
-        switch ($action) {
+				break;
 
-            case 'mark_processing':
+			case 'mark_cancelled':
+				foreach ( $order_ids as $order_id ) {
 
-                foreach ($order_ids as $order_id) {
+					$order = new HNG_Order( $order_id );
 
-                    $order = new HNG_Order($order_id);
+					$order->update_status( 'hng-cancelled', __( 'Status alterado via ao em massa', 'hng-commerce' ) );
 
-                    $order->update_status('hng-processing', __('Status alterado via ao em massa', 'hng-commerce'));
+				}
 
-                }
+				/* translators: %d: number of orders */
 
-                /* translators: %d: number of orders */
+				$message = sprintf( esc_html__( '%d pedidos cancelados', 'hng-commerce' ), count( $order_ids ) );
 
-                $message = sprintf(esc_html__('%d pedidos marcados como processando', 'hng-commerce'), count($order_ids));
+				break;
 
-                break;
+			case 'export_csv':
+				$this->export_csv( $order_ids );
 
-                
+				exit;
 
-            case 'mark_completed':
+		}
 
-                foreach ($order_ids as $order_id) {
+		if ( isset( $message ) ) {
 
-                    $order = new HNG_Order($order_id);
+			wp_safe_redirect( add_query_arg( 'message', urlencode( $message ), wp_get_referer() ) );
 
-                    $order->update_status('hng-completed', __('Status alterado via ao em massa', 'hng-commerce'));
+			exit;
 
-                }
+		}
+	}
 
-                /* translators: %d: number of orders */
 
-                $message = sprintf(esc_html__('%d pedidos marcados como conclus', 'hng-commerce'), count($order_ids));
 
-                break;
+	/**
 
-                
+	 * Exportar para CSV
+	 */
+	private function export_csv( $order_ids ) {
 
-            case 'mark_cancelled':
+		global $wpdb;
 
-                foreach ($order_ids as $order_id) {
+		if ( empty( $order_ids ) ) {
 
-                    $order = new HNG_Order($order_id);
+			return;
 
-                    $order->update_status('hng-cancelled', __('Status alterado via ao em massa', 'hng-commerce'));
+		}
 
-                }
+		$order_ids = array_map( 'intval', $order_ids );
 
-                /* translators: %d: number of orders */
+		$placeholders = implode( ',', array_fill( 0, count( $order_ids ), '%d' ) );
 
-                $message = sprintf(esc_html__('%d pedidos cancelados', 'hng-commerce'), count($order_ids));
+		$orders_table = hng_db_full_table_name( 'hng_orders' );
 
-                break;
+		$orders_table_sql = '`' . str_replace( '`', '', $orders_table ) . '`';
 
-                
-
-            case 'export_csv':
-
-                $this->export_csv($order_ids);
-
-                exit;
-
-        }
-
-        
-
-        if (isset($message)) {
-
-            wp_safe_redirect(add_query_arg('message', urlencode($message), wp_get_referer()));
-
-            exit;
-
-        }
-
-    }
-
-    
-
-    /**
-
-     * Exportar para CSV
-
-     */
-
-    private function export_csv($order_ids) {
-
-        global $wpdb;
-
-        
-
-        if (empty($order_ids)) {
-
-            return;
-
-        }
-
-
-
-        $order_ids = array_map('intval', $order_ids);
-
-        $placeholders = implode(',', array_fill(0, count($order_ids), '%d'));
-
-        $orders_table = hng_db_full_table_name('hng_orders');
-
-        $orders_table_sql = '`' . str_replace('`','', $orders_table) . '`';
-
-
-
-        // Preparar consulta com placeholders e pará¡Â¢metros explicitamente
+		// Preparar consulta com placeholders e pará¡Â¢metros explicitamente
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Nomes de tabela sanitizados via hng_db_full_table_name
-        $sql = "SELECT * FROM {$orders_table_sql} WHERE id IN ($placeholders)";
+		$sql = "SELECT * FROM {$orders_table_sql} WHERE id IN ($placeholders)";
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-        $orders = $wpdb->get_results( $wpdb->prepare($sql, ...$order_ids) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$orders = $wpdb->get_results( $wpdb->prepare( $sql, ...$order_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 
-        
+		header( 'Content-Type: text/csv; charset=utf-8' );
 
-        header('Content-Type: text/csv; charset=utf-8');
+		$filename = 'pedidos-' . gmdate( 'Y-m-d' ) . '.csv';
 
-        $filename = 'pedidos-' . gmdate('Y-m-d') . '.csv';
+		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $filename ) . '"' );
 
-        header('Content-Disposition: attachment; filename="' . sanitize_file_name( $filename ) . '"');
+		// Clear output buffers to avoid corrupting CSV
 
+		while ( ob_get_level() ) {
 
+			@ob_end_clean();
 
-        // Clear output buffers to avoid corrupting CSV
+		}
 
-        while ( ob_get_level() ) {
+		$output = @fopen( 'php://output', 'w' );
 
-            @ob_end_clean();
+		// If cannot open output stream (rare on some hosting), fallback to building CSV in memory
 
-        }
+		if ( $output === false ) {
 
+			// Header
 
+			echo "\"Pedido\",\"Cliente\",\"Email\",\"Telefone\",\"CPF\",\"Status\",\"Total\",\"Pagamento\",\"Data\"\n";
 
-        $output = @fopen('php://output', 'w');
+			foreach ( $orders as $order ) {
 
+				$customer_name = trim( ( $order->billing_first_name ?? '' ) . ' ' . ( $order->billing_last_name ?? '' ) );
 
+				if ( empty( $customer_name ) ) {
 
-        // If cannot open output stream (rare on some hosting), fallback to building CSV in memory
+					$customer_name = $order->customer_name ?? '';
 
-        if ($output === false) {
+				}
 
-            // Header
+				$customer_email = $order->billing_email ?? ( $order->customer_email ?? '' );
 
-            echo "\"Pedido\",\"Cliente\",\"Email\",\"Telefone\",\"CPF\",\"Status\",\"Total\",\"Pagamento\",\"Data\"\n";
+				$line = array(
 
+					$order->order_number,
 
+					$customer_name,
 
-            foreach ($orders as $order) {
+					$customer_email,
 
-                $customer_name = trim(($order->billing_first_name ?? '') . ' ' . ($order->billing_last_name ?? ''));
+					$order->billing_phone ?? '',
 
-                if (empty($customer_name)) {
+					$order->billing_cpf ?? '',
 
-                    $customer_name = $order->customer_name ?? '';
+					$order->status,
 
-                }
+					$order->total,
 
-                $customer_email = $order->billing_email ?? ($order->customer_email ?? '');
+					$order->payment_method,
 
-                
+					$order->created_at,
 
-                $line = [
+				);
 
-                    $order->order_number,
+				// Basic CSV escaping
 
-                    $customer_name,
+				$escaped = array_map(
+					function ( $v ) {
 
-                    $customer_email,
+						$v = (string) $v;
 
-                    $order->billing_phone ?? '',
+						$v = str_replace( '"', '""', $v );
 
-                    $order->billing_cpf ?? '',
+						return '"' . $v . '"';
+					},
+					$line
+				);
 
-                    $order->status,
+				// Use proper CSV escaping                echo "\"" . implode("\",\"", array_map(function($v) { return str_replace("\"", "\"\"", (string)$v); }, $line)) . "\"\n";
+			}
 
-                    $order->total,
+			return;
 
-                    $order->payment_method,
+		}
 
-                    $order->created_at
+		// Header
 
-                ];
+		fputcsv(
+			$output,
+			array(
 
+				'Pedido',
+				'Cliente',
+				'Email',
+				'Telefone',
+				'CPF',
+				'Status',
+				'Total',
 
+				'Pagamento',
+				'Data',
 
-                // Basic CSV escaping
+			)
+		);
 
-                $escaped = array_map(function($v) {
+		// Linhas
 
-                    $v = (string) $v;
+		foreach ( $orders as $order ) {
 
-                    $v = str_replace('"', '""', $v);
+			$customer_name = trim( ( $order->billing_first_name ?? '' ) . ' ' . ( $order->billing_last_name ?? '' ) );
 
-                    return '"' . $v . '"';
+			if ( empty( $customer_name ) ) {
 
-                }, $line);
+				$customer_name = $order->customer_name ?? '';
 
+			}
 
+			$customer_email = $order->billing_email ?? ( $order->customer_email ?? '' );
 
-                // Use proper CSV escaping                echo "\"" . implode("\",\"", array_map(function($v) { return str_replace("\"", "\"\"", (string)$v); }, $line)) . "\"\n";
-            }
+			fputcsv(
+				$output,
+				array(
 
+					$order->order_number,
 
+					$customer_name,
 
-            return;
+					$customer_email,
 
-        }
+					$order->billing_phone ?? '',
 
+					$order->billing_cpf ?? '',
 
+					$order->status,
 
-        // Header
+					$order->total,
 
-        fputcsv($output, [
+					$order->payment_method,
 
-            'Pedido', 'Cliente', 'Email', 'Telefone', 'CPF', 'Status', 'Total', 
+					$order->created_at,
 
-            'Pagamento', 'Data'
+				)
+			);
 
-        ]);
-
-
-
-        // Linhas
-
-        foreach ($orders as $order) {
-
-            $customer_name = trim(($order->billing_first_name ?? '') . ' ' . ($order->billing_last_name ?? ''));
-
-            if (empty($customer_name)) {
-
-                $customer_name = $order->customer_name ?? '';
-
-            }
-
-            $customer_email = $order->billing_email ?? ($order->customer_email ?? '');
-
-            
-
-            fputcsv($output, [
-
-                $order->order_number,
-
-                $customer_name,
-
-                $customer_email,
-
-                $order->billing_phone ?? '',
-
-                $order->billing_cpf ?? '',
-
-                $order->status,
-
-                $order->total,
-
-                $order->payment_method,
-
-                $order->created_at
-
-            ]);
-
-        }
-
-
+		}
 
         // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Usando php://output para stream direto
 
         // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Usando php://output para stream direto
-        fclose($output);
-
-    }
-
+		fclose( $output );
+	}
 }
 

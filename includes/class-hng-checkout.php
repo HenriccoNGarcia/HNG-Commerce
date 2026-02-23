@@ -1,1658 +1,1462 @@
 <?php
-
 /**
-
  * Checkout - Processamento de Checkout
-
  *
-
  * @package HNG_Commerce
-
  * @since 1.0.0
-
  */
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable Squiz.Commenting.FunctionComment.Missing -- Simple methods are self-documenting.
+// phpcs:disable Squiz.Commenting.VariableComment.Missing
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// Reason: Checkout processing uses plugin tables for order creation and diagnostic logging.
 
-
-if (!defined('ABSPATH')) {
-
-    exit;
-
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-
-
+/**
+ * Class HNG_Checkout
+ *
+ * Handles checkout processing.
+ *
+ * @since 1.0.0
+ */
 class HNG_Checkout {
 
-    
+	/**
+	 * Instância única.
+	 *
+	 * @var HNG_Checkout|null
+	 */
 
-    /**
+	private static $instance = null;
 
-     * Instï¿½ncia ï¿½nica
 
-     */
 
-    private static $instance = null;
+	/**
 
-    
+	 * Obter instï¿½ncia
+	 */
+	public static function instance() {
 
-    /**
+		if ( is_null( self::$instance ) ) {
 
-     * Obter instï¿½ncia
+			self::$instance = new self();
 
-     */
+		}
 
-    public static function instance() {
+		return self::$instance;
+	}
 
-        if (is_null(self::$instance)) {
 
-            self::$instance = new self();
 
-        }
+	/**
 
-        return self::$instance;
+	 * Construtor
+	 */
+	private function __construct() {
 
-    }
+		// Processar checkout no hook 'init' (antes de qualquer output)
 
-    
+		add_action( 'init', array( $this, 'process_checkout' ), 20 );
+	}
 
-    /**
 
-     * Construtor
 
-     */
+	/**
 
-    private function __construct() {
+	 * Processar checkout
+	 */
+	public function process_checkout() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified below.
+		$post = function_exists( 'wp_unslash' ) ? wp_unslash( $_POST ) : $_POST;
 
-        // Processar checkout no hook 'init' (antes de qualquer output)
+		if ( ! isset( $post['hng_place_order'] ) ) {
 
-        add_action('init', [$this, 'process_checkout'], 20);
+			return;
 
-    }
+		}
 
-    
+		// Verificar nonce
 
-    /**
+		if ( ! isset( $post['hng_checkout_nonce'] ) || ! wp_verify_nonce( $post['hng_checkout_nonce'], 'hng_checkout' ) ) {
 
-     * Processar checkout
+			hng_add_notice( __( 'Erro de seguranï¿½a. Recarregue a pï¿½gina e tente novamente.', 'hng-commerce' ), 'error' );
 
-     */
+			return;
 
-    public function process_checkout() {
+		}
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verificado em hng_validate_checkout_nonce() antes do processamento
+		// ========================================
+		// FLUXO DE CHECKOUT PARA PEDIDOS DE ORÇAMENTO
+		// ========================================
+		if ( ! empty( $post['quote_order_id'] ) ) {
+			$this->process_quote_checkout( $post );
+			return;
+		}
 
-        $post = function_exists('wp_unslash') ? wp_unslash($_POST) : $_POST;
+		// Verificar carrinho
 
+		$cart = hng_cart();
 
+		if ( ! $cart || $cart->is_empty() ) {
 
-        if (!isset($post['hng_place_order'])) {
+			wp_safe_redirect( hng_get_cart_url() );
 
-            return;
+			exit;
 
-        }
+		}
 
+		// Verificar se login é requerido (configuração global)
 
+		$settings = get_option( 'hng_commerce_settings', array() );
 
-        // Verificar nonce
+		$require_login = ( $settings['require_login_to_purchase'] ?? 'no' ) === 'yes';
 
-        if (!isset($post['hng_checkout_nonce']) || !wp_verify_nonce($post['hng_checkout_nonce'], 'hng_checkout')) {
+		if ( $require_login && ! is_user_logged_in() ) {
 
-            hng_add_notice(__('Erro de seguranï¿½a. Recarregue a pï¿½gina e tente novamente.', 'hng-commerce'), 'error');
+			hng_add_notice( __( 'Você precisa estar logado para finalizar uma compra.', 'hng-commerce' ), 'error' );
 
-            return;
+			return;
 
-        }
+		}
 
-        // ========================================
-        // FLUXO DE CHECKOUT PARA PEDIDOS DE ORÇAMENTO
-        // ========================================
-        if (!empty($post['quote_order_id'])) {
-            $this->process_quote_checkout($post);
-            return;
-        }
+		// Exigir login para tipos sensíveis (assinatura, agendamento, orçamento)
 
-        
+		$types_requiring_login = array( 'subscription', 'appointment', 'quote' );
 
-        // Verificar carrinho
+		$cart_types = $this->get_cart_product_types( $cart );
 
-        $cart = hng_cart();
+		if ( ! is_user_logged_in() ) {
 
-        if (!$cart || $cart->is_empty()) {
+			$needs_login = array_intersect( $types_requiring_login, $cart_types );
 
-            wp_safe_redirect(hng_get_cart_url());
+			if ( ! empty( $needs_login ) ) {
 
-            exit;
+				hng_add_notice( __( 'Você precisa estar logado para comprar assinaturas, agendamentos ou orçamentos.', 'hng-commerce' ), 'error' );
 
-        }
+				return;
 
+			}
+		}
 
+		// Validar campos
 
-        // Verificar se login é requerido (configuração global)
+		$errors = $this->validate_checkout_fields( $post );
 
-        $settings = get_option('hng_commerce_settings', []);
+		// Capturar campos personalizados do cliente enviados no checkout
 
-        $require_login = ($settings['require_login_to_purchase'] ?? 'no') === 'yes';
+		$custom_fields_checkout = isset( $post['hng_cf_checkout'] ) ? $post['hng_cf_checkout'] : array();
 
-        
+		if ( ! empty( $custom_fields_checkout ) && is_array( $custom_fields_checkout ) ) {
 
-        if ($require_login && !is_user_logged_in()) {
+			// Sanitizar e salvar temporariamente na sessï¿½o para uso na criaï¿½ï¿½o do pedido
 
-            hng_add_notice(__('Você precisa estar logado para finalizar uma compra.', 'hng-commerce'), 'error');
+			$cf_sanitized = array();
 
-            return;
+			foreach ( $custom_fields_checkout as $k => $v ) {
 
-        }
+				$cf_sanitized[ sanitize_key( $k ) ] = is_array( $v ) ? array_map( 'sanitize_text_field', $v ) : sanitize_text_field( $v );
 
+			}
 
+			$_SESSION['hng_cf_checkout'] = $cf_sanitized;
 
-        // Exigir login para tipos sensíveis (assinatura, agendamento, orçamento)
+		} else {
 
-        $types_requiring_login = ['subscription', 'appointment', 'quote'];
+			unset( $_SESSION['hng_cf_checkout'] );
 
-        $cart_types = $this->get_cart_product_types($cart);
+		}
 
-        if (!is_user_logged_in()) {
+		if ( ! empty( $errors ) ) {
 
-            $needs_login = array_intersect($types_requiring_login, $cart_types);
+			foreach ( $errors as $error ) {
 
-            if (!empty($needs_login)) {
+				hng_add_notice( $error, 'error' );
 
-                hng_add_notice(__('Você precisa estar logado para comprar assinaturas, agendamentos ou orçamentos.', 'hng-commerce'), 'error');
+			}
 
-                return;
+			return;
 
-            }
+		}
 
-        }
+		// Validar estoque
 
-        
+		foreach ( $cart->get_cart() as $item ) {
 
-        // Validar campos
+			$product = $item['data'];
 
-        $errors = $this->validate_checkout_fields($post);
+			if ( ! $product->is_in_stock() ) {
 
+				hng_add_notice(
+					/* translators: %1$s: product name */
 
+					sprintf( esc_html__( 'Produto "%1$s" est fora de estoque.', 'hng-commerce' ), $product->get_name() ),
+					'error'
+				);
 
-        // Capturar campos personalizados do cliente enviados no checkout
+				return;
 
-        $custom_fields_checkout = isset($post['hng_cf_checkout']) ? $post['hng_cf_checkout'] : [];
+			}
 
-        if (!empty($custom_fields_checkout) && is_array($custom_fields_checkout)) {
+			if ( $product->manages_stock() ) {
 
-            // Sanitizar e salvar temporariamente na sessï¿½o para uso na criaï¿½ï¿½o do pedido
+				if ( $item['quantity'] > $product->get_stock_quantity() ) {
 
-            $cf_sanitized = [];
+					hng_add_notice(
+						sprintf(
+							/* translators: %1$s: product name, %2$d: available stock quantity */
+							esc_html__( 'Quantidade indisponível para "%1$s". Estoque: %2$d unidades.', 'hng-commerce' ),
+							$product->get_name(),
+							$product->get_stock_quantity()
+						),
+						'error'
+					);
 
-            foreach ($custom_fields_checkout as $k => $v) {
+					return;
 
-                $cf_sanitized[sanitize_key($k)] = is_array($v) ? array_map('sanitize_text_field', $v) : sanitize_text_field($v);
+				}
+			}
+		}
 
-            }
+			// Preparar dados do pedido
 
-            $_SESSION['hng_cf_checkout'] = $cf_sanitized;
+			$order_data = $this->prepare_order_data( $post );
 
-        } else {
+			$order_data['product_type'] = $this->determine_order_product_type( $cart );
 
-            unset($_SESSION['hng_cf_checkout']);
+			$order_data = apply_filters( 'hng_checkout_prepare_order_data', $order_data, $post );
 
-        }
+			// Hook: apï¿½s preparaï¿½ï¿½o dos dados do pedido
 
-        
+			do_action( 'hng_checkout_after_prepare_order_data', $order_data, $post );
 
-        if (!empty($errors)) {
+			// Criar pedido
 
-            foreach ($errors as $error) {
+			$order = apply_filters( 'hng_checkout_create_order', HNG_Order::create_from_cart( $order_data ), $order_data, $post );
 
-                hng_add_notice($error, 'error');
+			// Hook: apï¿½s criaï¿½ï¿½o do pedido
 
-            }
+			do_action( 'hng_checkout_after_create_order', $order, $order_data, $post );
 
-            return;
+		if ( is_wp_error( $order ) ) {
 
-        }
+			hng_add_notice( $order->get_error_message(), 'error' );
 
-        // Validar estoque
+			return;
 
-        foreach ($cart->get_cart() as $item) {
+		}
 
-            $product = $item['data'];
+			// Se for produto do tipo orçamento, pular processamento de pagamento
 
+		if ( ( $order_data['product_type'] ?? '' ) === 'quote' ) {
 
+			// Atualiza status para aguardar aprovação do administrador
 
-            if (!$product->is_in_stock()) {
+			$order->update_status( 'hng-pending-approval', __( 'Pedido de orçamento recebido. Aguardando aprovação do administrador.', 'hng-commerce' ) );
 
-                hng_add_notice(
+			// Marcar resultado como sucesso sem pagamento
 
-                    /* translators: %1$s: product name */
+			$payment_result = true;
 
-                    sprintf(esc_html__('Produto "%1$s" est fora de estoque.', 'hng-commerce'), $product->get_name()),
+		} else {
 
-                    'error'
+			// Processar pagamento (usar dados preparados e sanitizados)
 
-                );
+			$payment_result = apply_filters( 'hng_checkout_process_payment', $this->process_payment( $order, $order_data ), $order, $order_data );
 
-                return;
+		}
 
-            }
+			// Hook: apï¿½s processamento do pagamento
 
+			do_action( 'hng_checkout_after_process_payment', $payment_result, $order, $order_data );
 
+		if ( is_wp_error( $payment_result ) ) {
 
-            if ($product->manages_stock()) {
+			hng_add_notice( $payment_result->get_error_message(), 'error' );
 
-                if ($item['quantity'] > $product->get_stock_quantity()) {
+			$order->update_status( 'hng-failed', $payment_result->get_error_message() );
 
-                    hng_add_notice(
+			return;
 
-                        /* translators: %1$s: product name, %2$d: available stock quantity */
+		}
 
-                        sprintf(esc_html__('Quantidade indisponï¿½vel para "%1$s". Estoque: %2$d unidades.', 'hng-commerce'),
+			// Enviar e-mail
 
-                                $product->get_name(),
+			do_action( 'hng_order_created', $order->get_id() );
 
-                                $product->get_stock_quantity()
+			// Incrementar uso dos cupons
 
-                            ),
+			$this->increment_coupon_usage( $order );
 
-                        'error'
+			// Limpar carrinho
 
-                    );
+			$cart->empty_cart();
 
-                    return;
+			// Hook: finalizaï¿½ï¿½o do checkout (antes do redirect)
 
-                }
+			do_action( 'hng_checkout_complete', $order, $post );
 
-            }
+			// Redirecionar para página de confirmação
 
-        }
+			wp_safe_redirect( $this->get_order_received_url( $order ) );
 
+			exit;
+	}
 
 
-            // Preparar dados do pedido
 
-            $order_data = $this->prepare_order_data($post);
+	/**
+	 * Processar checkout de pedido de orçamento (ordem já existe)
+	 *
+	 * @param array $post Dados do formulário.
+	 */
+	private function process_quote_checkout( $post ) {
+		$quote_post_id = absint( $post['quote_order_id'] );
 
-            $order_data['product_type'] = $this->determine_order_product_type($cart);
+		// Validar que o post existe e é do tipo hng_order
+		$order_post = get_post( $quote_post_id );
+		if ( ! $order_post || $order_post->post_type !== 'hng_order' ) {
+			hng_add_notice( __( 'Pedido de orçamento não encontrado.', 'hng-commerce' ), 'error' );
+			return;
+		}
 
-            $order_data = apply_filters('hng_checkout_prepare_order_data', $order_data, $post);
+		// Validar que o pedido pertence ao cliente logado
+		if ( ! is_user_logged_in() ) {
+			hng_add_notice( __( 'Você precisa estar logado para finalizar este pedido.', 'hng-commerce' ), 'error' );
+			return;
+		}
+		$customer_id = get_post_meta( $quote_post_id, '_hng_customer_id', true );
+		if ( intval( $customer_id ) !== get_current_user_id() ) {
+			hng_add_notice( __( 'Você não tem permissão para acessar este pedido.', 'hng-commerce' ), 'error' );
+			return;
+		}
 
-            // Hook: apï¿½s preparaï¿½ï¿½o dos dados do pedido
+		// Validar status do pedido (deve estar aprovado ou aguardando pagamento)
+		$order_status     = get_post_meta( $quote_post_id, '_hng_order_status', true );
+		$allowed_statuses = array( 'quote_approved', 'awaiting_payment', 'quote_sent' );
+		if ( ! in_array( $order_status, $allowed_statuses, true ) ) {
+			hng_add_notice( __( 'Este pedido não está disponível para pagamento.', 'hng-commerce' ), 'error' );
+			return;
+		}
 
-            do_action('hng_checkout_after_prepare_order_data', $order_data, $post);
+		// Obter o order_id do banco de dados
+		$db_order_id = get_post_meta( $quote_post_id, '_order_id', true );
+		if ( ! $db_order_id ) {
+			// Fallback: tentar buscar pelo post_id na tabela
+			global $wpdb;
+			$table       = hng_db_full_table_name( 'hng_orders' );
+			$db_order_id = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM `{$table}` WHERE post_id = %d",
+					$quote_post_id
+				)
+			);
+		}
 
+		if ( ! $db_order_id ) {
+			hng_add_notice( __( 'Pedido não encontrado no banco de dados.', 'hng-commerce' ), 'error' );
+			return;
+		}
 
+		// Carregar o pedido existente
+		$order = new HNG_Order( intval( $db_order_id ) );
+		if ( ! $order->get_id() ) {
+			hng_add_notice( __( 'Erro ao carregar pedido.', 'hng-commerce' ), 'error' );
+			return;
+		}
 
-            // Criar pedido
+		// Validar campos obrigatórios (sem shipping se não necessário)
+		$errors = $this->validate_quote_checkout_fields( $post, $quote_post_id );
+		if ( ! empty( $errors ) ) {
+			foreach ( $errors as $error ) {
+				hng_add_notice( $error, 'error' );
+			}
+			return;
+		}
 
-            $order = apply_filters('hng_checkout_create_order', HNG_Order::create_from_cart($order_data), $order_data, $post);
+		// Atualizar dados de faturamento no pedido
+		$billing_data = array(
+			'billing_first_name' => sanitize_text_field( $post['billing_first_name'] ?? '' ),
+			'billing_last_name'  => sanitize_text_field( $post['billing_last_name'] ?? '' ),
+			'billing_email'      => sanitize_email( $post['billing_email'] ?? '' ),
+			'billing_phone'      => sanitize_text_field( $post['billing_phone'] ?? '' ),
+			'billing_cpf'        => isset( $post['billing_cpf'] ) ? preg_replace( '/[^0-9]/', '', $post['billing_cpf'] ) : '',
+		);
 
-            // Hook: apï¿½s criaï¿½ï¿½o do pedido
+		// Atualizar dados de endereço se houver shipping
+		$quote_needs_shipping = get_post_meta( $quote_post_id, '_quote_needs_shipping', true );
+		if ( $quote_needs_shipping !== '0' ) {
+			$billing_data['billing_postcode']     = isset( $post['billing_postcode'] ) ? preg_replace( '/[^0-9]/', '', $post['billing_postcode'] ) : '';
+			$billing_data['billing_address_1']    = sanitize_text_field( $post['billing_address_1'] ?? '' );
+			$billing_data['billing_number']       = sanitize_text_field( $post['billing_number'] ?? '' );
+			$billing_data['billing_address_2']    = sanitize_text_field( $post['billing_address_2'] ?? '' );
+			$billing_data['billing_neighborhood'] = sanitize_text_field( $post['billing_neighborhood'] ?? '' );
+			$billing_data['billing_city']         = sanitize_text_field( $post['billing_city'] ?? '' );
+			$billing_data['billing_state']        = sanitize_text_field( $post['billing_state'] ?? '' );
+		}
 
-            do_action('hng_checkout_after_create_order', $order, $order_data, $post);
+		// Salvar dados de faturamento como post meta
+		foreach ( $billing_data as $key => $value ) {
+			update_post_meta( $quote_post_id, '_' . $key, $value );
+		}
 
+		// Atualizar dados no banco de dados também
+		global $wpdb;
+		$table     = hng_db_full_table_name( 'hng_orders' );
+		$update_db = array();
+		if ( ! empty( $billing_data['billing_email'] ) ) {
+			$update_db['customer_email'] = $billing_data['billing_email'];
+		}
+		$update_db['payment_method']       = sanitize_text_field( $post['payment_method'] ?? '' );
+		$update_db['payment_method_title'] = hng_get_payment_method_title( $update_db['payment_method'] );
 
+		if ( ! empty( $update_db ) ) {
+			$wpdb->update( $table, $update_db, array( 'id' => $db_order_id ) );
+		}
 
-            if (is_wp_error($order)) {
+		// Salvar método de pagamento como post meta
+		$payment_method = sanitize_text_field( $post['payment_method'] ?? '' );
+		update_post_meta( $quote_post_id, '_payment_method', $payment_method );
+		update_post_meta( $quote_post_id, '_payment_method_title', hng_get_payment_method_title( $payment_method ) );
 
-                hng_add_notice($order->get_error_message(), 'error');
+		// Atualizar status para aguardando pagamento
+		update_post_meta( $quote_post_id, '_hng_order_status', 'awaiting_payment' );
 
-                return;
+		// Preparar order_data para process_payment
+		$order_data = array(
+			'payment_method' => $payment_method,
+			'billing_cpf'    => $billing_data['billing_cpf'] ?? '',
+			'product_type'   => 'quote',
+		);
 
-            }
+		// Processar pagamento
+		$payment_result = $this->process_payment( $order, $order_data );
 
+		if ( is_wp_error( $payment_result ) ) {
+			hng_add_notice( $payment_result->get_error_message(), 'error' );
+			$order->update_status( 'hng-failed', $payment_result->get_error_message() );
+			return;
+		}
 
+		// Enviar e-mail de pedido
+		do_action( 'hng_order_created', $order->get_id() );
 
-            // Se for produto do tipo orçamento, pular processamento de pagamento
+		// Hook: finalização do checkout
+		do_action( 'hng_checkout_complete', $order, $post );
 
-            if (($order_data['product_type'] ?? '') === 'quote') {
+		// Redirecionar para página de confirmação
+		wp_safe_redirect( $this->get_order_received_url( $order ) );
+		exit;
+	}
 
-                // Atualiza status para aguardar aprovação do administrador
+	/**
+	 * Validar campos do checkout para orçamento
+	 *
+	 * @param array $data          Dados do formulário.
+	 * @param int   $quote_post_id Post ID do pedido.
+	 * @return array Lista de erros.
+	 */
+	private function validate_quote_checkout_fields( $data, $quote_post_id ) {
+		$errors = array();
 
-                $order->update_status('hng-pending-approval', __('Pedido de orçamento recebido. Aguardando aprovação do administrador.', 'hng-commerce'));
+		$required_fields = array(
+			'billing_first_name' => __( 'Nome', 'hng-commerce' ),
+			'billing_last_name'  => __( 'Sobrenome', 'hng-commerce' ),
+			'billing_email'      => __( 'E-mail', 'hng-commerce' ),
+			'billing_phone'      => __( 'Telefone', 'hng-commerce' ),
+		);
 
-                // Marcar resultado como sucesso sem pagamento
+		// Se precisar de endereço de entrega
+		$quote_needs_shipping = get_post_meta( $quote_post_id, '_quote_needs_shipping', true );
+		if ( $quote_needs_shipping !== '0' ) {
+			$required_fields['billing_postcode']  = __( 'CEP', 'hng-commerce' );
+			$required_fields['billing_address_1'] = __( 'Endereço', 'hng-commerce' );
+			$required_fields['billing_city']      = __( 'Cidade', 'hng-commerce' );
+			$required_fields['billing_state']     = __( 'Estado', 'hng-commerce' );
+		}
 
-                $payment_result = true;
+		foreach ( $required_fields as $field => $label ) {
+			if ( empty( $data[ $field ] ) ) {
+				/* translators: %1$s = Rótulo do campo requerido */
+				$errors[] = sprintf( esc_html__( 'O campo "%1$s" é obrigatório.', 'hng-commerce' ), $label );
+			}
+		}
 
-            } else {
+		// Validar e-mail
+		if ( ! empty( $data['billing_email'] ) && ! is_email( $data['billing_email'] ) ) {
+			$errors[] = __( 'E-mail inválido.', 'hng-commerce' );
+		}
 
-                // Processar pagamento (usar dados preparados e sanitizados)
+		// Validar CPF/CNPJ
+		if ( ! empty( $data['billing_cpf'] ) ) {
+			$cpf = preg_replace( '/[^0-9]/', '', $data['billing_cpf'] );
+			if ( strlen( $cpf ) !== 11 && strlen( $cpf ) !== 14 ) {
+				$errors[] = __( 'CPF/CNPJ inválido.', 'hng-commerce' );
+			}
+		}
 
-                $payment_result = apply_filters('hng_checkout_process_payment', $this->process_payment($order, $order_data), $order, $order_data);
+		// Validar método de pagamento
+		$enabled_methods = hng_get_active_gateway_methods();
+		if ( empty( $data['payment_method'] ) ) {
+			$errors[] = __( 'Selecione um método de pagamento.', 'hng-commerce' );
+		} elseif ( ! in_array( $data['payment_method'], $enabled_methods, true ) ) {
+			$errors[] = __( 'Método de pagamento não disponível.', 'hng-commerce' );
+		}
 
-            }
+		// Validar termos
+		if ( empty( $data['terms'] ) ) {
+			$errors[] = __( 'Você deve concordar com os termos e condições.', 'hng-commerce' );
+		}
 
-            // Hook: apï¿½s processamento do pagamento
+		return $errors;
+	}
 
-            do_action('hng_checkout_after_process_payment', $payment_result, $order, $order_data);
+	/**
+	 * Validar campos do checkout
+	 *
+	 * @param array $data Dados do formulário.
+	 * @return array Lista de erros.
+	 */
+	private function validate_checkout_fields( $data ) {
 
+		$errors = array();
 
+		$required_fields = array(
 
-            if (is_wp_error($payment_result)) {
+			'billing_first_name' => __( 'Nome', 'hng-commerce' ),
 
-                hng_add_notice($payment_result->get_error_message(), 'error');
+			'billing_last_name'  => __( 'Sobrenome', 'hng-commerce' ),
 
-                $order->update_status('hng-failed', $payment_result->get_error_message());
+			'billing_email'      => __( 'E-mail', 'hng-commerce' ),
 
-                return;
+			'billing_phone'      => __( 'Telefone', 'hng-commerce' ),
 
-            }
+		);
 
+		// Se precisar de endereço de entrega
 
+		$cart = hng_cart();
 
-            // Enviar e-mail
+		if ( $cart && $cart->needs_shipping() ) {
 
-            do_action('hng_order_created', $order->get_id());
+			$required_fields['billing_postcode'] = __( 'CEP', 'hng-commerce' );
 
+			$required_fields['billing_address_1'] = __( 'Endereço', 'hng-commerce' );
 
+			$required_fields['billing_city'] = __( 'Cidade', 'hng-commerce' );
 
-            // Incrementar uso dos cupons
+			$required_fields['billing_state'] = __( 'Estado', 'hng-commerce' );
 
-            $this->increment_coupon_usage($order);
+		}
 
+		foreach ( $required_fields as $field => $label ) {
 
+			if ( empty( $data[ $field ] ) ) {
 
-            // Limpar carrinho
+				/* translators: %1$s: field label (e.g. Nome, E-mail) */
 
-            $cart->empty_cart();
+				$errors[] = sprintf( esc_html__( 'O campo "%1$s" ï¿½ obrigatï¿½rio.', 'hng-commerce' ), $label );
 
+			}
+		}
 
+		// Validar e-mail
 
-            // Hook: finalizaï¿½ï¿½o do checkout (antes do redirect)
+		if ( ! empty( $data['billing_email'] ) && ! is_email( $data['billing_email'] ) ) {
 
-            do_action('hng_checkout_complete', $order, $post);
+			$errors[] = __( 'E-mail invï¿½lido.', 'hng-commerce' );
 
+		}
 
+		// Validar CPF/CNPJ
 
-            // Redirecionar para página de confirmação
+		if ( ! empty( $data['billing_cpf'] ) ) {
 
-            wp_safe_redirect($this->get_order_received_url($order));
+			$cpf = preg_replace( '/[^0-9]/', '', $data['billing_cpf'] );
 
-            exit;
+			if ( strlen( $cpf ) !== 11 && strlen( $cpf ) !== 14 ) {
 
-    }
+				$errors[] = __( 'CPF/CNPJ invï¿½lido.', 'hng-commerce' );
 
-    
+			}
+		}
 
-    /**
-     * Processar checkout de pedido de orçamento (ordem já existe)
-     *
-     * @param array $post Dados do formulário
-     */
-    private function process_quote_checkout($post) {
-        $quote_post_id = absint($post['quote_order_id']);
+		// Validar CEP
 
-        // Validar que o post existe e é do tipo hng_order
-        $order_post = get_post($quote_post_id);
-        if (!$order_post || $order_post->post_type !== 'hng_order') {
-            hng_add_notice(__('Pedido de orçamento não encontrado.', 'hng-commerce'), 'error');
-            return;
-        }
+		if ( ! empty( $data['billing_postcode'] ) ) {
 
-        // Validar que o pedido pertence ao cliente logado
-        if (!is_user_logged_in()) {
-            hng_add_notice(__('Você precisa estar logado para finalizar este pedido.', 'hng-commerce'), 'error');
-            return;
-        }
-        $customer_id = get_post_meta($quote_post_id, '_hng_customer_id', true);
-        if (intval($customer_id) !== get_current_user_id()) {
-            hng_add_notice(__('Você não tem permissão para acessar este pedido.', 'hng-commerce'), 'error');
-            return;
-        }
+			$cep = preg_replace( '/[^0-9]/', '', $data['billing_postcode'] );
 
-        // Validar status do pedido (deve estar aprovado ou aguardando pagamento)
-        $order_status = get_post_meta($quote_post_id, '_hng_order_status', true);
-        $allowed_statuses = ['quote_approved', 'awaiting_payment', 'quote_sent'];
-        if (!in_array($order_status, $allowed_statuses, true)) {
-            hng_add_notice(__('Este pedido não está disponível para pagamento.', 'hng-commerce'), 'error');
-            return;
-        }
+			if ( strlen( $cep ) !== 8 ) {
 
-        // Obter o order_id do banco de dados
-        $db_order_id = get_post_meta($quote_post_id, '_order_id', true);
-        if (!$db_order_id) {
-            // Fallback: tentar buscar pelo post_id na tabela
-            global $wpdb;
-            $table = hng_db_full_table_name('hng_orders');
-            $db_order_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM `{$table}` WHERE post_id = %d",
-                $quote_post_id
-            ));
-        }
+				$errors[] = __( 'CEP invï¿½lido.', 'hng-commerce' );
 
-        if (!$db_order_id) {
-            hng_add_notice(__('Pedido não encontrado no banco de dados.', 'hng-commerce'), 'error');
-            return;
-        }
+			}
+		}
 
-        // Carregar o pedido existente
-        $order = new HNG_Order(intval($db_order_id));
-        if (!$order->get_id()) {
-            hng_add_notice(__('Erro ao carregar pedido.', 'hng-commerce'), 'error');
-            return;
-        }
+		// Validar mï¿½todo de pagamento dinï¿½mico
 
-        // Validar campos obrigatórios (sem shipping se não necessário)
-        $errors = $this->validate_quote_checkout_fields($post, $quote_post_id);
-        if (!empty($errors)) {
-            foreach ($errors as $error) {
-                hng_add_notice($error, 'error');
-            }
-            return;
-        }
+		$enabled_methods = hng_get_active_gateway_methods();
 
-        // Atualizar dados de faturamento no pedido
-        $billing_data = [
-            'billing_first_name' => sanitize_text_field($post['billing_first_name'] ?? ''),
-            'billing_last_name'  => sanitize_text_field($post['billing_last_name'] ?? ''),
-            'billing_email'      => sanitize_email($post['billing_email'] ?? ''),
-            'billing_phone'      => sanitize_text_field($post['billing_phone'] ?? ''),
-            'billing_cpf'        => isset($post['billing_cpf']) ? preg_replace('/[^0-9]/', '', $post['billing_cpf']) : '',
-        ];
+		if ( empty( $data['payment_method'] ) ) {
 
-        // Atualizar dados de endereço se houver shipping
-        $quote_needs_shipping = get_post_meta($quote_post_id, '_quote_needs_shipping', true);
-        if ($quote_needs_shipping !== '0') {
-            $billing_data['billing_postcode']     = isset($post['billing_postcode']) ? preg_replace('/[^0-9]/', '', $post['billing_postcode']) : '';
-            $billing_data['billing_address_1']    = sanitize_text_field($post['billing_address_1'] ?? '');
-            $billing_data['billing_number']       = sanitize_text_field($post['billing_number'] ?? '');
-            $billing_data['billing_address_2']    = sanitize_text_field($post['billing_address_2'] ?? '');
-            $billing_data['billing_neighborhood'] = sanitize_text_field($post['billing_neighborhood'] ?? '');
-            $billing_data['billing_city']         = sanitize_text_field($post['billing_city'] ?? '');
-            $billing_data['billing_state']        = sanitize_text_field($post['billing_state'] ?? '');
-        }
+			$errors[] = __( 'Selecione um mï¿½todo de pagamento.', 'hng-commerce' );
 
-        // Salvar dados de faturamento como post meta
-        foreach ($billing_data as $key => $value) {
-            update_post_meta($quote_post_id, '_' . $key, $value);
-        }
+		} elseif ( ! in_array( $data['payment_method'], $enabled_methods, true ) ) {
 
-        // Atualizar dados no banco de dados também
-        global $wpdb;
-        $table = hng_db_full_table_name('hng_orders');
-        $update_db = [];
-        if (!empty($billing_data['billing_email'])) {
-            $update_db['customer_email'] = $billing_data['billing_email'];
-        }
-        $update_db['payment_method'] = sanitize_text_field($post['payment_method'] ?? '');
-        $update_db['payment_method_title'] = hng_get_payment_method_title($update_db['payment_method']);
-        
-        if (!empty($update_db)) {
-            $wpdb->update($table, $update_db, ['id' => $db_order_id]);
-        }
+			$errors[] = __( 'Mï¿½todo de pagamento nï¿½o disponï¿½vel.', 'hng-commerce' );
 
-        // Salvar método de pagamento como post meta
-        $payment_method = sanitize_text_field($post['payment_method'] ?? '');
-        update_post_meta($quote_post_id, '_payment_method', $payment_method);
-        update_post_meta($quote_post_id, '_payment_method_title', hng_get_payment_method_title($payment_method));
+		}
 
-        // Atualizar status para aguardando pagamento
-        update_post_meta($quote_post_id, '_hng_order_status', 'awaiting_payment');
+		// Validar termos
 
-        // Preparar order_data para process_payment
-        $order_data = [
-            'payment_method' => $payment_method,
-            'billing_cpf'    => $billing_data['billing_cpf'] ?? '',
-            'product_type'   => 'quote',
-        ];
+		if ( empty( $data['terms'] ) ) {
 
-        // Processar pagamento
-        $payment_result = $this->process_payment($order, $order_data);
+			$errors[] = __( 'Vocï¿½ deve concordar com os termos e condiï¿½ï¿½es.', 'hng-commerce' );
 
-        if (is_wp_error($payment_result)) {
-            hng_add_notice($payment_result->get_error_message(), 'error');
-            $order->update_status('hng-failed', $payment_result->get_error_message());
-            return;
-        }
+		}
 
-        // Enviar e-mail de pedido
-        do_action('hng_order_created', $order->get_id());
+		return $errors;
+	}
 
-        // Hook: finalização do checkout
-        do_action('hng_checkout_complete', $order, $post);
 
-        // Redirecionar para página de confirmação
-        wp_safe_redirect($this->get_order_received_url($order));
-        exit;
-    }
 
-    /**
-     * Validar campos do checkout para orçamento
-     *
-     * @param array $data Dados do formulário
-     * @param int $quote_post_id Post ID do pedido
-     * @return array Lista de erros
-     */
-    private function validate_quote_checkout_fields($data, $quote_post_id) {
-        $errors = [];
+	/**
 
-        $required_fields = [
-            'billing_first_name' => __('Nome', 'hng-commerce'),
-            'billing_last_name'  => __('Sobrenome', 'hng-commerce'),
-            'billing_email'      => __('E-mail', 'hng-commerce'),
-            'billing_phone'      => __('Telefone', 'hng-commerce'),
-        ];
+	 * Normalizar tipo de produto para valores suportados
+	 */
+	private function normalize_product_type( $type ) {
 
-        // Se precisar de endereço de entrega
-        $quote_needs_shipping = get_post_meta($quote_post_id, '_quote_needs_shipping', true);
-        if ($quote_needs_shipping !== '0') {
-            $required_fields['billing_postcode']  = __('CEP', 'hng-commerce');
-            $required_fields['billing_address_1'] = __('Endereço', 'hng-commerce');
-            $required_fields['billing_city']      = __('Cidade', 'hng-commerce');
-            $required_fields['billing_state']     = __('Estado', 'hng-commerce');
-        }
+		if ( class_exists( 'HNG_Product_Types' ) ) {
 
-        foreach ($required_fields as $field => $label) {
-            if (empty($data[$field])) {
-                /* translators: %1$s = Rótulo do campo requerido */
-                $errors[] = sprintf(esc_html__('O campo "%1$s" é obrigatório.', 'hng-commerce'), $label);
-            }
-        }
+			return HNG_Product_Types::normalize( $type );
 
-        // Validar e-mail
-        if (!empty($data['billing_email']) && !is_email($data['billing_email'])) {
-            $errors[] = __('E-mail inválido.', 'hng-commerce');
-        }
+		}
 
-        // Validar CPF/CNPJ
-        if (!empty($data['billing_cpf'])) {
-            $cpf = preg_replace('/[^0-9]/', '', $data['billing_cpf']);
-            if (strlen($cpf) !== 11 && strlen($cpf) !== 14) {
-                $errors[] = __('CPF/CNPJ inválido.', 'hng-commerce');
-            }
-        }
+		$type = sanitize_key( $type ? $type : 'physical' );
 
-        // Validar método de pagamento
-        $enabled_methods = hng_get_active_gateway_methods();
-        if (empty($data['payment_method'])) {
-            $errors[] = __('Selecione um método de pagamento.', 'hng-commerce');
-        } elseif (!in_array($data['payment_method'], $enabled_methods, true)) {
-            $errors[] = __('Método de pagamento não disponível.', 'hng-commerce');
-        }
+		if ( $type === 'simple' ) {
 
-        // Validar termos
-        if (empty($data['terms'])) {
-            $errors[] = __('Você deve concordar com os termos e condições.', 'hng-commerce');
-        }
+			$type = 'physical';
 
-        return $errors;
-    }
+		}
 
-    /**
+		$allowed = array( 'physical', 'digital', 'subscription', 'quote', 'appointment' );
 
-     * Validar campos do checkout
+		return in_array( $type, $allowed, true ) ? $type : 'physical';
+	}
 
-     *
 
-     * @param array $data Dados do formulário
 
-     * @return array Lista de erros
+	/**
 
-     */
+	 * Obter tipos de produto presentes no carrinho
+	 */
+	private function get_cart_product_types( $cart ) {
 
-    private function validate_checkout_fields($data) {
+		$types = array();
 
-        $errors = [];
+		foreach ( $cart->get_cart() as $item ) {
 
-        
+			$product = $item['data'];
 
-        $required_fields = [
+			$types[] = $this->normalize_product_type( $product->get_product_type() );
 
-            'billing_first_name' => __('Nome', 'hng-commerce'),
+		}
 
-            'billing_last_name' => __('Sobrenome', 'hng-commerce'),
+		return array_values( array_unique( $types ) );
+	}
 
-            'billing_email' => __('E-mail', 'hng-commerce'),
 
-            'billing_phone' => __('Telefone', 'hng-commerce'),
 
-        ];
+	/**
 
-        
+	 * Determinar tipo predominante do pedido (prioridade: assinatura > agendamento > orçamento > digital > físico)
+	 */
+	private function determine_order_product_type( $cart ) {
 
-        // Se precisar de endereço de entrega
+		$types = $this->get_cart_product_types( $cart );
 
-        $cart = hng_cart();
+		$priority = array( 'subscription', 'appointment', 'quote', 'digital', 'physical' );
 
-        if ($cart && $cart->needs_shipping()) {
+		foreach ( $priority as $p ) {
 
-            $required_fields['billing_postcode'] = __('CEP', 'hng-commerce');
+			if ( in_array( $p, $types, true ) ) {
 
-            $required_fields['billing_address_1'] = __('Endereço', 'hng-commerce');
+				return $p;
 
-            $required_fields['billing_city'] = __('Cidade', 'hng-commerce');
+			}
+		}
 
-            $required_fields['billing_state'] = __('Estado', 'hng-commerce');
+		return 'physical';
+	}
 
-        }
 
-        
 
-        foreach ($required_fields as $field => $label) {
+	/**
 
-            if (empty($data[$field])) {
+	 * Preparar dados do pedido
+	 */
+	private function prepare_order_data( $data ) {
 
-                /* translators: %1$s: field label (e.g. Nome, E-mail) */
+		$cart = hng_cart();
 
-                $errors[] = sprintf(esc_html__('O campo "%1$s" ï¿½ obrigatï¿½rio.', 'hng-commerce'), $label);
+		// Calcular frete
 
-            }
+		$shipping_cost = 0;
 
-        }
+		if ( $cart->needs_shipping() && ! empty( $data['shipping_method'] ) ) {
 
-        
+			$shipping_cost = $this->calculate_shipping( $data['billing_postcode'], $data['shipping_method'] );
 
-        // Validar e-mail
+		}
 
-        if (!empty($data['billing_email']) && !is_email($data['billing_email'])) {
+		// Verificar se tem frete grï¿½tis por cupom
 
-            $errors[] = __('E-mail invï¿½lido.', 'hng-commerce');
+		if ( $cart->has_free_shipping() ) {
 
-        }
+			$shipping_cost = 0;
 
-        
+		}
 
-        // Validar CPF/CNPJ
+		// Calcular desconto dos cupons
 
-        if (!empty($data['billing_cpf'])) {
+		$discount = $cart->get_discount_total();
 
-            $cpf = preg_replace('/[^0-9]/', '', $data['billing_cpf']);
+		$coupon_codes = $cart->get_coupon_codes();
 
-            if (strlen($cpf) !== 11 && strlen($cpf) !== 14) {
+		// Mï¿½todo de pagamento dinï¿½mico conforme configuraï¿½ï¿½es
 
-                $errors[] = __('CPF/CNPJ invï¿½lido.', 'hng-commerce');
+		$enabled_methods = hng_get_active_gateway_methods();
 
-            }
+		$payment_methods = array();
 
-        }
+		foreach ( $enabled_methods as $method ) {
 
-        
+			$payment_methods[ $method ] = hng_get_payment_method_title( $method );
 
-        // Validar CEP
+		}
 
-        if (!empty($data['billing_postcode'])) {
+		// Sanitizar campos de cliente antes de retornar
 
-            $cep = preg_replace('/[^0-9]/', '', $data['billing_postcode']);
+		$billing_first_name = sanitize_text_field( $data['billing_first_name'] ?? '' );
 
-            if (strlen($cep) !== 8) {
+		$billing_last_name = sanitize_text_field( $data['billing_last_name'] ?? '' );
 
-                $errors[] = __('CEP invï¿½lido.', 'hng-commerce');
+		$billing_email = sanitize_email( $data['billing_email'] ?? '' );
 
-            }
+		$billing_phone = sanitize_text_field( $data['billing_phone'] ?? '' );
 
-        }
+		$billing_cpf = isset( $data['billing_cpf'] ) ? preg_replace( '/[^0-9]/', '', $data['billing_cpf'] ) : '';
 
-        
+		$billing_postcode = isset( $data['billing_postcode'] ) ? preg_replace( '/[^0-9]/', '', $data['billing_postcode'] ) : '';
 
-        // Validar mï¿½todo de pagamento dinï¿½mico
+		$billing_address_1 = sanitize_text_field( $data['billing_address_1'] ?? '' );
 
-        $enabled_methods = hng_get_active_gateway_methods();
+		$billing_number = sanitize_text_field( $data['billing_number'] ?? '' );
 
-        if (empty($data['payment_method'])) {
+		$billing_address_2 = sanitize_text_field( $data['billing_address_2'] ?? '' );
 
-            $errors[] = __('Selecione um mï¿½todo de pagamento.', 'hng-commerce');
+		$billing_neighborhood = sanitize_text_field( $data['billing_neighborhood'] ?? '' );
 
-        } elseif (!in_array($data['payment_method'], $enabled_methods, true)) {
+		$billing_city = sanitize_text_field( $data['billing_city'] ?? '' );
 
-            $errors[] = __('Mï¿½todo de pagamento nï¿½o disponï¿½vel.', 'hng-commerce');
+		$billing_state = sanitize_text_field( $data['billing_state'] ?? '' );
 
-        }
+		$shipping_method = sanitize_text_field( $data['shipping_method'] ?? '' );
 
-        
+		$order_comments = isset( $data['order_comments'] ) ? sanitize_textarea_field( $data['order_comments'] ) : '';
 
-        // Validar termos
+		$payment_method = sanitize_text_field( $data['payment_method'] ?? '' );
 
-        if (empty($data['terms'])) {
+		return array(
 
-            $errors[] = __('Vocï¿½ deve concordar com os termos e condiï¿½ï¿½es.', 'hng-commerce');
+			'billing_first_name'   => $billing_first_name,
 
-        }
+			'billing_last_name'    => $billing_last_name,
 
-        
+			'billing_email'        => $billing_email,
 
-        return $errors;
+			'billing_phone'        => $billing_phone,
 
-    }
+			'billing_cpf'          => $billing_cpf,
 
-    
+			'billing_postcode'     => $billing_postcode,
 
-    /**
+			'billing_address_1'    => $billing_address_1,
 
-     * Normalizar tipo de produto para valores suportados
+			'billing_number'       => $billing_number,
 
-     */
+			'billing_address_2'    => $billing_address_2,
 
-    private function normalize_product_type($type) {
+			'billing_neighborhood' => $billing_neighborhood,
 
-        if (class_exists('HNG_Product_Types')) {
+			'billing_city'         => $billing_city,
 
-            return HNG_Product_Types::normalize($type);
+			'billing_state'        => $billing_state,
 
-        }
+			'shipping_method'      => $shipping_method,
 
+			'shipping_cost'        => $shipping_cost,
 
+			'discount'             => $discount,
 
-        $type = sanitize_key($type ?: 'physical');
+			'coupon_codes'         => implode( ',', $coupon_codes ),
 
-        if ($type === 'simple') {
+			'payment_method'       => $payment_method,
 
-            $type = 'physical';
+			'payment_method_title' => $payment_methods[ $payment_method ] ?? '',
 
-        }
+			'order_comments'       => $order_comments,
 
-        $allowed = ['physical', 'digital', 'subscription', 'quote', 'appointment'];
+		);
+	}
 
-        return in_array($type, $allowed, true) ? $type : 'physical';
 
-    }
 
+	/**
 
+	 * Calcular frete
+	 */
+	private function calculate_shipping( $postcode, $method ) {
 
-    /**
+		$zipcode = preg_replace( '/\D/', '', (string) $postcode );
 
-     * Obter tipos de produto presentes no carrinho
+		if ( strlen( $zipcode ) !== 8 ) {
 
-     */
+			return 0;
 
-    private function get_cart_product_types($cart) {
+		}
 
-        $types = [];
+		$cart = hng_cart();
 
-        foreach ($cart->get_cart() as $item) {
+		$manager = HNG_Shipping_Manager::instance();
 
-            $product = $item['data'];
+		// Reutilizar cotações se forem do mesmo CEP
 
-            $types[] = $this->normalize_product_type($product->get_product_type());
+		$available = $cart->get_available_shipping_rates();
 
-        }
+		if ( ! empty( $available['rates'] ) && ( $available['postcode'] ?? '' ) === $zipcode ) {
 
-        return array_values(array_unique($types));
+			$rates = $available['rates'];
 
-    }
+		} else {
 
+			$package = $manager->build_package_from_cart( $zipcode );
 
+			$rates = $manager->calculate_shipping( $package );
 
-    /**
+			if ( ! is_wp_error( $rates ) ) {
 
-     * Determinar tipo predominante do pedido (prioridade: assinatura > agendamento > orçamento > digital > físico)
+				$cart->set_available_shipping_rates( $zipcode, $rates );
 
-     */
+			}
+		}
 
-    private function determine_order_product_type($cart) {
+		if ( is_wp_error( $rates ) || empty( $rates ) ) {
 
-        $types = $this->get_cart_product_types($cart);
+			return 0;
 
-        $priority = ['subscription', 'appointment', 'quote', 'digital', 'physical'];
+		}
 
-        foreach ($priority as $p) {
+		foreach ( $rates as $rate ) {
 
-            if (in_array($p, $types, true)) {
+			if ( ! isset( $rate['id'] ) ) {
 
-                return $p;
+				continue;
 
-            }
+			}
 
-        }
+			if ( (string) $rate['id'] === (string) $method ) {
 
-        return 'physical';
+				// Persistir seleção para recalcular total corretamente
 
-    }
+				$cart->select_shipping_rate( $rate['id'] );
 
+				return floatval( $rate['cost'] ?? 0 );
 
+			}
+		}
 
-    /**
+		return 0;
+	}
 
-     * Preparar dados do pedido
 
-     */
 
-    private function prepare_order_data($data) {
+	/**
 
-        $cart = hng_cart();
+	 * Processar pagamento
+	 */
+	private function process_payment( $order, $data ) {
 
-        
+		$payment_method = $data['payment_method'];
 
-        // Calcular frete
+		// Selecionar gateway dinamicamente por m e9todo
 
-        $shipping_cost = 0;
+		$gateway = $this->resolve_gateway_for_method( $payment_method );
 
-        if ($cart->needs_shipping() && !empty($data['shipping_method'])) {
+		if ( ! $gateway ) {
 
-            $shipping_cost = $this->calculate_shipping($data['billing_postcode'], $data['shipping_method']);
+			// Fallback manual quando nenhum gateway est e1 configurado para o m e9todo
 
-        }
+			switch ( $payment_method ) {
 
-        
+				case 'pix':
+					$order->update_status( 'hng-pending', __( 'Aguardando pagamento PIX (manual).', 'hng-commerce' ) );
 
-        // Verificar se tem frete grï¿½tis por cupom
+					break;
 
-        if ($cart->has_free_shipping()) {
+				case 'credit_card':
+					$order->update_status( 'hng-pending', __( 'Aguardando processamento do cart e3o (manual).', 'hng-commerce' ) );
 
-            $shipping_cost = 0;
+					break;
 
-        }
+				case 'boleto':
+					$order->update_status( 'hng-pending', __( 'Aguardando pagamento do boleto (manual).', 'hng-commerce' ) );
 
-        
+					break;
 
-        // Calcular desconto dos cupons
+				default:
+					return new WP_Error( 'invalid_payment', __( 'M e9todo de pagamento inv e1lido.', 'hng-commerce' ) );
 
-        $discount = $cart->get_discount_total();
+			}
 
-        $coupon_codes = $cart->get_coupon_codes();
+			return true;
 
-        
+		}
 
-        // Mï¿½todo de pagamento dinï¿½mico conforme configuraï¿½ï¿½es
+		// === SEGURANï¿½A: CALCULAR TAXAS NA VPS (FONTE DA VERDADE) ===
 
-        $enabled_methods = hng_get_active_gateway_methods();
+		$api_client = HNG_API_Client::instance();
 
-        $payment_methods = [];
+		// 1. Verificar status do merchant (Kill Switch)
 
-        foreach ($enabled_methods as $method) {
+		$merchant_status = $api_client->verify_merchant();
 
-            $payment_methods[$method] = hng_get_payment_method_title($method);
+		if ( is_wp_error( $merchant_status ) ) {
 
-        }
+			// Conta banida ou offline?
 
-        
+			if ( $merchant_status->get_error_code() === 'banned' ) {
 
-        // Sanitizar campos de cliente antes de retornar
+				return new WP_Error(
+					'merchant_banned',
+					__( 'Sua conta foi suspensa. Entre em contato com o suporte.', 'hng-commerce' )
+				);
 
-        $billing_first_name = sanitize_text_field($data['billing_first_name'] ?? '');
+			}
 
-        $billing_last_name = sanitize_text_field($data['billing_last_name'] ?? '');
+			// VPS offline: continuar com fallback (serï¿½ calculado localmente)
 
-        $billing_email = sanitize_email($data['billing_email'] ?? '');
+			$msg = 'HNG: VPS offline no checkout - ' . $merchant_status->get_error_message();
 
-        $billing_phone = sanitize_text_field($data['billing_phone'] ?? '');
+			if ( function_exists( 'hng_files_log_append' ) ) {
+				hng_files_log_append( HNG_COMMERCE_PATH . 'logs/checkout.log', $msg . PHP_EOL ); }
+		}
 
-        $billing_cpf = isset($data['billing_cpf']) ? preg_replace('/[^0-9]/', '', $data['billing_cpf']) : '';
+		// 2. Calcular taxas na VPS (com validaï¿½ï¿½o HMAC)
 
-        $billing_postcode = isset($data['billing_postcode']) ? preg_replace('/[^0-9]/', '', $data['billing_postcode']) : '';
+		$product_type = $data['product_type'] ?? 'physical';
 
-        $billing_address_1 = sanitize_text_field($data['billing_address_1'] ?? '');
+		if ( class_exists( 'HNG_Product_Types' ) ) {
 
-        $billing_number = sanitize_text_field($data['billing_number'] ?? '');
+			$product_type = HNG_Product_Types::normalize( $product_type );
 
-        $billing_address_2 = sanitize_text_field($data['billing_address_2'] ?? '');
+		} else {
 
-        $billing_neighborhood = sanitize_text_field($data['billing_neighborhood'] ?? '');
+			$product_type = sanitize_key( $product_type );
 
-        $billing_city = sanitize_text_field($data['billing_city'] ?? '');
+		}
 
-        $billing_state = sanitize_text_field($data['billing_state'] ?? '');
+		// Nome do gateway atual (para c e1lculo de taxas na VPS)
 
-        $shipping_method = sanitize_text_field($data['shipping_method'] ?? '');
+		$gateway_name = method_exists( $gateway, 'id' ) ? $gateway->id : ( property_exists( $gateway, 'id' ) ? $gateway->id : 'generic' );
 
-        $order_comments = isset($data['order_comments']) ? sanitize_textarea_field($data['order_comments']) : '';
+		$fee_data = $api_client->calculate_fee(
+			array(
 
-        $payment_method = sanitize_text_field($data['payment_method'] ?? '');
+				'order_id'       => $order->get_post_id(),
 
+				'amount'         => $order->get_total(),
 
+				'product_type'   => $product_type,
 
-        return [
+				'gateway'        => $gateway_name,
 
-            'billing_first_name' => $billing_first_name,
+				'payment_method' => $payment_method,
 
-            'billing_last_name' => $billing_last_name,
+			)
+		);
 
-            'billing_email' => $billing_email,
+		// Se VPS offline, $fee_data terá flag 'is_fallback' = true
 
-            'billing_phone' => $billing_phone,
+		if ( isset( $fee_data['is_fallback'] ) && $fee_data['is_fallback'] ) {
 
-            'billing_cpf' => $billing_cpf,
+			$msg = 'HNG: Usando cálculo local (fallback) para Order #' . $order->get_post_id();
 
-            'billing_postcode' => $billing_postcode,
+			if ( function_exists( 'hng_files_log_append' ) ) {
+				hng_files_log_append( HNG_COMMERCE_PATH . 'logs/checkout.log', $msg . PHP_EOL ); }
+		}
 
-            'billing_address_1' => $billing_address_1,
+		// 3. Salvar taxas no pedido (para auditoria)
 
-            'billing_number' => $billing_number,
+		update_post_meta( $order->get_post_id(), '_hng_plugin_fee', $fee_data['plugin_fee'] );
 
-            'billing_address_2' => $billing_address_2,
+		update_post_meta( $order->get_post_id(), '_hng_gateway_fee', $fee_data['gateway_fee'] );
 
-            'billing_neighborhood' => $billing_neighborhood,
+		update_post_meta( $order->get_post_id(), '_hng_net_amount', $fee_data['net_amount'] );
 
-            'billing_city' => $billing_city,
+		update_post_meta( $order->get_post_id(), '_hng_tier', $fee_data['tier'] );
 
-            'billing_state' => $billing_state,
+		update_post_meta( $order->get_post_id(), '_hng_is_fallback', $fee_data['is_fallback'] ?? false );
 
-            'shipping_method' => $shipping_method,
+		// Verificar configura e7 e3o do gateway selecionado
 
-            'shipping_cost' => $shipping_cost,
+		if ( ! method_exists( $gateway, 'is_configured' ) || ! $gateway->is_configured() ) {
 
-            'discount' => $discount,
+			return new WP_Error( 'gateway_not_configured', __( 'Gateway de pagamento n e3o configurado.', 'hng-commerce' ) );
 
-            'coupon_codes' => implode(',', $coupon_codes),
+		}
 
-            'payment_method' => $payment_method,
+		// Preparar dados do pagamento
 
-            'payment_method_title' => $payment_methods[$payment_method] ?? '',
+		$payment_data = array(
 
-            'order_comments' => $order_comments,
+			'method' => $payment_method,
 
-        ];
+			'cpf'    => $data['billing_cpf'],
 
-    }
+		);
 
-    
+		// Adicionar dados especï¿½ficos do mï¿½todo
 
-    /**
+		switch ( $payment_method ) {
 
-     * Calcular frete
+			case 'pix':
+				// PIX nï¿½o precisa de dados adicionais
 
-     */
+				$order->update_status( 'hng-pending', __( 'Aguardando pagamento PIX.', 'hng-commerce' ) );
 
-    private function calculate_shipping($postcode, $method) {
+				break;
 
-        $zipcode = preg_replace('/\D/', '', (string) $postcode);
+			case 'credit_card':
+				// Validar dados do cartï¿½o
 
-        if (strlen($zipcode) !== 8) {
+				if ( empty( $data['card_holder_name'] ) || empty( $data['card_number'] ) ||
 
-            return 0;
+					empty( $data['card_expiry_month'] ) || empty( $data['card_expiry_year'] ) ||
 
-        }
+					empty( $data['card_cvv'] ) ) {
 
+					return new WP_Error( 'invalid_card', __( 'Dados do cartï¿½o incompletos.', 'hng-commerce' ) );
 
+				}
 
-        $cart = hng_cart();
+				$payment_data['card_holder_name'] = $data['card_holder_name'];
 
-        $manager = HNG_Shipping_Manager::instance();
+				$payment_data['card_number'] = $data['card_number'];
 
+				$payment_data['card_expiry_month'] = $data['card_expiry_month'];
 
+				$payment_data['card_expiry_year'] = $data['card_expiry_year'];
 
-        // Reutilizar cotações se forem do mesmo CEP
+				$payment_data['card_cvv'] = $data['card_cvv'];
 
-        $available = $cart->get_available_shipping_rates();
+				$payment_data['installments'] = $data['installments'] ?? 1;
 
-        if (!empty($available['rates']) && ($available['postcode'] ?? '') === $zipcode) {
+				$order->update_status( 'hng-pending', __( 'Processando cartï¿½o de crï¿½dito...', 'hng-commerce' ) );
 
-            $rates = $available['rates'];
+				break;
 
-        } else {
+			case 'boleto':
+				$order->update_status( 'hng-pending', __( 'Gerando boleto bancï¿½rio...', 'hng-commerce' ) );
 
-            $package = $manager->build_package_from_cart($zipcode);
+				break;
 
-            $rates = $manager->calculate_shipping($package);
+			default:
+				return new WP_Error( 'invalid_payment', __( 'Mï¿½todo de pagamento invï¿½lido.', 'hng-commerce' ) );
 
+		}
 
+		// Processar pagamento via gateway din e2mico
 
-            if (!is_wp_error($rates)) {
+		$result = $gateway->process_payment( $order->get_id(), $payment_data );
 
-                $cart->set_available_shipping_rates($zipcode, $rates);
+		if ( is_wp_error( $result ) ) {
 
-            }
+			return $result;
 
-        }
+		}
 
+		// Se for assinatura, criar registro e integrar com gateway avan e7ado quando poss edvel
 
+		$product_type = $data['product_type'] ?? 'physical';
 
-        if (is_wp_error($rates) || empty($rates)) {
+		if ( class_exists( 'HNG_Product_Types' ) ) {
 
-            return 0;
+			$product_type = HNG_Product_Types::normalize( $product_type );
 
-        }
+		}
 
+		if ( $product_type === 'subscription' ) {
 
+			$gateway_id = property_exists( $gateway, 'id' ) ? $gateway->id : 'generic';
 
-        foreach ($rates as $rate) {
+			$gateway_subscription_id = '';
 
-            if (!isset($rate['id'])) {
+			// Tentar integra e7 e3o avan e7ada por gateway
 
-                continue;
+			if ( method_exists( $gateway, 'create_customer' ) && method_exists( $gateway, 'create_subscription' ) ) {
 
-            }
+				$customer_payload = array(
 
+					'name'     => $order->get_customer_name(),
 
+					'email'    => $order->get_customer_email(),
 
-            if ((string) $rate['id'] === (string) $method) {
+					'document' => get_post_meta( $order->get_id(), '_billing_cpf', true ),
 
-                // Persistir seleção para recalcular total corretamente
+				);
 
-                $cart->select_shipping_rate($rate['id']);
+				$customer = $gateway->create_customer( $customer_payload );
 
-                return floatval($rate['cost'] ?? 0);
+				if ( ! is_wp_error( $customer ) ) {
 
-            }
+					$customer_id = $customer['id'] ?? ( $customer['customer']['id'] ?? '' );
 
-        }
+					// Mercado Pago: usa preapproval sem plan_id
 
+					if ( $gateway_id === 'mercadopago' ) {
 
+						$plan_data = array(
 
-        return 0;
+							'email'          => $order->get_customer_email(),
 
-    }
+							'reason'         => 'Assinatura HNG',
 
-    
+							'frequency'      => 1,
 
-    /**
+							'frequency_type' => 'months',
 
-     * Processar pagamento
+							'amount'         => $order->get_total(),
 
-     */
+						);
 
-    private function process_payment($order, $data) {
+						$sub = $gateway->create_subscription( $customer_id, $plan_data );
 
-        $payment_method = $data['payment_method'];
+						if ( ! is_wp_error( $sub ) ) {
 
+							$gateway_subscription_id = $sub['id'] ?? '';
 
+						}
+					}
 
-        // Selecionar gateway dinamicamente por m e9todo
+					// Pagar.me: requer plan_id (opcional via config)
 
-        $gateway = $this->resolve_gateway_for_method($payment_method);
+					if ( $gateway_id === 'pagarme' ) {
 
-        if (!$gateway) {
+						$plan_id = get_option( 'hng_pagarme_plan_id', '' );
 
-            // Fallback manual quando nenhum gateway est e1 configurado para o m e9todo
+						if ( ! empty( $plan_id ) ) {
 
-            switch ($payment_method) {
+							$sub = $gateway->create_subscription( $plan_id, $customer_id, $payment_method );
 
-                case 'pix':
+							if ( ! is_wp_error( $sub ) ) {
 
-                    $order->update_status('hng-pending', __('Aguardando pagamento PIX (manual).', 'hng-commerce'));
+								$gateway_subscription_id = $sub['id'] ?? '';
 
-                    break;
+							}
+						}
+					}
 
-                case 'credit_card':
+					// Asaas: criar assinatura recorrente mensal ao invés de cobrança avulsa
 
-                    $order->update_status('hng-pending', __('Aguardando processamento do cart e3o (manual).', 'hng-commerce'));
+					if ( $gateway_id === 'asaas' ) {
 
-                    break;
+						$next_due = gmdate( 'Y-m-d', strtotime( '+1 month' ) );
 
-                case 'boleto':
+						$sub = $gateway->create_subscription(
+							$customer_id,
+							array(
 
-                    $order->update_status('hng-pending', __('Aguardando pagamento do boleto (manual).', 'hng-commerce'));
+								'amount'        => $order->get_total(),
 
-                    break;
+								'cycle'         => 'MONTHLY',
 
-                default:
+								'next_due_date' => $next_due,
 
-                    return new WP_Error('invalid_payment', __('M e9todo de pagamento inv e1lido.', 'hng-commerce'));
+								'description'   => 'Assinatura HNG',
 
-            }
+							)
+						);
 
-            return true;
+						if ( ! is_wp_error( $sub ) ) {
 
-        }
+							$gateway_subscription_id = $sub['id'] ?? '';
 
-        
+						}
+					}
+				}
+			}
 
-        // === SEGURANï¿½A: CALCULAR TAXAS NA VPS (FONTE DA VERDADE) ===
+			// Determinar produto principal
 
-        
+			$items = $order->get_items();
 
-        $api_client = HNG_API_Client::instance();
+			$first_item = is_array( $items ) && ! empty( $items ) ? $items[0] : array();
 
-        
+			$product_id = isset( $first_item['product_id'] ) ? intval( $first_item['product_id'] ) : 0;
 
-        // 1. Verificar status do merchant (Kill Switch)
+			$status = in_array( $payment_method, array( 'credit_card', 'debit_card' ), true ) ? 'active' : 'pending';
 
-        $merchant_status = $api_client->verify_merchant();
+			// Criar assinatura local
 
-        
+			if ( class_exists( 'HNG_Subscription' ) ) {
 
-        if (is_wp_error($merchant_status)) {
+				$sub_data = array(
 
-            // Conta banida ou offline?
+					'order_id'                => $order->get_id(),
 
-            if ($merchant_status->get_error_code() === 'banned') {
+					'product_id'              => $product_id,
 
-                return new WP_Error('merchant_banned', 
+					'customer_email'          => $order->get_customer_email(),
 
-                    __('Sua conta foi suspensa. Entre em contato com o suporte.', 'hng-commerce'));
+					'status'                  => $status,
 
-            }
+					'billing_period'          => 'monthly',
 
-            
+					'billing_interval'        => 1,
 
-            // VPS offline: continuar com fallback (serï¿½ calculado localmente)
+					'next_payment_date'       => gmdate( 'Y-m-d H:i:s', strtotime( '+1 month' ) ),
 
-            $msg = 'HNG: VPS offline no checkout - ' . $merchant_status->get_error_message();
+					'amount'                  => $order->get_total(),
 
-            if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/checkout.log', $msg . PHP_EOL); }
+					'gateway'                 => $gateway_id,
 
-        }
+					'gateway_subscription_id' => $gateway_subscription_id,
 
-        
+					'payment_method'          => $payment_method,
 
-        // 2. Calcular taxas na VPS (com validaï¿½ï¿½o HMAC)
+				);
 
-        $product_type = $data['product_type'] ?? 'physical';
+				// Se Asaas em modo avançado, também persistir coluna específica para facilitar webhooks
 
-        if (class_exists('HNG_Product_Types')) {
+				if ( $gateway_id === 'asaas' && get_option( 'hng_asaas_advanced_integration', 'no' ) === 'yes' && ! empty( $gateway_subscription_id ) ) {
 
-            $product_type = HNG_Product_Types::normalize($product_type);
+					$sub_data['asaas_subscription_id'] = $gateway_subscription_id;
 
-        } else {
+				}
 
-            $product_type = sanitize_key($product_type);
+				HNG_Subscription::create( $sub_data );
 
-        }
+			}
+		}
 
-        // Nome do gateway atual (para c e1lculo de taxas na VPS)
+		// Sucesso no processamento
 
-        $gateway_name = method_exists($gateway, 'id') ? $gateway->id : (property_exists($gateway, 'id') ? $gateway->id : 'generic');
+		return true;
+	}
 
-        
 
-        $fee_data = $api_client->calculate_fee([
 
-            'order_id' => $order->get_post_id(),
+	/**
 
-            'amount' => $order->get_total(),
+	 * Obter URL da página de confirmação
+	 */
+	private function get_order_received_url( $order ) {
 
-            'product_type' => $product_type,
+		$payment_method = get_post_meta( $order->get_id(), '_payment_method', true );
 
-            'gateway' => $gateway_name,
+		// Sempre redirecionar para página de obrigado com parâmetros do pedido
 
-            'payment_method' => $payment_method
+		// O template order-received.php já trata cada método de pagamento (PIX, Boleto, etc)
 
-        ]);
+		$url = hng_get_page_url( 'obrigado' );
 
-        
+		return add_query_arg(
+			array(
 
-        // Se VPS offline, $fee_data terá flag 'is_fallback' = true
+				'order_id'       => $order->get_id(),
 
-        if (isset($fee_data['is_fallback']) && $fee_data['is_fallback']) {
+				'key'            => $order->get_order_number(),
 
-            $msg = 'HNG: Usando cálculo local (fallback) para Order #' . $order->get_post_id();
+				'payment_method' => $payment_method,
 
-            if (function_exists('hng_files_log_append')) { hng_files_log_append(HNG_COMMERCE_PATH . 'logs/checkout.log', $msg . PHP_EOL); }
+			),
+			$url
+		);
+	}
 
-        }
 
-        
 
-        // 3. Salvar taxas no pedido (para auditoria)
+	/**
 
-        update_post_meta($order->get_post_id(), '_hng_plugin_fee', $fee_data['plugin_fee']);
+	 * Resolver gateway para o m e9todo selecionado
+	 */
+	private function resolve_gateway_for_method( $method ) {
+		// DEBUG: Log para rastrear resolução de gateway
 
-        update_post_meta($order->get_post_id(), '_hng_gateway_fee', $fee_data['gateway_fee']);
+		error_log( 'HNG Checkout: resolve_gateway_for_method chamado para método: ' . $method );
 
-        update_post_meta($order->get_post_id(), '_hng_net_amount', $fee_data['net_amount']);
+				// Ordem prefer e1vel por m e9todo
 
-        update_post_meta($order->get_post_id(), '_hng_tier', $fee_data['tier']);
+		$candidates = array();
 
-        update_post_meta($order->get_post_id(), '_hng_is_fallback', $fee_data['is_fallback'] ?? false);
+		if ( $method === 'pix' ) {
 
-        
+			$candidates = array(
 
-        // Verificar configura e7 e3o do gateway selecionado
+				array(
+					'opt'   => 'hng_gateway_pagarme_enabled',
+					'class' => 'HNG_Gateway_Pagarme',
+				),
 
-        if (!method_exists($gateway, 'is_configured') || !$gateway->is_configured()) {
+				array(
+					'opt'   => 'hng_gateway_mercadopago_enabled',
+					'class' => 'HNG_Gateway_MercadoPago',
+				),
 
-            return new WP_Error('gateway_not_configured', __('Gateway de pagamento n e3o configurado.', 'hng-commerce'));
+				array(
+					'opt'   => 'hng_gateway_pagseguro_enabled',
+					'class' => 'HNG_Gateway_PagSeguro',
+				),
 
-        }
+				array(
+					'opt'   => 'hng_gateway_asaas_enabled',
+					'class' => 'HNG_Gateway_Asaas',
+				),
 
-        
+			);
 
-        // Preparar dados do pagamento
+		} elseif ( $method === 'credit_card' ) {
 
-        $payment_data = [
+			$candidates = array(
 
-            'method' => $payment_method,
+				array(
+					'opt'   => 'hng_gateway_pagarme_enabled',
+					'class' => 'HNG_Gateway_Pagarme',
+				),
 
-            'cpf' => $data['billing_cpf'],
+				array(
+					'opt'   => 'hng_gateway_mercadopago_enabled',
+					'class' => 'HNG_Gateway_MercadoPago',
+				),
 
-        ];
+				array(
+					'opt'   => 'hng_gateway_asaas_enabled',
+					'class' => 'HNG_Gateway_Asaas',
+				),
 
-        
+			);
 
-        // Adicionar dados especï¿½ficos do mï¿½todo
+		} elseif ( $method === 'boleto' ) {
 
-        switch ($payment_method) {
+			$candidates = array(
 
-            case 'pix':
+				array(
+					'opt'   => 'hng_gateway_pagarme_enabled',
+					'class' => 'HNG_Gateway_Pagarme',
+				),
 
-                // PIX nï¿½o precisa de dados adicionais
+				array(
+					'opt'   => 'hng_gateway_pagseguro_enabled',
+					'class' => 'HNG_Gateway_PagSeguro',
+				),
 
-                $order->update_status('hng-pending', __('Aguardando pagamento PIX.', 'hng-commerce'));
+				array(
+					'opt'   => 'hng_gateway_asaas_enabled',
+					'class' => 'HNG_Gateway_Asaas',
+				),
 
-                break;
+			);
 
-                
+		}
 
-            case 'credit_card':
+		foreach ( $candidates as $cand ) {
 
-                // Validar dados do cartï¿½o
+			// DEBUG: Log das opções verificadas
 
-                if (empty($data['card_holder_name']) || empty($data['card_number']) || 
+			$opt_value = get_option( $cand['opt'], 'no' );
 
-                    empty($data['card_expiry_month']) || empty($data['card_expiry_year']) || 
+			error_log( "HNG Checkout: Verificando opção {$cand['opt']} = '{$opt_value}' (esperado: 'yes')" );
 
-                    empty($data['card_cvv'])) {
+			if ( $opt_value === 'yes' ) {
 
-                    return new WP_Error('invalid_card', __('Dados do cartï¿½o incompletos.', 'hng-commerce'));
+				error_log( "HNG Checkout: Gateway encontrado: {$cand['class']}" );
 
-                }
+				if ( ! class_exists( $cand['class'] ) ) {
 
-                
+					// Tentar carregar arquivo do gateway (paths padr e3o)
 
-                $payment_data['card_holder_name'] = $data['card_holder_name'];
+					$map = array(
 
-                $payment_data['card_number'] = $data['card_number'];
+						'HNG_Gateway_Pagarme'     => HNG_COMMERCE_PATH . 'gateways/pagarme/class-gateway-pagarme.php',
 
-                $payment_data['card_expiry_month'] = $data['card_expiry_month'];
+						'HNG_Gateway_MercadoPago' => HNG_COMMERCE_PATH . 'gateways/mercadopago/class-gateway-mercadopago.php',
 
-                $payment_data['card_expiry_year'] = $data['card_expiry_year'];
+						'HNG_Gateway_PagSeguro'   => HNG_COMMERCE_PATH . 'gateways/pagseguro/class-gateway-pagseguro.php',
 
-                $payment_data['card_cvv'] = $data['card_cvv'];
+						'HNG_Gateway_Asaas'       => HNG_COMMERCE_PATH . 'gateways/asaas/class-gateway-asaas.php',
 
-                $payment_data['installments'] = $data['installments'] ?? 1;
+					);
 
-                
+					if ( isset( $map[ $cand['class'] ] ) && file_exists( $map[ $cand['class'] ] ) ) {
 
-                $order->update_status('hng-pending', __('Processando cartï¿½o de crï¿½dito...', 'hng-commerce'));
+						require_once $map[ $cand['class'] ];
 
-                break;
+					}
+				}
 
-                
+				if ( class_exists( $cand['class'] ) ) {
 
-            case 'boleto':
+					return new $cand['class']();
 
-                $order->update_status('hng-pending', __('Gerando boleto bancï¿½rio...', 'hng-commerce'));
+				}
+			}
+		}
 
-                break;
+		error_log( 'HNG Checkout: NENHUM gateway habilitado encontrado!' );
 
-                
+		return null;
+	}
 
-            default:
 
-                return new WP_Error('invalid_payment', __('Mï¿½todo de pagamento invï¿½lido.', 'hng-commerce'));
 
-        }
+	/**
 
-        
+	 * Incrementar uso dos cupons
+	 */
+	private function increment_coupon_usage( $order ) {
 
-        // Processar pagamento via gateway din e2mico
+		$coupon_codes = $order->get_meta( 'coupon_codes' );
 
-        $result = $gateway->process_payment($order->get_id(), $payment_data);
+		if ( empty( $coupon_codes ) ) {
 
-        
+			return;
 
-        if (is_wp_error($result)) {
+		}
 
-            return $result;
+		$codes = explode( ',', $coupon_codes );
 
-        }
+		$user_id = get_current_user_id();
 
-        
+		foreach ( $codes as $code ) {
 
-        // Se for assinatura, criar registro e integrar com gateway avan e7ado quando poss edvel
+			$coupon = HNG_Coupon::get_by_code( trim( $code ) );
 
-        $product_type = $data['product_type'] ?? 'physical';
+			if ( $coupon ) {
 
-        if (class_exists('HNG_Product_Types')) {
+				$coupon->increment_usage_count( $user_id, $order->get_id() );
 
-            $product_type = HNG_Product_Types::normalize($product_type);
-
-        }
-
-        if ($product_type === 'subscription') {
-
-            $gateway_id = property_exists($gateway, 'id') ? $gateway->id : 'generic';
-
-            $gateway_subscription_id = '';
-
-
-
-            // Tentar integra e7 e3o avan e7ada por gateway
-
-            if (method_exists($gateway, 'create_customer') && method_exists($gateway, 'create_subscription')) {
-
-                $customer_payload = [
-
-                    'name' => $order->get_customer_name(),
-
-                    'email' => $order->get_customer_email(),
-
-                    'document' => get_post_meta($order->get_id(), '_billing_cpf', true),
-
-                ];
-
-                $customer = $gateway->create_customer($customer_payload);
-
-                if (!is_wp_error($customer)) {
-
-                    $customer_id = $customer['id'] ?? ($customer['customer']['id'] ?? '');
-
-                    // Mercado Pago: usa preapproval sem plan_id
-
-                    if ($gateway_id === 'mercadopago') {
-
-                        $plan_data = [
-
-                            'email' => $order->get_customer_email(),
-
-                            'reason' => 'Assinatura HNG',
-
-                            'frequency' => 1,
-
-                            'frequency_type' => 'months',
-
-                            'amount' => $order->get_total(),
-
-                        ];
-
-                        $sub = $gateway->create_subscription($customer_id, $plan_data);
-
-                        if (!is_wp_error($sub)) {
-
-                            $gateway_subscription_id = $sub['id'] ?? '';
-
-                        }
-
-                    }
-
-                    // Pagar.me: requer plan_id (opcional via config)
-
-                    if ($gateway_id === 'pagarme') {
-
-                        $plan_id = get_option('hng_pagarme_plan_id', '');
-
-                        if (!empty($plan_id)) {
-
-                            $sub = $gateway->create_subscription($plan_id, $customer_id, $payment_method);
-
-                            if (!is_wp_error($sub)) {
-
-                                $gateway_subscription_id = $sub['id'] ?? '';
-
-                            }
-
-                        }
-
-                    }
-
-                    // Asaas: criar assinatura recorrente mensal ao invés de cobrança avulsa
-
-                    if ($gateway_id === 'asaas') {
-
-                        $next_due = gmdate('Y-m-d', strtotime('+1 month'));
-
-                        $sub = $gateway->create_subscription($customer_id, [
-
-                            'amount' => $order->get_total(),
-
-                            'cycle' => 'MONTHLY',
-
-                            'next_due_date' => $next_due,
-
-                            'description' => 'Assinatura HNG',
-
-                        ]);
-
-                        if (!is_wp_error($sub)) {
-
-                            $gateway_subscription_id = $sub['id'] ?? '';
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-
-
-            // Determinar produto principal
-
-            $items = $order->get_items();
-
-            $first_item = is_array($items) && !empty($items) ? $items[0] : [];
-
-            $product_id = isset($first_item['product_id']) ? intval($first_item['product_id']) : 0;
-
-            $status = in_array($payment_method, ['credit_card','debit_card'], true) ? 'active' : 'pending';
-
-
-
-            // Criar assinatura local
-
-            if (class_exists('HNG_Subscription')) {
-
-                $sub_data = [
-
-                    'order_id' => $order->get_id(),
-
-                    'product_id' => $product_id,
-
-                    'customer_email' => $order->get_customer_email(),
-
-                    'status' => $status,
-
-                    'billing_period' => 'monthly',
-
-                    'billing_interval' => 1,
-
-                    'next_payment_date' => gmdate('Y-m-d H:i:s', strtotime('+1 month')),
-
-                    'amount' => $order->get_total(),
-
-                    'gateway' => $gateway_id,
-
-                    'gateway_subscription_id' => $gateway_subscription_id,
-
-                    'payment_method' => $payment_method,
-
-                ];
-
-
-
-                // Se Asaas em modo avançado, também persistir coluna específica para facilitar webhooks
-
-                if ($gateway_id === 'asaas' && get_option('hng_asaas_advanced_integration', 'no') === 'yes' && !empty($gateway_subscription_id)) {
-
-                    $sub_data['asaas_subscription_id'] = $gateway_subscription_id;
-
-                }
-
-
-
-                HNG_Subscription::create($sub_data);
-
-            }
-
-        }
-
-
-
-        // Sucesso no processamento
-
-        return true;
-
-    }
-
-    
-
-    /**
-
-     * Obter URL da página de confirmação
-
-     */
-
-    private function get_order_received_url($order) {
-
-        $payment_method = get_post_meta($order->get_id(), '_payment_method', true);
-
-        
-
-        // Sempre redirecionar para página de obrigado com parâmetros do pedido
-
-        // O template order-received.php já trata cada método de pagamento (PIX, Boleto, etc)
-
-        $url = hng_get_page_url('obrigado');
-
-        return add_query_arg([
-
-            'order_id' => $order->get_id(), 
-
-            'key' => $order->get_order_number(),
-
-            'payment_method' => $payment_method
-
-        ], $url);
-
-    }
-
-
-
-    /**
-
-     * Resolver gateway para o m e9todo selecionado
-
-     */
-
-    private function resolve_gateway_for_method($method) {        // DEBUG: Log para rastrear resolução de gateway
-
-        error_log("HNG Checkout: resolve_gateway_for_method chamado para método: " . $method);
-
-                // Ordem prefer e1vel por m e9todo
-
-        $candidates = [];
-
-        if ($method === 'pix') {
-
-            $candidates = [
-
-                ['opt' => 'hng_gateway_pagarme_enabled', 'class' => 'HNG_Gateway_Pagarme'],
-
-                ['opt' => 'hng_gateway_mercadopago_enabled', 'class' => 'HNG_Gateway_MercadoPago'],
-
-                ['opt' => 'hng_gateway_pagseguro_enabled', 'class' => 'HNG_Gateway_PagSeguro'],
-
-                ['opt' => 'hng_gateway_asaas_enabled', 'class' => 'HNG_Gateway_Asaas'],
-
-            ];
-
-        } elseif ($method === 'credit_card') {
-
-            $candidates = [
-
-                ['opt' => 'hng_gateway_pagarme_enabled', 'class' => 'HNG_Gateway_Pagarme'],
-
-                ['opt' => 'hng_gateway_mercadopago_enabled', 'class' => 'HNG_Gateway_MercadoPago'],
-
-                ['opt' => 'hng_gateway_asaas_enabled', 'class' => 'HNG_Gateway_Asaas'],
-
-            ];
-
-        } elseif ($method === 'boleto') {
-
-            $candidates = [
-
-                ['opt' => 'hng_gateway_pagarme_enabled', 'class' => 'HNG_Gateway_Pagarme'],
-
-                ['opt' => 'hng_gateway_pagseguro_enabled', 'class' => 'HNG_Gateway_PagSeguro'],
-
-                ['opt' => 'hng_gateway_asaas_enabled', 'class' => 'HNG_Gateway_Asaas'],
-
-            ];
-
-        }
-
-
-
-        foreach ($candidates as $cand) {
-
-            // DEBUG: Log das opções verificadas
-
-            $opt_value = get_option($cand['opt'], 'no');
-
-            error_log("HNG Checkout: Verificando opção {$cand['opt']} = '{$opt_value}' (esperado: 'yes')");
-
-            
-
-            if ($opt_value === 'yes') {
-
-                error_log("HNG Checkout: Gateway encontrado: {$cand['class']}");
-
-                if (!class_exists($cand['class'])) {
-
-                    // Tentar carregar arquivo do gateway (paths padr e3o)
-
-                    $map = [
-
-                        'HNG_Gateway_Pagarme' => HNG_COMMERCE_PATH . 'gateways/pagarme/class-gateway-pagarme.php',
-
-                        'HNG_Gateway_MercadoPago' => HNG_COMMERCE_PATH . 'gateways/mercadopago/class-gateway-mercadopago.php',
-
-                        'HNG_Gateway_PagSeguro' => HNG_COMMERCE_PATH . 'gateways/pagseguro/class-gateway-pagseguro.php',
-
-                        'HNG_Gateway_Asaas' => HNG_COMMERCE_PATH . 'gateways/asaas/class-gateway-asaas.php',
-
-                    ];
-
-                    if (isset($map[$cand['class']]) && file_exists($map[$cand['class']])) {
-
-                        require_once $map[$cand['class']];
-
-                    }
-
-                }
-
-                if (class_exists($cand['class'])) {
-
-                    return new $cand['class']();
-
-                }
-
-            }
-
-        }
-
-
-
-        error_log("HNG Checkout: NENHUM gateway habilitado encontrado!");
-
-        return null;
-
-    }
-
-    
-
-    /**
-
-     * Incrementar uso dos cupons
-
-     */
-
-    private function increment_coupon_usage($order) {
-
-        $coupon_codes = $order->get_meta('coupon_codes');
-
-        
-
-        if (empty($coupon_codes)) {
-
-            return;
-
-        }
-
-        
-
-        $codes = explode(',', $coupon_codes);
-
-        $user_id = get_current_user_id();
-
-        
-
-        foreach ($codes as $code) {
-
-            $coupon = HNG_Coupon::get_by_code(trim($code));
-
-            
-
-            if ($coupon) {
-
-                $coupon->increment_usage_count($user_id, $order->get_id());
-
-            }
-
-        }
-
-    }
-
+			}
+		}
+	}
 }
-

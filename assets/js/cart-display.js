@@ -23,7 +23,8 @@
             isOpen: false,
             layoutType: 'sidebar',
             cartItems: [],
-            cartTotal: 0
+            cartTotal: 0,
+            overlayListenerAttached: false
         },
 
         /**
@@ -41,8 +42,14 @@
         attachEventListeners() {
             // Abrir carrinho
             document.addEventListener('click', (e) => {
+                // Ignorar se clicou em botão de fechar
+                if (e.target.closest('.hng-cart-close, .hng-cart-close-modal')) {
+                    return;
+                }
+                
                 if (e.target.closest('.hng-cart-trigger, .hng-cart-sticky-button, .hng-cart-floating-icon')) {
                     e.preventDefault();
+                    e.stopPropagation();
                     this.toggleCart();
                 }
             });
@@ -92,6 +99,15 @@
                         this.closeCart();
                         return;
                     }
+                }
+
+                // Fechar sidebar ao clicar no overlay (pseudo-element ::before)
+                const sidebar = e.target.closest('.hng-cart-sidebar');
+                const sidebarContent = e.target.closest('.hng-cart-sidebar-header, .hng-cart-sidebar-content, .hng-cart-sidebar-footer');
+                if (sidebar && sidebar.classList.contains('active') && !sidebarContent) {
+                    e.preventDefault();
+                    this.closeCart();
+                    return;
                 }
             });
 
@@ -184,7 +200,11 @@
                 sidebar.classList.add('active');
                 if (overlay) {
                     overlay.classList.add('active');
-                    overlay.addEventListener('click', () => this.closeCart());
+                    // Adiciona listener apenas uma vez
+                    if (!this.state.overlayListenerAttached) {
+                        overlay.addEventListener('click', () => this.closeCart());
+                        this.state.overlayListenerAttached = true;
+                    }
                 }
             }
 
@@ -361,7 +381,6 @@
                     console.error('HNG Cart: Erro ao atualizar carrinho', error);
                 }
             });
-            }
         },
 
         /**
@@ -627,13 +646,13 @@
                     nonce: this.config.shippingNonce || this.config.nonce
                 },
                 success: (response) => {
-                    if (response.success && response.data && response.data.rates) {
-                        this.renderShippingOptions(response.data.rates);
+                    // Aceitar tanto 'methods' (retorno do AJAX) quanto 'rates' (fallback)
+                    const rates = response.data?.methods || response.data?.rates || [];
+                    if (response.success && rates.length > 0) {
+                        this.renderShippingOptions(rates);
                         // Auto-selecionar a primeira opção se nenhuma estiver selecionada
-                        if (response.data.rates.length > 0) {
-                            const firstRate = response.data.rates[0];
-                            this.selectShippingRate(firstRate.id);
-                        }
+                        const firstRate = rates[0];
+                        this.selectShippingRate(firstRate.id);
                     } else {
                         this.showShippingError(response.data?.message || i18n.noShipping || 'Nenhuma opção de frete disponível');
                     }

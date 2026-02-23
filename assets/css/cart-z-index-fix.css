@@ -3,21 +3,21 @@
  * Garantir hierarquia correta de z-index e posicionamento correto
  */
 
-/* WordPress Admin Bar: 99999 (padrão do WP) */ 
+/* WordPress Admin Bar: 99999 (padrão do WP) */
 
 /* Carrinhos: Abaixo da admin bar (z-index menor que 99999) mas acima de tudo */
 .hng-cart-sidebar,
-.hng-cart-drawer, 
+.hng-cart-drawer,
 .hng-cart-modal,
 .hng-cart-popup,
 .hng-cart-sticky-expanded {
-    z-index: 99998 !important;
+	z-index: 99998 !important;
 }
 
 /* Overlay dos carrinhos: logo abaixo dos carrinhos */
 .hng-cart-overlay,
 .hng-cart-modal-overlay {
-    z-index: 99997 !important;
+	z-index: 99997 !important;
 }
 
 /* Botões trigger e ícones: bem abaixo dos carrinhos */
@@ -25,73 +25,73 @@
 .hng-cart-floating-icon,
 .hng-cart-sticky,
 .hng-cart-sticky-button {
-    z-index: 99990 !important;
+	z-index: 99990 !important;
 }
 
 /* ==========================================================================
-   Admin Bar Adjustments
-   ========================================================================== */
+	Admin Bar Adjustments
+	========================================================================== */
 
 /* Ajustar posicionamento quando admin bar está presente */
 body.admin-bar .hng-cart-trigger {
-    bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + 32px);
+	bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + 32px);
 }
 
 body.admin-bar.hng-chat-disabled .hng-cart-trigger,
 body.admin-bar.hng-chat-left .hng-cart-trigger {
-    bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + 32px);
+	bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + 32px);
 }
 
 @media screen and (max-width: 782px) {
-    body.admin-bar .hng-cart-trigger {
-        bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + 46px);
-    }
-    
-    body.admin-bar.hng-chat-disabled .hng-cart-trigger,
-    body.admin-bar.hng-chat-left .hng-cart-trigger {
-        bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + 46px);
-    }
+	body.admin-bar .hng-cart-trigger {
+		bottom: calc(var(--hng-cart-bottom-with-chat, 92px) + 46px);
+	}
+
+	body.admin-bar.hng-chat-disabled .hng-cart-trigger,
+	body.admin-bar.hng-chat-left .hng-cart-trigger {
+		bottom: calc(var(--hng-cart-bottom-no-chat, 20px) + 46px);
+	}
 }
 
 /* Fix específico para modal compacto */
 .hng-cart-modal-content {
-    max-width: 420px !important;
-    max-height: 70vh !important;
-    /* SEM overflow aqui - deixar aberto */
+	max-width: 420px !important;
+	max-height: 70vh !important;
+	/* SEM overflow aqui - deixar aberto */
 }
 
 /* Garantir que o body do modal tenha scroll correto */
 .hng-cart-modal-body {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    max-height: calc(70vh - 180px) !important;
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+	max-height: calc(70vh - 180px) !important;
 }
 
 /* ==========================================================================
-   Cart Position: Left Side
-   ========================================================================== */
+	Cart Position: Left Side
+	========================================================================== */
 
 .hng-cart-trigger.hng-cart-position-left,
 .hng-cart-sticky.hng-cart-position-left {
-    left: 20px;
-    right: auto;
+	left: 20px;
+	right: auto;
 }
 
 /* ==========================================================================
-   Cart Position: Top
-   ========================================================================== */
+	Cart Position: Top
+	========================================================================== */
 
 .hng-cart-trigger.hng-cart-position-top {
-    top: 20px;
-    bottom: auto;
+	top: 20px;
+	bottom: auto;
 }
 
 body.admin-bar .hng-cart-trigger.hng-cart-position-top {
-    top: calc(20px + 32px);
+	top: calc(20px + 32px);
 }
 
 @media screen and (max-width: 782px) {
-    body.admin-bar .hng-cart-trigger.hng-cart-position-top {
-        top: calc(20px + 46px);
-    }
+	body.admin-bar .hng-cart-trigger.hng-cart-position-top {
+		top: calc(20px + 46px);
+	}
 }

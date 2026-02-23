@@ -1,176 +1,189 @@
 /**
 
  * HNG Admin Asaas Data Page Scripts
-
  */
 
-(function($) {
+(function ($) {
 
-    'use strict';
+	'use strict';
 
+	$( document ).ready(
+		function () {
 
+			/**
+			 * Trigger Asaas sync				 */
 
-    $(document).ready(function() {
+			function triggerSync(action, btn, extraData = {}) {
 
-        /**
+				const originalText = btn.html();
 
-         * Trigger Asaas sync
+				btn.prop( 'disabled', true ).html( '<span class="dashicons dashicons-update spin"></span> ' + hngAsaasPage.i18n.syncing );
 
-         */
+				$.post(
+					hngAsaasPage.ajaxUrl,
+					{
 
-        function triggerSync(action, btn, extraData = {}) {
+						action: action,
 
-            const originalText = btn.html();
+						nonce: hngAsaasPage.nonce,
 
-            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> ' + hngAsaasPage.i18n.syncing);
+						...extraData
 
-            
+					}
+				)
 
-            $.post(hngAsaasPage.ajaxUrl, {
+				.done(
+					function (response) {
 
-                action: action,
+						// Verificar se a resposta é válida
 
-                nonce: hngAsaasPage.nonce,
+						if ( ! response || typeof response !== 'object') {
 
-                ...extraData
+							alert( hngAsaasPage.i18n.syncError + ' ' + hngAsaasPage.i18n.unknownError );
 
-            })
+							return;
 
-            .done(function(response) {
+						}
 
-                // Verificar se a resposta é válida
+						if (response.success) {
 
-                if (!response || typeof response !== 'object') {
+							const data = response.data || {};
 
-                    alert(hngAsaasPage.i18n.syncError + ' ' + hngAsaasPage.i18n.unknownError);
+							const message = hngAsaasPage.i18n.syncSuccess + '\n' +
 
-                    return;
+									hngAsaasPage.i18n.processed + ': ' + (data.processed || 0) + '\n' +
 
-                }
+									hngAsaasPage.i18n.created + ': ' + (data.created || 0) + '\n' +
 
-                
+									hngAsaasPage.i18n.updated + ': ' + (data.updated || 0);
 
-                if (response.success) {
+							alert( message );
 
-                    const data = response.data || {};
+							location.reload();
 
-                    const message = hngAsaasPage.i18n.syncSuccess + '\n' +
+						} else {
 
-                                  hngAsaasPage.i18n.processed + ': ' + (data.processed || 0) + '\n' +
+							const errorMsg = (response.data && response.data.error) || hngAsaasPage.i18n.unknownError;
 
-                                  hngAsaasPage.i18n.created + ': ' + (data.created || 0) + '\n' +
+							alert( hngAsaasPage.i18n.syncError + ' ' + errorMsg );
 
-                                  hngAsaasPage.i18n.updated + ': ' + (data.updated || 0);
+						}
 
-                    alert(message);
+					}
+				)
 
-                    location.reload();
+				.fail(
+					function (jqXHR) {
 
-                } else {
+						// Se recebeu HTML ao invés de JSON, mostrar erro mais informativo
 
-                    const errorMsg = (response.data && response.data.error) || hngAsaasPage.i18n.unknownError;
+						var responseSnippet = '';
 
-                    alert(hngAsaasPage.i18n.syncError + ' ' + errorMsg);
+						if (jqXHR && jqXHR.responseText) {
 
-                }
+							responseSnippet = '\n\nDetalhe: ' + jqXHR.responseText.substring( 0, 400 );
 
-            })
+						}
 
-            .fail(function(jqXHR) {
+						if (jqXHR.status === 200 && jqXHR.responseText && jqXHR.responseText.indexOf( '<!DOCTYPE' ) !== -1) {
 
-                // Se recebeu HTML ao invés de JSON, mostrar erro mais informativo
+							alert( hngAsaasPage.i18n.syncError + ' Erro de servidor (HTML retornado).' + responseSnippet );
 
-                var responseSnippet = '';
+						} else {
 
-                if (jqXHR && jqXHR.responseText) {
+							alert( hngAsaasPage.i18n.connectionError + ' (HTTP ' + jqXHR.status + ')' + responseSnippet );
 
-                    responseSnippet = '\n\nDetalhe: ' + jqXHR.responseText.substring(0, 400);
+						}
 
-                }
+					}
+				)
 
-                if (jqXHR.status === 200 && jqXHR.responseText && jqXHR.responseText.indexOf('<!DOCTYPE') !== -1) {
+				.always(
+					function () {
 
-                    alert(hngAsaasPage.i18n.syncError + ' Erro de servidor (HTML retornado).' + responseSnippet);
+						btn.prop( 'disabled', false ).html( originalText );
 
-                } else {
+					}
+				);
 
-                    alert(hngAsaasPage.i18n.connectionError + ' (HTTP ' + jqXHR.status + ')' + responseSnippet);
+			}
 
-                }
+			// Sync subscriptions button
 
-            })
+			$( '#hng-sync-subscriptions' ).on(
+				'click',
+				function () {
 
-            .always(function() {
+					const start = $( '#hng-sync-subscriptions-start' ).val();
 
-                btn.prop('disabled', false).html(originalText);
+					const end = $( '#hng-sync-subscriptions-end' ).val();
 
-            });
+					const payload = {};
 
-        }
+					if (start) {
+						payload.start_date = start;
+					}
 
+					if (end) {
+						payload.end_date = end;
+					}
 
+					triggerSync( 'hng_asaas_sync_subscriptions', $( this ), payload );
 
-        // Sync subscriptions button
+				}
+			);
 
-        $('#hng-sync-subscriptions').on('click', function() {
+			// Sync customers button
 
-            const start = $('#hng-sync-subscriptions-start').val();
+			$( '#hng-sync-customers' ).on(
+				'click',
+				function () {
 
-            const end = $('#hng-sync-subscriptions-end').val();
+					const start = $( '#hng-sync-customers-start' ).val();
 
-            const payload = {};
+					const end = $( '#hng-sync-customers-end' ).val();
 
-            if (start) payload.start_date = start;
+					const payload = {};
 
-            if (end) payload.end_date = end;
+					if (start) {
+						payload.start_date = start;
+					}
 
-            triggerSync('hng_asaas_sync_subscriptions', $(this), payload);
+					if (end) {
+						payload.end_date = end;
+					}
 
-        });
+					triggerSync( 'hng_asaas_sync_customers', $( this ), payload );
 
+				}
+			);
 
+			// Sync payments button
 
-        // Sync customers button
+			$( '#hng-sync-payments' ).on(
+				'click',
+				function () {
 
-        $('#hng-sync-customers').on('click', function() {
+					const start = $( '#hng-sync-payments-start' ).val();
 
-            const start = $('#hng-sync-customers-start').val();
+					const end = $( '#hng-sync-payments-end' ).val();
 
-            const end = $('#hng-sync-customers-end').val();
+					const payload = {};
 
-            const payload = {};
+					if (start) {
+						payload.start_date = start;
+					}
 
-            if (start) payload.start_date = start;
+					if (end) {
+						payload.end_date = end;
+					}
 
-            if (end) payload.end_date = end;
+					triggerSync( 'hng_asaas_sync_payments', $( this ), payload );
 
-            triggerSync('hng_asaas_sync_customers', $(this), payload);
+				}
+			);
 
-        });
+		}
+	);
 
-
-
-        // Sync payments button
-
-        $('#hng-sync-payments').on('click', function() {
-
-            const start = $('#hng-sync-payments-start').val();
-
-            const end = $('#hng-sync-payments-end').val();
-
-            const payload = {};
-
-            if (start) payload.start_date = start;
-
-            if (end) payload.end_date = end;
-
-            triggerSync('hng_asaas_sync_payments', $(this), payload);
-
-        });
-
-    });
-
-
-
-})(jQuery);
-
+})( jQuery );

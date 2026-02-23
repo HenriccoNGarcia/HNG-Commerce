@@ -1,137 +1,129 @@
 <?php
 /**
  * HNG Commerce: AJAX Handlers para Sincronização Asaas
- * 
+ *
  * Handlers AJAX para sincronização de dados do Asaas
  *
  * @package HNG_Commerce
  * @since 2.1.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.InlineComment
+// phpcs:disable Squiz.Commenting.FunctionComment
+// phpcs:disable Universal.Operators.DisallowShortTernary
+// phpcs:disable WordPress.PHP.DevelopmentFunctions
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
 
  * AJAX: Sincronizar assinaturas do Asaas
-
  */
 
-add_action('wp_ajax_hng_asaas_sync_subscriptions', 'hng_ajax_sync_asaas_subscriptions');
+add_action( 'wp_ajax_hng_asaas_sync_subscriptions', 'hng_ajax_sync_asaas_subscriptions' );
 
 function hng_ajax_sync_asaas_subscriptions() {
 
-    check_ajax_referer('hng_asaas_sync_nonce', 'nonce');
+	check_ajax_referer( 'hng_asaas_sync_nonce', 'nonce' );
 
+	if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
+		$rl = HNG_Rate_Limiter::enforce( 'asaas_sync_subscriptions', 3, 120 );
 
-    if (class_exists('HNG_Rate_Limiter')) {
+		if ( is_wp_error( $rl ) ) {
 
-        $rl = HNG_Rate_Limiter::enforce('asaas_sync_subscriptions', 3, 120);
+			wp_send_json_error( array( 'error' => $rl->get_error_message() ), 429 );
 
-        if (is_wp_error($rl)) {
+		}
+	}
 
-            wp_send_json_error(['error' => $rl->get_error_message()], 429);
+	if ( ! current_user_can( 'manage_options' ) ) {
 
-        }
+		wp_send_json_error( array( 'error' => 'Permissão negada' ) );
 
-    }
+		return;
 
-    
+	}
 
-    if (!current_user_can('manage_options')) {
+	// Capturar e validar datas opcionais
 
-        wp_send_json_error(['error' => 'Permissão negada']);
+	$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 
-        return;
+	$end_date = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
-    }
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_date ) ) {
 
-    
+		$start_date = '';
 
-    // Capturar e validar datas opcionais
+	}
 
-    $start_date = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) ) {
 
-    $end_date   = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
+		$end_date = '';
 
-    
+	}
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+	// Atualizar timestamp de última sincronização
 
-        $start_date = '';
+	update_option( 'hng_asaas_last_sync_subscriptions', current_time( 'mysql' ) );
 
-    }
+	// Sincronizar assinaturas do Asaas
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
+	$sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
 
-        $end_date = '';
+	if ( ! file_exists( $sync_file ) ) {
 
-    }
+		wp_send_json_error( array( 'error' => 'Arquivo de sincronização não encontrado' ) );
 
-    
+		return;
 
-    // Atualizar timestamp de última sincronização
+	}
 
-    update_option('hng_asaas_last_sync_subscriptions', current_time('mysql'));
+	require_once $sync_file;
 
-    
+	$asaas_sync = new HNG_Asaas_Sync();
 
-    // Sincronizar assinaturas do Asaas
+	$result = $asaas_sync->import_subscriptions( null, $start_date, $end_date );
 
-    $sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
+	if ( ! $result['success'] ) {
 
-    if (!file_exists($sync_file)) {
+		if ( defined( 'HNG_DEBUG' ) && HNG_DEBUG === true ) {
+			error_log(
+				'HNG Asaas sync error: ' . wp_json_encode(
+					array(
+						'type'  => 'subscriptions',
+						'error' => is_wp_error( $result ) ? $result->get_error_message() : 'Unknown',
+						'code'  => is_wp_error( $result ) ? $result->get_error_code() : 0,
+					)
+				)
+			);
+		}
 
-        wp_send_json_error(['error' => 'Arquivo de sincronização não encontrado']);
+		wp_send_json_error(
+			array(
 
-        return;
+				'error' => $result['error'] ?: 'unknown_error',
 
-    }
+			)
+		);
 
-    require_once $sync_file;
+		return;
 
-    
+	}
 
-    $asaas_sync = new HNG_Asaas_Sync();
+	wp_send_json_success(
+		array(
 
-    $result = $asaas_sync->import_subscriptions(null, $start_date, $end_date);
+			'processed' => $result['processed'],
 
-    
+			'created'   => $result['created'],
 
-    if (!$result['success']) {
+			'updated'   => $result['updated'],
 
-        if (defined('HNG_DEBUG') && HNG_DEBUG === true) {
-            error_log('HNG Asaas sync error: ' . wp_json_encode([
-                'type' => 'subscriptions',
-                'error' => is_wp_error($result) ? $result->get_error_message() : 'Unknown',
-                'code' => is_wp_error($result) ? $result->get_error_code() : 0
-            ]));
-        }
-
-        wp_send_json_error([
-
-            'error' => $result['error'] ?: 'unknown_error'
-
-        ]);
-
-        return;
-
-    }
-
-    
-
-    wp_send_json_success([
-
-        'processed' => $result['processed'],
-
-        'created' => $result['created'],
-
-        'updated' => $result['updated']
-
-    ]);
-
+		)
+	);
 }
 
 
@@ -139,255 +131,234 @@ function hng_ajax_sync_asaas_subscriptions() {
 /**
 
  * AJAX: Sincronizar pagamentos/faturamento do Asaas
-
  */
 
-add_action('wp_ajax_hng_asaas_sync_payments', 'hng_ajax_sync_asaas_payments');
+add_action( 'wp_ajax_hng_asaas_sync_payments', 'hng_ajax_sync_asaas_payments' );
 
 function hng_ajax_sync_asaas_payments() {
 
-    check_ajax_referer('hng_asaas_sync_nonce', 'nonce');
+	check_ajax_referer( 'hng_asaas_sync_nonce', 'nonce' );
 
+	if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
+		$rl = HNG_Rate_Limiter::enforce( 'asaas_sync_payments', 3, 120 );
 
-    if (class_exists('HNG_Rate_Limiter')) {
+		if ( is_wp_error( $rl ) ) {
 
-        $rl = HNG_Rate_Limiter::enforce('asaas_sync_payments', 3, 120);
+			wp_send_json_error( array( 'error' => $rl->get_error_message() ), 429 );
 
-        if (is_wp_error($rl)) {
+		}
+	}
 
-            wp_send_json_error(['error' => $rl->get_error_message()], 429);
+	if ( ! current_user_can( 'manage_options' ) ) {
 
-        }
+		wp_send_json_error( array( 'error' => 'Permissão negada' ) );
 
-    }
+		return;
 
-    
+	}
 
-    if (!current_user_can('manage_options')) {
+	// Get date range or days fallback
 
-        wp_send_json_error(['error' => 'Permissão negada']);
+	$days = isset( $_POST['days'] ) ? intval( $_POST['days'] ) : 30;
 
-        return;
+	if ( $days < 1 ) {
+		$days = 30;
+	}
 
-    }
+	if ( $days > 365 ) {
+		$days = 365; // Max 1 year
+	}
 
-    
+	$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 
-    // Get date range or days fallback
+	$end_date = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
-    $days = isset($_POST['days']) ? intval($_POST['days']) : 30;
+	// Basic YYYY-MM-DD validation
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_date ) ) {
 
-    if ($days < 1) $days = 30;
+		$start_date = '';
 
-    if ($days > 365) $days = 365; // Max 1 year
+	}
 
-    $start_date = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) ) {
 
-    $end_date   = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
+		$end_date = '';
 
-    // Basic YYYY-MM-DD validation
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+	}
 
-        $start_date = '';
+	// Atualizar timestamp de última sincronização
 
-    }
+	update_option( 'hng_asaas_last_sync_payments', current_time( 'mysql' ) );
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
+	// Sincronizar pagamentos do Asaas
 
-        $end_date = '';
+	$sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
 
-    }
+	if ( ! file_exists( $sync_file ) ) {
 
-    
+		wp_send_json_error( array( 'error' => 'Arquivo de sincronização não encontrado' ) );
 
-    // Atualizar timestamp de última sincronização
+		return;
 
-    update_option('hng_asaas_last_sync_payments', current_time('mysql'));
+	}
 
-    
+	require_once $sync_file;
 
-    // Sincronizar pagamentos do Asaas
+	$asaas_sync = new HNG_Asaas_Sync();
 
-    $sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
+	$result = $asaas_sync->import_payments( $days, $start_date, $end_date );
 
-    if (!file_exists($sync_file)) {
+	if ( ! $result['success'] ) {
 
-        wp_send_json_error(['error' => 'Arquivo de sincronização não encontrado']);
+		if ( defined( 'HNG_DEBUG' ) && HNG_DEBUG === true ) {
+			error_log(
+				'HNG Asaas sync error: ' . wp_json_encode(
+					array(
+						'type'  => 'payments',
+						'error' => is_wp_error( $result ) ? $result->get_error_message() : 'Unknown',
+						'code'  => is_wp_error( $result ) ? $result->get_error_code() : 0,
+					)
+				)
+			);
+		}
 
-        return;
+		wp_send_json_error(
+			array(
 
-    }
+				'error' => $result['error'] ?: 'unknown_error',
 
-    require_once $sync_file;
+			)
+		);
 
-    
+		return;
 
-    $asaas_sync = new HNG_Asaas_Sync();
+	}
 
-    $result = $asaas_sync->import_payments($days, $start_date, $end_date);
+	wp_send_json_success(
+		array(
 
-    
+			'processed'  => $result['processed'],
 
-    if (!$result['success']) {
+			'created'    => $result['created'],
 
-        if (defined('HNG_DEBUG') && HNG_DEBUG === true) {
-            error_log('HNG Asaas sync error: ' . wp_json_encode([
-                'type' => 'payments',
-                'error' => is_wp_error($result) ? $result->get_error_message() : 'Unknown',
-                'code' => is_wp_error($result) ? $result->get_error_code() : 0
-            ]));
-        }
+			'updated'    => $result['updated'],
 
-        wp_send_json_error([
+			'days'       => $result['days'],
 
-            'error' => $result['error'] ?: 'unknown_error'
+			'start_date' => $result['start_date'] ?? '',
 
-        ]);
+			'end_date'   => $result['end_date'] ?? '',
 
-        return;
-
-    }
-
-    
-
-    wp_send_json_success([
-
-        'processed' => $result['processed'],
-
-        'created' => $result['created'],
-
-        'updated' => $result['updated'],
-
-        'days' => $result['days'],
-
-        'start_date' => $result['start_date'] ?? '',
-
-        'end_date' => $result['end_date'] ?? ''
-
-    ]);
-
+		)
+	);
 }
 
 /**
 
  * AJAX: Sincronizar clientes do Asaas
-
  */
 
-add_action('wp_ajax_hng_asaas_sync_customers', 'hng_ajax_sync_asaas_customers');
+add_action( 'wp_ajax_hng_asaas_sync_customers', 'hng_ajax_sync_asaas_customers' );
 
 function hng_ajax_sync_asaas_customers() {
 
-    check_ajax_referer('hng_asaas_sync_nonce', 'nonce');
+	check_ajax_referer( 'hng_asaas_sync_nonce', 'nonce' );
 
+	if ( class_exists( 'HNG_Rate_Limiter' ) ) {
 
+		$rl = HNG_Rate_Limiter::enforce( 'asaas_sync_customers', 3, 120 );
 
-    if (class_exists('HNG_Rate_Limiter')) {
+		if ( is_wp_error( $rl ) ) {
 
-        $rl = HNG_Rate_Limiter::enforce('asaas_sync_customers', 3, 120);
+			wp_send_json_error( array( 'error' => $rl->get_error_message() ), 429 );
 
-        if (is_wp_error($rl)) {
+		}
+	}
 
-            wp_send_json_error(['error' => $rl->get_error_message()], 429);
+	if ( ! current_user_can( 'manage_options' ) ) {
 
-        }
+		wp_send_json_error( array( 'error' => 'Permissão negada' ) );
 
-    }
+		return;
 
-    
+	}
 
-    if (!current_user_can('manage_options')) {
+	// Capturar e validar datas opcionais
 
-        wp_send_json_error(['error' => 'Permissão negada']);
+	$start_date = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
 
-        return;
+	$end_date = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
 
-    }
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start_date ) ) {
 
-    
+		$start_date = '';
 
-    // Capturar e validar datas opcionais
+	}
 
-    $start_date = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end_date ) ) {
 
-    $end_date   = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
+		$end_date = '';
 
-    
+	}
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+	// Atualizar timestamp de última sincronização
 
-        $start_date = '';
+	update_option( 'hng_asaas_last_sync_customers', current_time( 'mysql' ) );
 
-    }
+	// Sincronizar clientes do Asaas
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
+	$sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
 
-        $end_date = '';
+	if ( ! file_exists( $sync_file ) ) {
 
-    }
+		wp_send_json_error( array( 'error' => 'Arquivo de sincronização não encontrado' ) );
 
-    
+		return;
 
-    // Atualizar timestamp de última sincronização
+	}
 
-    update_option('hng_asaas_last_sync_customers', current_time('mysql'));
+	require_once $sync_file;
 
-    
+	$asaas_sync = new HNG_Asaas_Sync();
 
-    // Sincronizar clientes do Asaas
+	$result = $asaas_sync->import_customers( $start_date, $end_date );
 
-    $sync_file = HNG_COMMERCE_PATH . 'includes/integrations/class-hng-asaas-sync.php';
+	if ( ! $result['success'] ) {
 
-    if (!file_exists($sync_file)) {
+		if ( defined( 'HNG_DEBUG' ) && HNG_DEBUG === true ) {
+			error_log(
+				'HNG Asaas sync error: ' . wp_json_encode(
+					array(
+						'type'  => 'customers',
+						'error' => is_wp_error( $result ) ? $result->get_error_message() : 'Unknown',
+						'code'  => is_wp_error( $result ) ? $result->get_error_code() : 0,
+					)
+				)
+			);
+		}
 
-        wp_send_json_error(['error' => 'Arquivo de sincronização não encontrado']);
+		wp_send_json_error(
+			array(
 
-        return;
+				'error' => $result['error'] ?: 'unknown_error',
 
-    }
+			)
+		);
 
-    require_once $sync_file;
+		return;
 
-    
+	}
 
-    $asaas_sync = new HNG_Asaas_Sync();
+	wp_send_json_success(
+		array(
 
-    $result = $asaas_sync->import_customers($start_date, $end_date);
+			'processed' => $result['processed'],
 
-    
+			'created'   => $result['created'],
 
-    if (!$result['success']) {
+			'updated'   => $result['updated'],
 
-        if (defined('HNG_DEBUG') && HNG_DEBUG === true) {
-            error_log('HNG Asaas sync error: ' . wp_json_encode([
-                'type' => 'customers',
-                'error' => is_wp_error($result) ? $result->get_error_message() : 'Unknown',
-                'code' => is_wp_error($result) ? $result->get_error_code() : 0
-            ]));
-        }
-
-        wp_send_json_error([
-
-            'error' => $result['error'] ?: 'unknown_error'
-
-        ]);
-
-        return;
-
-    }
-
-    
-
-    wp_send_json_success([
-
-        'processed' => $result['processed'],
-
-        'created' => $result['created'],
-
-        'updated' => $result['updated']
-
-    ]);
-
+		)
+	);
 }
-

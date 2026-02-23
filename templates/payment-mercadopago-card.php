@@ -1,119 +1,119 @@
-<?php
-if (!defined('ABSPATH')) {
-    exit;
+<?php // phpcs:disable Squiz.Commenting.FileComment
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 ?>
 <!-- Template: Pagamento com Cartão Mercado Pago -->
 <div class="hng-payment-method-content" id="payment-mercadopago-card" style="display: none;">
-    <div class="hng-mercadopago-card-form">
-        <h4>Pagamento com Cartão de Crédito</h4>
-        <p class="hng-secure-badge">Pagamento 100% seguro via Mercado Pago</p>
-        
-        <!-- Card Form -->
-        <form id="hng-mercadopago-form">
-            <!-- Número do Cartão -->
-            <div class="hng-form-group">
-                <label for="mp-card-number">Número do Cartão <span class="required">*</span></label>
-                <div class="hng-card-input-wrapper">
-                    <input 
-                        type="text" 
-                        id="mp-card-number" 
-                        data-checkout="cardNumber"
-                        placeholder="0000 0000 0000 0000"
-                        maxlength="19"
-                        required
-                    >
-                    <div id="mp-card-brand" class="hng-card-brand"></div>
-                </div>
-                <small class="hng-field-error" id="error-card-number"></small>
-            </div>
-            
-            <!-- Nome no Cartão -->
-            <div class="hng-form-group">
-                <label for="mp-card-holder-name">Nome Impresso no Cartão <span class="required">*</span></label>
-                <input 
-                    type="text" 
-                    id="mp-card-holder-name" 
-                    data-checkout="cardholderName"
-                    placeholder="Como está impresso no cartão"
-                    required
-                >
-                <small class="hng-field-error" id="error-card-holder"></small>
-            </div>
-            
-            <!-- Validade e CVV -->
-            <div class="hng-form-row">
-                <div class="hng-form-group hng-col-6">
-                    <label for="mp-card-expiry">Validade <span class="required">*</span></label>
-                    <input 
-                        type="text" 
-                        id="mp-card-expiry" 
-                        placeholder="MM/AA"
-                        maxlength="5"
-                        required
-                    >
-                    <input type="hidden" id="mp-card-expiry-month" data-checkout="cardExpirationMonth">
-                    <input type="hidden" id="mp-card-expiry-year" data-checkout="cardExpirationYear">
-                    <small class="hng-field-error" id="error-expiry"></small>
-                </div>
-                
-                <div class="hng-form-group hng-col-6">
-                    <label for="mp-card-cvv">CVV <span class="required">*</span></label>
-                    <input 
-                        type="text" 
-                        id="mp-card-cvv" 
-                        data-checkout="securityCode"
-                        placeholder="000"
-                        maxlength="4"
-                        required
-                    >
-                    <small class="hng-field-error" id="error-cvv"></small>
-                </div>
-            </div>
-            
-            <!-- CPF do Titular -->
-            <div class="hng-form-group">
-                <label for="mp-card-holder-cpf">CPF do Titular <span class="required">*</span></label>
-                <input 
-                    type="text" 
-                    id="mp-card-holder-cpf" 
-                    data-checkout="docNumber"
-                    placeholder="000.000.000-00"
-                    maxlength="14"
-                    required
-                >
-                <small class="hng-field-error" id="error-cpf"></small>
-            </div>
-            
-            <!-- Parcelamento -->
-            <div class="hng-form-group">
-                <label for="mp-installments">Parcelamento <span class="required">*</span></label>
-                <select id="mp-installments" data-checkout="installments" required>
-                    <option value="">Carregando opções...</option>
-                </select>
-                <small class="hng-installments-info"></small>
-            </div>
-            
-            <input type="hidden" id="mp-payment-method-id" data-checkout="paymentMethodId">
-            <input type="hidden" id="mp-card-token" name="card_token">
-        </form>
-        
-        <!-- Bandeiras Aceitas -->
-        <div class="hng-accepted-cards">
-            <small>Aceitamos:</small>
-            <div class="hng-card-brands">
-                <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/visa.svg' ); ?>" alt="Visa" title="Visa">
-                <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/mastercard.svg' ); ?>" alt="Mastercard" title="Mastercard">
-                <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/elo.svg' ); ?>" alt="Elo" title="Elo">
-                <img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/amex.svg' ); ?>" alt="American Express" title="American Express">
-            </div>
-        </div>
-    </div>
+	<div class="hng-mercadopago-card-form">
+		<h4>Pagamento com Cartão de Crédito</h4>
+		<p class="hng-secure-badge">Pagamento 100% seguro via Mercado Pago</p>
+		
+		<!-- Card Form -->
+		<form id="hng-mercadopago-form">
+			<!-- Número do Cartão -->
+			<div class="hng-form-group">
+				<label for="mp-card-number">Número do Cartão <span class="required">*</span></label>
+				<div class="hng-card-input-wrapper">
+					<input 
+						type="text" 
+						id="mp-card-number" 
+						data-checkout="cardNumber"
+						placeholder="0000 0000 0000 0000"
+						maxlength="19"
+						required
+					>
+					<div id="mp-card-brand" class="hng-card-brand"></div>
+				</div>
+				<small class="hng-field-error" id="error-card-number"></small>
+			</div>
+			
+			<!-- Nome no Cartão -->
+			<div class="hng-form-group">
+				<label for="mp-card-holder-name">Nome Impresso no Cartão <span class="required">*</span></label>
+				<input 
+					type="text" 
+					id="mp-card-holder-name" 
+					data-checkout="cardholderName"
+					placeholder="Como está impresso no cartão"
+					required
+				>
+				<small class="hng-field-error" id="error-card-holder"></small>
+			</div>
+			
+			<!-- Validade e CVV -->
+			<div class="hng-form-row">
+				<div class="hng-form-group hng-col-6">
+					<label for="mp-card-expiry">Validade <span class="required">*</span></label>
+					<input 
+						type="text" 
+						id="mp-card-expiry" 
+						placeholder="MM/AA"
+						maxlength="5"
+						required
+					>
+					<input type="hidden" id="mp-card-expiry-month" data-checkout="cardExpirationMonth">
+					<input type="hidden" id="mp-card-expiry-year" data-checkout="cardExpirationYear">
+					<small class="hng-field-error" id="error-expiry"></small>
+				</div>
+				
+				<div class="hng-form-group hng-col-6">
+					<label for="mp-card-cvv">CVV <span class="required">*</span></label>
+					<input 
+						type="text" 
+						id="mp-card-cvv" 
+						data-checkout="securityCode"
+						placeholder="000"
+						maxlength="4"
+						required
+					>
+					<small class="hng-field-error" id="error-cvv"></small>
+				</div>
+			</div>
+			
+			<!-- CPF do Titular -->
+			<div class="hng-form-group">
+				<label for="mp-card-holder-cpf">CPF do Titular <span class="required">*</span></label>
+				<input 
+					type="text" 
+					id="mp-card-holder-cpf" 
+					data-checkout="docNumber"
+					placeholder="000.000.000-00"
+					maxlength="14"
+					required
+				>
+				<small class="hng-field-error" id="error-cpf"></small>
+			</div>
+			
+			<!-- Parcelamento -->
+			<div class="hng-form-group">
+				<label for="mp-installments">Parcelamento <span class="required">*</span></label>
+				<select id="mp-installments" data-checkout="installments" required>
+					<option value="">Carregando opções...</option>
+				</select>
+				<small class="hng-installments-info"></small>
+			</div>
+			
+			<input type="hidden" id="mp-payment-method-id" data-checkout="paymentMethodId">
+			<input type="hidden" id="mp-card-token" name="card_token">
+		</form>
+		
+		<!-- Bandeiras Aceitas -->
+		<div class="hng-accepted-cards">
+			<small>Aceitamos:</small>
+			<div class="hng-card-brands">
+				<img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/visa.svg' ); ?>" alt="Visa" title="Visa">
+				<img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/mastercard.svg' ); ?>" alt="Mastercard" title="Mastercard">
+				<img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/elo.svg' ); ?>" alt="Elo" title="Elo">
+				<img src="<?php echo esc_url( plugin_dir_url( __FILE__ ) . '../assets/images/cards/amex.svg' ); ?>" alt="American Express" title="American Express">
+			</div>
+		</div>
+	</div>
 </div>
 
 <?php
-if (function_exists('wp_add_inline_style')) {
-    $hng_mp_css = ".hng-mercadopago-card-form {
+if ( function_exists( 'wp_add_inline_style' ) ) {
+	$hng_mp_css = '.hng-mercadopago-card-form {
     background: white;
     padding: 25px;
     border-radius: 8px;
@@ -251,20 +251,24 @@ if (function_exists('wp_add_inline_style')) {
     .hng-form-row {
         flex-direction: column;
     }
-}";
+}';
 
-    wp_add_inline_style('HNG Commerce', $hng_mp_css);
+	wp_add_inline_style( 'HNG Commerce', $hng_mp_css );
 }
 
 wp_enqueue_script(
-    'hng-mercadopago-card',
-    HNG_COMMERCE_URL . 'assets/js/mercadopago-card.js',
-    array('jquery'),
-    HNG_COMMERCE_VERSION,
-    true
+	'hng-mercadopago-card',
+	HNG_COMMERCE_URL . 'assets/js/mercadopago-card.js',
+	array( 'jquery' ),
+	HNG_COMMERCE_VERSION,
+	true
 );
 
-wp_localize_script('hng-mercadopago-card', 'hngMercadoPago', array(
-    'publicKey' => get_option('hng_mercadopago_public_key', '')
-));
+wp_localize_script(
+	'hng-mercadopago-card',
+	'hngMercadoPago',
+	array(
+		'publicKey' => get_option( 'hng_mercadopago_public_key', '' ),
+	)
+);
 ?>

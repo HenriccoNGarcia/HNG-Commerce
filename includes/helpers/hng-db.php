@@ -5,8 +5,10 @@
  * @package HNG_Commerce
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
@@ -14,10 +16,10 @@ if (!defined('ABSPATH')) {
  * Does not add quotes â€” caller should use backticks if embedding into SQL.
  */
 function hng_db_sanitize_identifier( $name ) {
-    if ( ! is_string( $name ) ) {
-        return '';
-    }
-    return preg_replace('/[^a-z0-9_]/i', '', $name);
+	if ( ! is_string( $name ) ) {
+		return '';
+	}
+	return preg_replace( '/[^a-z0-9_]/i', '', $name );
 }
 
 /**
@@ -25,23 +27,23 @@ function hng_db_sanitize_identifier( $name ) {
  * Example: hng_orders -> {$wpdb->prefix}hng_orders
  */
 function hng_db_full_table_name( $short_name ) {
-    global $wpdb;
-    $clean = hng_db_sanitize_identifier( $short_name );
-    if ( empty( $clean ) ) {
-        return '';
-    }
-    return $wpdb->prefix . $clean;
+	global $wpdb;
+	$clean = hng_db_sanitize_identifier( $short_name );
+	if ( empty( $clean ) ) {
+		return '';
+	}
+	return $wpdb->prefix . $clean;
 }
 
 /**
  * Sanitize column name and wrap with backticks for safe embedding.
  */
 function hng_db_backtick_column( $col ) {
-    $clean = hng_db_sanitize_identifier( $col );
-    if ( empty( $clean ) ) {
-        return '';
-    }
-    return "`" . $clean . "`";
+	$clean = hng_db_sanitize_identifier( $col );
+	if ( empty( $clean ) ) {
+		return '';
+	}
+	return '`' . $clean . '`';
 }
 
 /**
@@ -50,13 +52,13 @@ function hng_db_backtick_column( $col ) {
  * a safe backticked identifier like `wp_hng_orders` or empty string on invalid input.
  */
 function hng_db_backtick_table( $short_name ) {
-    global $wpdb;
-    if ( ! is_string( $short_name ) ) {
-        return '';
-    }
-    $clean = hng_db_sanitize_identifier( $short_name );
-    if ( empty( $clean ) ) {
-        return '';
-    }
-    return "`" . $wpdb->prefix . $clean . "`";
+	global $wpdb;
+	if ( ! is_string( $short_name ) ) {
+		return '';
+	}
+	$clean = hng_db_sanitize_identifier( $short_name );
+	if ( empty( $clean ) ) {
+		return '';
+	}
+	return '`' . $wpdb->prefix . $clean . '`';
 }

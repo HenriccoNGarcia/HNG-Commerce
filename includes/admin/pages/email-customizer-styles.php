@@ -2,10 +2,14 @@
 /**
  * CSS para Email Customizer Page v2
  * Estilos visuais da interface de customização de emails
+ *
+ * @package HNG_Commerce
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.FileComment.MissingPackageTag
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 ?>
 <style>
@@ -126,7 +130,7 @@ if (!defined('ABSPATH')) {
 
 /* Responsive */
 @media (max-width: 1200px) {
-    .hng-email-layout { grid-template-columns: 1fr; }
+	.hng-email-layout { grid-template-columns: 1fr; }
 }
 
 /* Editor Resize */
@@ -136,8 +140,8 @@ if (!defined('ABSPATH')) {
 
 /* Animation */
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 
 /* Description Text */

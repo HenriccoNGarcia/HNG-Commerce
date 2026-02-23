@@ -1,22 +1,21 @@
-<?php
+<?php // phpcs:disable Squiz.Commenting.FileComment
 
 /**
 
  * Email Manager - Gerenciamento de templates de email
-
  *
-
  * @package HNG_Commerce
 
  * @since 3.8.0
-
  */
 
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
 
+if ( ! defined( 'ABSPATH' ) ) {
 
-if (!defined('ABSPATH')) {
-
-    exit;
+	exit;
 
 }
 
@@ -24,679 +23,647 @@ if (!defined('ABSPATH')) {
 
 class HNG_Email_Manager {
 
-    
 
-    /**
 
-     * Lista de todos os templates de email disponáÂ­veis
+	/**
 
-     */
+	 * Lista de todos os templates de email disponáÂ­veis
+	 */
+	public static function get_email_types() {
 
-    public static function get_email_types() {
+		return array(
 
-        return [
+			'customer_new_order'            => array(
+				'name'        => __( 'Novo Pedido - Cliente', 'hng-commerce' ),
+				'description' => __( 'Email enviado ao cliente quando um novo pedido é criado', 'hng-commerce' ),
+				'recipient'   => 'customer',
+				'variables'   => array(
+					'{customer_name}'    => 'Nome do cliente',
+					'{order_number}'     => 'Número do pedido',
+					'{order_date}'       => 'Data do pedido',
+					'{order_total}'      => 'Valor total',
+					'{payment_method}'   => 'Forma de pagamento',
+					'{order_items}'      => 'Lista de produtos',
+					'{shipping_address}' => 'Endereço de entrega',
+					'{order_link}'       => 'Link para ver pedido',
+					'{site_name}'        => 'Nome do site',
+					'{site_url}'         => 'URL do site',
+				),
+			),
 
-            'customer_new_order' => [
-                'name' => __('Novo Pedido - Cliente', 'hng-commerce'),
-                'description' => __('Email enviado ao cliente quando um novo pedido é criado', 'hng-commerce'),
-                'recipient' => 'customer',
-                'variables' => [
-                    '{customer_name}' => 'Nome do cliente',
-                    '{order_number}' => 'Número do pedido',
-                    '{order_date}' => 'Data do pedido',
-                    '{order_total}' => 'Valor total',
-                    '{payment_method}' => 'Forma de pagamento',
-                    '{order_items}' => 'Lista de produtos',
-                    '{shipping_address}' => 'Endereço de entrega',
-                    '{order_link}' => 'Link para ver pedido',
-                    '{site_name}' => 'Nome do site',
-                    '{site_url}' => 'URL do site'
-                ]
-            ],
+			'admin_new_order'               => array(
 
-            'admin_new_order' => [
+				'name'        => __( 'Novo Pedido - Admin', 'hng-commerce' ),
 
-                'name' => __('Novo Pedido - Admin', 'hng-commerce'),
+				'description' => __( 'Email enviado ao admin quando um novo pedido é recebido', 'hng-commerce' ),
 
-                'description' => __('Email enviado ao admin quando um novo pedido é recebido', 'hng-commerce'),
+				'recipient'   => 'admin',
 
-                'recipient' => 'admin',
+				'variables'   => array(
 
-                'variables' => [
+					'{order_number}'     => 'NáÂumero do pedido',
 
-                    '{order_number}' => 'NáÂumero do pedido',
+					'{order_date}'       => 'Data do pedido',
 
-                    '{order_date}' => 'Data do pedido',
+					'{order_total}'      => 'Valor total',
 
-                    '{order_total}' => 'Valor total',
+					'{commission}'       => 'Comissáo HNG',
 
-                    '{commission}' => 'Comissáo HNG',
+					'{payment_method}'   => 'Forma de pagamento',
 
-                    '{payment_method}' => 'Forma de pagamento',
+					'{customer_name}'    => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{customer_email}'   => 'Email do cliente',
 
-                    '{customer_email}' => 'Email do cliente',
+					'{customer_phone}'   => 'Telefone do cliente',
 
-                    '{customer_phone}' => 'Telefone do cliente',
+					'{customer_cpf}'     => 'CPF/CNPJ do cliente',
 
-                    '{customer_cpf}' => 'CPF/CNPJ do cliente',
+					'{order_items}'      => 'Lista de produtos',
 
-                    '{order_items}' => 'Lista de produtos',
+					'{shipping_address}' => 'Endereço de entrega',
 
-                    '{shipping_address}' => 'Endereço de entrega'
+				),
 
-                ]
+			),
 
-            ],
+			'customer_order_pending'        => array(
 
-            'customer_order_pending' => [
+				'name'        => __( 'Pedido Pendente - Cliente', 'hng-commerce' ),
 
-                'name' => __('Pedido Pendente - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado quando pedido está aguardando pagamento', 'hng-commerce' ),
 
-                'description' => __('Email enviado quando pedido está aguardando pagamento', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'  => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{order_number}'   => 'NáÂumero do pedido',
 
-                    '{order_number}' => 'NáÂumero do pedido',
+					'{order_total}'    => 'Valor total',
 
-                    '{order_total}' => 'Valor total',
+					'{payment_method}' => 'Forma de pagamento',
 
-                    '{payment_method}' => 'Forma de pagamento',
+					'{payment_link}'   => 'Link para pagamento',
 
-                    '{payment_link}' => 'Link para pagamento',
+					'{order_link}'     => 'Link para ver pedido',
 
-                    '{order_link}' => 'Link para ver pedido'
+				),
 
-                ]
+			),
 
-            ],
+			'customer_order_processing'     => array(
+				'name'        => __( 'Pedido em Processamento - Cliente', 'hng-commerce' ),
+				'description' => __( 'Email enviado quando pagamento é confirmado', 'hng-commerce' ),
+				'recipient'   => 'customer',
+				'variables'   => array(
+					'{customer_name}' => 'Nome do cliente',
+					'{order_number}'  => 'NáÂumero do pedido',
+					'{order_total}'   => 'Valor total',
+					'{order_link}'    => 'Link para ver pedido',
+				),
+			),
 
-            'customer_order_processing' => [
-                'name' => __('Pedido em Processamento - Cliente', 'hng-commerce'),
-                'description' => __('Email enviado quando pagamento é confirmado', 'hng-commerce'),
-                'recipient' => 'customer',
-                'variables' => [
-                    '{customer_name}' => 'Nome do cliente',
-                    '{order_number}' => 'NáÂumero do pedido',
-                    '{order_total}' => 'Valor total',
-                    '{order_link}' => 'Link para ver pedido'
-                ]
-            ],
+			'customer_order_preparing'      => array(
 
-            'customer_order_preparing' => [
+				'name'        => __( 'Pedido em Preparação - Cliente', 'hng-commerce' ),
 
-                'name' => __('Pedido em Preparação - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado quando pedido está sendo preparado', 'hng-commerce' ),
 
-                'description' => __('Email enviado quando pedido está sendo preparado', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'      => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{order_number}'       => 'NáÂumero do pedido',
 
-                    '{order_number}' => 'NáÂumero do pedido',
+					'{estimated_delivery}' => 'Previsáo de entrega',
 
-                    '{estimated_delivery}' => 'Previsáo de entrega',
+					'{order_link}'         => 'Link para ver pedido',
 
-                    '{order_link}' => 'Link para ver pedido'
+				),
 
-                ]
+			),
 
-            ],
+			'customer_order_shipped'        => array( // Added missing key for this array element
 
-            'customer_order_shipped' => [ // Added missing key for this array element
+				'name'        => __( 'Pedido Enviado - Cliente', 'hng-commerce' ),
 
-                'name' => __('Pedido Enviado - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado quando pedido áÂ© despachado', 'hng-commerce' ),
 
-                'description' => __('Email enviado quando pedido áÂ© despachado', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'      => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{order_number}'       => 'NáÂumero do pedido',
 
-                    '{order_number}' => 'NáÂumero do pedido',
+					'{tracking_code}'      => 'CáÂ³digo de rastreamento',
 
-                    '{tracking_code}' => 'CáÂ³digo de rastreamento',
+					'{tracking_link}'      => 'Link de rastreamento',
 
-                    '{tracking_link}' => 'Link de rastreamento',
+					'{estimated_delivery}' => 'Previsáo de entrega',
 
-                    '{estimated_delivery}' => 'Previsáo de entrega',
+					'{order_link}'         => 'Link para ver pedido',
 
-                    '{order_link}' => 'Link para ver pedido'
+				),
 
-                ]
+			),
 
-            ],
+			'customer_order_completed'      => array( // Added missing key for this array element
 
-            'customer_order_completed' => [ // Added missing key for this array element
+				'name'        => __( 'Pedido Concluído - Cliente', 'hng-commerce' ),
+				'description' => __( 'Email enviado quando pedido é entregue', 'hng-commerce' ),
+				'recipient'   => 'customer',
+				'variables'   => array(
+					'{customer_name}' => 'Nome do cliente',
+					'{order_number}'  => 'Número do pedido',
+					'{order_total}'   => 'Valor total',
+					'{order_link}'    => 'Link para ver pedido',
+					'{review_link}'   => 'Link para avaliar produtos',
+				),
+			),
 
-                'name' => __('Pedido Concluído - Cliente', 'hng-commerce'),
-                'description' => __('Email enviado quando pedido é entregue', 'hng-commerce'),
-                'recipient' => 'customer',
-                'variables' => [
-                    '{customer_name}' => 'Nome do cliente',
-                    '{order_number}' => 'Número do pedido',
-                    '{order_total}' => 'Valor total',
-                    '{order_link}' => 'Link para ver pedido',
-                    '{review_link}' => 'Link para avaliar produtos'
-                ]
-            ],
+			'customer_pix_installment'      => array(
 
-            'customer_pix_installment' => [
+				'name'        => __( 'Parcela PIX Gerada - Cliente', 'hng-commerce' ),
 
-                'name' => __('Parcela PIX Gerada - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado quando uma nova parcela PIX áÂ© gerada', 'hng-commerce' ),
 
-                'description' => __('Email enviado quando uma nova parcela PIX áÂ© gerada', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'          => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{order_number}'           => 'NáÂumero do pedido',
 
-                    '{order_number}' => 'NáÂumero do pedido',
+					'{installment_number}'     => 'NáÂumero da parcela (ex: 1/12)',
 
-                    '{installment_number}' => 'NáÂumero da parcela (ex: 1/12)',
+					'{installment_value}'      => 'Valor da parcela',
 
-                    '{installment_value}' => 'Valor da parcela',
+					'{due_date}'               => 'Data de vencimento',
 
-                    '{due_date}' => 'Data de vencimento',
+					'{pix_qrcode}'             => 'QR Code PIX',
 
-                    '{pix_qrcode}' => 'QR Code PIX',
+					'{pix_code}'               => 'CáÂ³digo PIX copia e cola',
 
-                    '{pix_code}' => 'CáÂ³digo PIX copia e cola',
+					'{remaining_installments}' => 'Parcelas restantes',
 
-                    '{remaining_installments}' => 'Parcelas restantes',
+					'{order_link}'             => 'Link para ver pedido',
 
-                    '{order_link}' => 'Link para ver pedido'
+				),
 
-                ]
+			),
 
-            ],
+			'customer_subscription_renewal' => array(
 
-            'customer_subscription_renewal' => [
+				'name'        => __( 'Renovaçáo de Assinatura - Cliente', 'hng-commerce' ),
 
-                'name' => __('Renovaçáo de Assinatura - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado antes da renovaçáo de assinatura', 'hng-commerce' ),
 
-                'description' => __('Email enviado antes da renovaçáo de assinatura', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					// translators: %s = product name
+					'{customer_name}'   => 'Nome do cliente',
 
-                    // translators: %s = product name
-                    '{customer_name}' => 'Nome do cliente',
+					'{subscription_id}' => 'ID da assinatura',
 
-                    '{subscription_id}' => 'ID da assinatura',
+					'{renewal_date}'    => 'Data de renovação',
 
-                    '{renewal_date}' => 'Data de renovação',
+					'{renewal_amount}'  => 'Valor da renovação',
 
-                    '{renewal_amount}' => 'Valor da renovação',
+					'{payment_method}'  => 'Forma de pagamento',
 
-                    '{payment_method}' => 'Forma de pagamento',
+					'{manage_link}'     => 'Link para gerenciar assinatura',
 
-                    '{manage_link}' => 'Link para gerenciar assinatura'
+				),
 
-                ]
+			),
 
-            ],
+			// EMAILS DE ORÇAMENTO
 
-            // EMAILS DE ORÇAMENTO
+			'quote_request'                 => array(
 
-            'quote_request' => [
+				'name'        => __( 'Pedido de Orçamento - Cliente', 'hng-commerce' ),
 
-                'name' => __('Pedido de Orçamento - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado ao cliente quando solicita um orçamento', 'hng-commerce' ),
 
-                'description' => __('Email enviado ao cliente quando solicita um orçamento', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}' => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{quote_id}'      => 'ID do orçamento',
 
-                    '{quote_id}' => 'ID do orçamento',
+					'{quote_date}'    => 'Data da solicitação',
 
-                    '{quote_date}' => 'Data da solicitação',
+					'{products}'      => 'Lista de produtos',
 
-                    '{products}' => 'Lista de produtos',
+					'{quote_link}'    => 'Link para acompanhar orçamento',
 
-                    '{quote_link}' => 'Link para acompanhar orçamento',
+					'{site_name}'     => 'Nome do site',
 
-                    '{site_name}' => 'Nome do site',
+					'{site_url}'      => 'URL do site',
 
-                    '{site_url}' => 'URL do site'
+				),
 
-                ]
+			),
 
-            ],
+			'quote_admin_new'               => array(
 
-            'quote_admin_new' => [
+				'name'        => __( 'Novo Pedido de Orçamento - Admin', 'hng-commerce' ),
 
-                'name' => __('Novo Pedido de Orçamento - Admin', 'hng-commerce'),
+				'description' => __( 'Email enviado ao admin quando um novo orçamento é solicitado', 'hng-commerce' ),
 
-                'description' => __('Email enviado ao admin quando um novo orçamento é solicitado', 'hng-commerce'),
+				'recipient'   => 'admin',
 
-                'recipient' => 'admin',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'  => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{customer_email}' => 'Email do cliente',
 
-                    '{customer_email}' => 'Email do cliente',
+					'{customer_phone}' => 'Telefone do cliente',
 
-                    '{customer_phone}' => 'Telefone do cliente',
+					'{quote_id}'       => 'ID do orçamento',
 
-                    '{quote_id}' => 'ID do orçamento',
+					'{quote_date}'     => 'Data da solicitação',
 
-                    '{quote_date}' => 'Data da solicitação',
+					'{products}'       => 'Lista de produtos',
 
-                    '{products}' => 'Lista de produtos',
+					'{admin_link}'     => 'Link para o painel admin',
 
-                    '{admin_link}' => 'Link para o painel admin',
+					'{site_name}'      => 'Nome do site',
 
-                    '{site_name}' => 'Nome do site'
+				),
 
-                ]
+			),
 
-            ],
+			'quote_approved'                => array(
 
-            'quote_approved' => [
+				'name'        => __( 'Orçamento Aprovado - Cliente', 'hng-commerce' ),
 
-                'name' => __('Orçamento Aprovado - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado ao cliente quando o orçamento é aprovado pelo admin', 'hng-commerce' ),
 
-                'description' => __('Email enviado ao cliente quando o orçamento é aprovado pelo admin', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}'     => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{quote_id}'          => 'ID do orçamento',
 
-                    '{quote_id}' => 'ID do orçamento',
+					'{approved_price}'    => 'Preço aprovado',
 
-                    '{approved_price}' => 'Preço aprovado',
+					'{approved_shipping}' => 'Frete aprovado',
 
-                    '{approved_shipping}' => 'Frete aprovado',
+					'{total}'             => 'Total aprovado',
 
-                    '{total}' => 'Total aprovado',
+					'{approval_notes}'    => 'Observações do admin',
 
-                    '{approval_notes}' => 'Observações do admin',
+					'{payment_link}'      => 'Link para pagamento',
 
-                    '{payment_link}' => 'Link para pagamento',
+					'{quote_link}'        => 'Link para visualizar orçamento',
 
-                    '{quote_link}' => 'Link para visualizar orçamento',
+					'{site_name}'         => 'Nome do site',
 
-                    '{site_name}' => 'Nome do site'
+				),
 
-                ]
+			),
 
-            ],
+			'quote_message'                 => array(
 
-            'quote_message' => [
+				'name'        => __( 'Nova Mensagem no Orçamento - Cliente', 'hng-commerce' ),
 
-                'name' => __('Nova Mensagem no Orçamento - Cliente', 'hng-commerce'),
+				'description' => __( 'Email enviado ao cliente quando há nova mensagem do admin no chat', 'hng-commerce' ),
 
-                'description' => __('Email enviado ao cliente quando há nova mensagem do admin no chat', 'hng-commerce'),
+				'recipient'   => 'customer',
 
-                'recipient' => 'customer',
+				'variables'   => array(
 
-                'variables' => [
+					'{customer_name}' => 'Nome do cliente',
 
-                    '{customer_name}' => 'Nome do cliente',
+					'{quote_id}'      => 'ID do orçamento',
 
-                    '{quote_id}' => 'ID do orçamento',
+					'{message}'       => 'Mensagem do admin',
 
-                    '{message}' => 'Mensagem do admin',
+					'{quote_link}'    => 'Link para responder',
 
-                    '{quote_link}' => 'Link para responder',
+					'{site_name}'     => 'Nome do site',
 
-                    '{site_name}' => 'Nome do site'
+				),
 
-                ]
+			),
 
-            ]
+		);
+	}
 
-        ];
 
-    }
 
-    
+	/**
 
-    /**
+	 * Pega template customizado ou padráo
+	 */
+	public static function get_template( $email_type ) {
 
-     * Pega template customizado ou padráo
+		$custom = get_option( 'hng_email_template_' . $email_type, '' );
 
-     */
+		if ( ! empty( $custom ) ) {
 
-    public static function get_template($email_type) {
+			return $custom;
 
-        $custom = get_option('hng_email_template_' . $email_type, '');
+		}
 
-        
+		return self::get_default_template( $email_type );
+	}
 
-        if (!empty($custom)) {
 
-            return $custom;
 
-        }
+	/**
 
-        
+	 * Template padráo baseado nas configuraçÁµes globais
+	 */
+	public static function get_default_template( $email_type ) {
 
-        return self::get_default_template($email_type);
+		$logo = get_option( 'hng_email_logo', '' );
 
-    }
+		$header_color = get_option( 'hng_email_header_color', '#3498db' );
 
-    
+		$button_color = get_option( 'hng_email_button_color', '#27ae60' );
 
-    /**
+		$header = self::get_email_header( $logo, $header_color );
 
-     * Template padráo baseado nas configuraçÁµes globais
+		$footer = self::get_email_footer();
 
-     */
+		$content = self::get_default_content( $email_type );
 
-    public static function get_default_template($email_type) {
+		return $header . $content . $footer;
+	}
 
-        $logo = get_option('hng_email_logo', '');
 
-        $header_color = get_option('hng_email_header_color', '#3498db');
 
-        $button_color = get_option('hng_email_button_color', '#27ae60');
+	/**
 
-        
+	 * Cabeçalho padráo do email
+	 */
+	private static function get_email_header( $logo = '', $header_color = '#3498db' ) {
 
-        $header = self::get_email_header($logo, $header_color);
+		ob_start();
 
-        $footer = self::get_email_footer();
+		?>
 
-        
+		<!DOCTYPE html>
 
-        $content = self::get_default_content($email_type);
+		<html>
 
-        
+		<head>
 
-        return $header . $content . $footer;
+			<meta charset="UTF-8">
 
-    }
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    
+			<style>
 
-    /**
+				body {
 
-     * Cabeçalho padráo do email
+					margin: 0;
 
-     */
+					padding: 0;
 
-    private static function get_email_header($logo = '', $header_color = '#3498db') {
+					font-family: Arial, sans-serif;
 
-        ob_start();
+					background-color: #f4f4f4;
 
-        ?>
+					color: #333;
 
-        <!DOCTYPE html>
+				}
 
-        <html>
+				.email-container {
 
-        <head>
+					max-width: 600px;
 
-            <meta charset="UTF-8">
+					margin: 20px auto;
 
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+					background: #ffffff;
 
-            <style>
+					border-radius: 8px;
 
-                body {
+					overflow: hidden;
 
-                    margin: 0;
+					box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 
-                    padding: 0;
+				}
 
-                    font-family: Arial, sans-serif;
+				.email-header {
 
-                    background-color: #f4f4f4;
+					background-color: <?php echo esc_html( esc_attr( $header_color ) ); ?>;
 
-                    color: #333;
+					padding: 30px 20px;
 
-                }
+					text-align: center;
 
-                .email-container {
+				}
 
-                    max-width: 600px;
+				.email-header img {
 
-                    margin: 20px auto;
+					max-width: 200px;
 
-                    background: #ffffff;
+					height: auto;
 
-                    border-radius: 8px;
+				}
 
-                    overflow: hidden;
+				.email-body {
 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+					padding: 30px 20px;
 
-                }
+				}
 
-                .email-header {
+				.order-details {
 
-                    background-color: <?php echo esc_html(esc_attr($header_color)); ?>;
+					background: #f9f9f9;
 
-                    padding: 30px 20px;
+					padding: 20px;
 
-                    text-align: center;
+					border-radius: 5px;
 
-                }
+					margin: 20px 0;
 
-                .email-header img {
+				}
 
-                    max-width: 200px;
+				.order-items {
 
-                    height: auto;
+					width: 100%;
 
-                }
+					border-collapse: collapse;
 
-                .email-body {
+					margin: 20px 0;
 
-                    padding: 30px 20px;
+				}
 
-                }
+				.order-items th {
 
-                .order-details {
+					background: #f4f4f4;
 
-                    background: #f9f9f9;
+					padding: 12px;
 
-                    padding: 20px;
+					text-align: left;
 
-                    border-radius: 5px;
+					border-bottom: 2px solid #ddd;
 
-                    margin: 20px 0;
+				}
 
-                }
+				.order-items td {
 
-                .order-items {
+					padding: 10px 12px;
 
-                    width: 100%;
+					border-bottom: 1px solid #eee;
 
-                    border-collapse: collapse;
+				}
 
-                    margin: 20px 0;
+				.order-total {
 
-                }
+					font-size: 1.2em;
 
-                .order-items th {
+					color: <?php echo esc_html( esc_attr( $header_color ) ); ?>;
 
-                    background: #f4f4f4;
+				}
 
-                    padding: 12px;
+				.button {
 
-                    text-align: left;
+					display: inline-block;
 
-                    border-bottom: 2px solid #ddd;
+					padding: 12px 30px;
 
-                }
+					background: <?php echo esc_attr( get_option( 'hng_email_button_color', '#27ae60' ) ); ?>;
 
-                .order-items td {
+					color: #ffffff !important;
 
-                    padding: 10px 12px;
+					text-decoration: none;
 
-                    border-bottom: 1px solid #eee;
+					border-radius: 5px;
 
-                }
+					margin: 10px 0;
 
-                .order-total {
+					font-weight: bold;
 
-                    font-size: 1.2em;
+				}
 
-                    color: <?php echo esc_html(esc_attr($header_color)); ?>;
+				.email-footer {
 
-                }
+					background: #333;
 
-                .button {
+					color: #fff;
 
-                    display: inline-block;
+					padding: 20px;
 
-                    padding: 12px 30px;
+					text-align: center;
 
-                    background: <?php echo esc_attr(get_option('hng_email_button_color', '#27ae60')); ?>;
+					font-size: 12px;
 
-                    color: #ffffff !important;
+				}
 
-                    text-decoration: none;
+				.email-footer a {
 
-                    border-radius: 5px;
+					color: #fff;
 
-                    margin: 10px 0;
+					text-decoration: none;
 
-                    font-weight: bold;
+				}
 
-                }
+			</style>
 
-                .email-footer {
+		</head>
 
-                    background: #333;
+		<body>
 
-                    color: #fff;
+			<div class="email-container">
 
-                    padding: 20px;
+				<div class="email-header">
 
-                    text-align: center;
+					<?php if ( ! empty( $logo ) ) : ?>
 
-                    font-size: 12px;
+						<img src="<?php echo esc_html( esc_url( $logo ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>">
 
-                }
+					<?php else : ?>
 
-                .email-footer a {
+						<h1 style="color: white; margin: 0;"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></h1>
 
-                    color: #fff;
+					<?php endif; ?>
 
-                    text-decoration: none;
+				</div>
 
-                }
+				<div class="email-body">
 
-            </style>
+		<?php
 
-        </head>
+		return ob_get_clean();
+	}
 
-        <body>
 
-            <div class="email-container">
 
-                <div class="email-header">
+	/**
 
-                    <?php if (!empty($logo)): ?>
+	 * RodapáÂ© padráo do email
+	 */
+	private static function get_email_footer() {
 
-                        <img src="<?php echo esc_html(esc_url($logo)); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>">
+		$footer_text = get_option( 'hng_email_footer_text', '' );
 
-                    <?php else: ?>
+		if ( empty( $footer_text ) ) {
 
-                        <h1 style="color: white; margin: 0;"><?php echo esc_html(get_bloginfo('name')); ?></h1>
+			$footer_text = sprintf(
+				/* translators: %1$s: current year, %2$s: site name */
+				esc_html__( 'Á‚Â© %1$s %2$s - Todos os direitos reservados.', 'hng-commerce' ),
+				gmdate( 'Y' ),
+				get_bloginfo( 'name' )
+			);
 
-                    <?php endif; ?>
+		}
 
-                </div>
+		ob_start();
 
-                <div class="email-body">
+		?>
 
-        <?php
+				</div>
 
-        return ob_get_clean();
+				<div class="email-footer">
 
-    }
+					<p><?php echo esc_html( wp_kses_post( $footer_text ) ); ?></p>
 
-    
+					<p><a href="{site_url}"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a></p>
 
-    /**
+				</div>
 
-     * RodapáÂ© padráo do email
+			</div>
 
-     */
+		</body>
 
-    private static function get_email_footer() {
+		</html>
 
-        $footer_text = get_option('hng_email_footer_text', '');
+		<?php
 
-        if (empty($footer_text)) {
+		return ob_get_clean();
+	}
 
-            // translators: %s = email template name
-            $footer_text = sprintf(esc_html__('Á‚Â© %1$s %2$s - Todos os direitos reservados.', 'hng-commerce'),
 
-                gmdate('Y'),
 
-                get_bloginfo('name')
+	/**
 
-            );
+	 * ConteáÂudo padráo por tipo de email
+	 */
+	private static function get_default_content( $email_type ) {
 
-        }
+		switch ( $email_type ) {
 
-        
-
-        ob_start();
-
-        ?>
-
-                </div>
-
-                <div class="email-footer">
-
-                    <p><?php echo esc_html(wp_kses_post($footer_text)); ?></p>
-
-                    <p><a href="{site_url}"><?php echo esc_html(get_bloginfo('name')); ?></a></p>
-
-                </div>
-
-            </div>
-
-        </body>
-
-        </html>
-
-        <?php
-
-        return ob_get_clean();
-
-    }
-
-    
-
-    /**
-
-     * ConteáÂudo padráo por tipo de email
-
-     */
-
-    private static function get_default_content($email_type) {
-
-        switch ($email_type) {
-
-            case 'customer_new_order':
-
-                return '<h2>OláÂ¡, {customer_name}!</h2>
+			case 'customer_new_order':
+				return '<h2>OláÂ¡, {customer_name}!</h2>
 
                         <p>Obrigado por fazer seu pedido em nossa loja. Recebemos seu pedido e ele estáÂ¡ sendo processado.</p>
 
@@ -722,11 +689,8 @@ class HNG_Email_Manager {
 
                         </p>';
 
-            
-
-            case 'customer_pix_installment':
-
-                return '<h2>Olá, {customer_name}!</h2>
+			case 'customer_pix_installment':
+				return '<h2>Olá, {customer_name}!</h2>
 
                         <p>Uma nova parcela do seu pedido #{order_number} está disponível para pagamento.</p>
 
@@ -758,10 +722,10 @@ class HNG_Email_Manager {
 
                         </p>';
 
-            // EMAILS DE ORÇAMENTO
-            
-            case 'quote_request':
-                return '<h2>Olá, {customer_name}!</h2>
+			// EMAILS DE ORÇAMENTO
+
+			case 'quote_request':
+				return '<h2>Olá, {customer_name}!</h2>
                         <p>Recebemos seu <strong>pedido de orçamento</strong> com sucesso! Nossa equipe irá analisar sua solicitação e entrar em contato em breve com uma proposta personalizada.</p>
                         <div class="order-details">
                             <h3>Informações do Orçamento</h3>
@@ -774,9 +738,9 @@ class HNG_Email_Manager {
                             <a href="{quote_link}" class="button">Acompanhar Orçamento</a>
                         </p>
                         <p style="font-size: 14px; color: #999;">Você pode acompanhar o status do seu orçamento e trocar mensagens com nossa equipe através do link acima.</p>';
-            
-            case 'quote_admin_new':
-                return '<h2>Novo Pedido de Orçamento Recebido!</h2>
+
+			case 'quote_admin_new':
+				return '<h2>Novo Pedido de Orçamento Recebido!</h2>
                         <p>Um novo pedido de orçamento aguarda sua análise.</p>
                         <div class="order-details" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
                             <p><strong>⏰ Ação necessária:</strong> Analise e responda o orçamento o mais breve possível.</p>
@@ -797,9 +761,9 @@ class HNG_Email_Manager {
                         <p style="text-align: center;">
                             <a href="{admin_link}" class="button" style="background-color: #e74c3c;">Responder Orçamento no Painel</a>
                         </p>';
-            
-            case 'quote_approved':
-                return '<h2>Seu Orçamento foi Aprovado! 🎉</h2>
+
+			case 'quote_approved':
+				return '<h2>Seu Orçamento foi Aprovado! 🎉</h2>
                         <p>Olá, <strong>{customer_name}</strong>!</p>
                         <p>Temos uma ótima notícia! Seu orçamento <strong>#{quote_id}</strong> foi aprovado e está pronto para finalização.</p>
                         <div class="order-details" style="background-color: #d4edda; border-left: 4px solid #28a745;">
@@ -825,9 +789,9 @@ class HNG_Email_Manager {
                             <a href="{payment_link}" class="button" style="background-color: #27ae60;">💳 Pagar Agora</a>
                             <a href="{quote_link}" class="button" style="background-color: #6c757d;">Ver Detalhes</a>
                         </p>';
-            
-            case 'quote_message':
-                return '<h2>Nova Mensagem no seu Orçamento 💬</h2>
+
+			case 'quote_message':
+				return '<h2>Nova Mensagem no seu Orçamento 💬</h2>
                         <p>Olá, <strong>{customer_name}</strong>!</p>
                         <p>Nossa equipe enviou uma nova mensagem sobre seu orçamento <strong>#{quote_id}</strong>.</p>
                         <div class="order-details" style="background-color: #e3f2fd; border-left: 4px solid #2196f3;">
@@ -838,368 +802,335 @@ class HNG_Email_Manager {
                             <a href="{quote_link}" class="button">Responder Mensagem</a>
                         </p>';
 
-            
+			default:
+				return '<p>Template não configurado para: ' . $email_type . '</p>';
 
-            default:
+		}
+	}
 
-                return '<p>Template não configurado para: ' . $email_type . '</p>';
 
-        }
 
-    }
+	/**
 
-    
+	 * Obter apenas o conteáÂudo do template (sem header/footer)
 
-    /**
+	 * Usado no customizador visual
+	 */
+	public static function get_template_content( $email_type ) {
 
-     * Obter apenas o conteáÂudo do template (sem header/footer)
+		// Tentar pegar conteáÂudo customizado salvo
 
-     * Usado no customizador visual
+		$custom = get_option( 'hng_email_content_' . $email_type, '' );
 
-     */
+		if ( ! empty( $custom ) ) {
 
-    public static function get_template_content($email_type) {
+			return $custom;
 
-        // Tentar pegar conteáÂudo customizado salvo
+		}
 
-        $custom = get_option('hng_email_content_' . $email_type, '');
+		// Retornar conteáÂudo padráo
 
-        
+		return self::get_default_content( $email_type );
+	}
 
-        if (!empty($custom)) {
 
-            return $custom;
 
-        }
+	/**
 
-        
+	 * Salva template customizado
+	 */
+	public static function save_template( $email_type, $content ) {
 
-        // Retornar conteáÂudo padráo
+		return update_option( 'hng_email_template_' . $email_type, wp_kses_post( $content ) );
+	}
 
-        return self::get_default_content($email_type);
 
-    }
 
-    
+	/**
 
-    /**
+	 * Salvar apenas o conteáÂudo (sem wrapper)
+	 */
+	public static function save_template_content( $email_type, $content ) {
 
-     * Salva template customizado
+		return update_option( 'hng_email_content_' . $email_type, wp_kses_post( $content ) );
+	}
 
-     */
 
-    public static function save_template($email_type, $content) {
 
-        return update_option('hng_email_template_' . $email_type, wp_kses_post($content));
+	/**
 
-    }
+	 * Processa variáÂ¡veis no template
+	 */
+	public static function process_variables( $template, $data ) {
 
-    
+		foreach ( $data as $key => $value ) {
 
-    /**
+			// Ignorar objetos e arrays - só processar valores escalares
 
-     * Salvar apenas o conteáÂudo (sem wrapper)
+			if ( is_object( $value ) || is_array( $value ) ) {
 
-     */
+				continue;
 
-    public static function save_template_content($email_type, $content) {
+			}
 
-        return update_option('hng_email_content_' . $email_type, wp_kses_post($content));
+			$template = str_replace( '{' . $key . '}', (string) ( $value ?? '' ), $template );
 
-    }
+		}
 
-    
+		// VariáÂ¡veis globais
 
-    /**
+		$template = str_replace( '{site_name}', get_bloginfo( 'name' ), $template );
 
-     * Processa variáÂ¡veis no template
+		$template = str_replace( '{site_url}', get_site_url(), $template );
 
-     */
+		return $template;
+	}
 
-    public static function process_variables($template, $data) {
 
-        foreach ($data as $key => $value) {
 
-            // Ignorar objetos e arrays - só processar valores escalares
+	/**
 
-            if (is_object($value) || is_array($value)) {
+	 * Processa template com variáÂ¡veis (alias para process_variables)
+	 */
+	public static function process_template_variables( $template, $data ) {
 
-                continue;
+		return self::process_variables( $template, $data );
+	}
 
-            }
 
-            $template = str_replace('{' . $key . '}', (string) ($value ?? ''), $template);
 
-        }
+	/**
 
-        
+	 * Gera HTML completo do email
+	 */
+	public static function generate_email_html( $content, $settings = array() ) {
 
-        // VariáÂ¡veis globais
+		$defaults = array(
 
-        $template = str_replace('{site_name}', get_bloginfo('name'), $template);
+			'logo'         => '',
 
-        $template = str_replace('{site_url}', get_site_url(), $template);
+			'header_color' => '#2196f3',
 
-        
+			'button_color' => '#4caf50',
 
-        return $template;
+			'text_color'   => '#333333',
 
-    }
+			'bg_color'     => '#f5f5f5',
 
-    
+			'custom_css'   => '',
 
-    /**
+		);
 
-     * Processa template com variáÂ¡veis (alias para process_variables)
+		$settings = array_merge( $defaults, $settings );
 
-     */
+		ob_start();
 
-    public static function process_template_variables($template, $data) {
+		?>
 
-        return self::process_variables($template, $data);
+		<!DOCTYPE html>
 
-    }
+		<html>
 
-    
+		<head>
 
-    /**
+			<meta charset="UTF-8">
 
-     * Gera HTML completo do email
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-     */
+			<style>
 
-    public static function generate_email_html($content, $settings = []) {
+				body {
 
-        $defaults = [
+					margin: 0;
 
-            'logo' => '',
+					padding: 0;
 
-            'header_color' => '#2196f3',
+					font-family: Arial, sans-serif;
 
-            'button_color' => '#4caf50',
+					background-color: <?php echo esc_html( $settings['bg_color'] ); ?>;
 
-            'text_color' => '#333333',
+					color: <?php echo esc_html( $settings['text_color'] ); ?>;
 
-            'bg_color' => '#f5f5f5',
+				}
 
-            'custom_css' => '',
+				.email-container {
 
-        ];
+					max-width: 600px;
 
-        $settings = array_merge($defaults, $settings);
+					margin: 20px auto;
 
-        
+					background: #ffffff;
 
-        ob_start();
+					border-radius: 8px;
 
-        ?>
+					overflow: hidden;
 
-        <!DOCTYPE html>
+					box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 
-        <html>
+				}
 
-        <head>
+				.email-header {
 
-            <meta charset="UTF-8">
+					background-color: <?php echo esc_html( $settings['header_color'] ); ?>;
 
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+					padding: 30px 20px;
 
-            <style>
+					text-align: center;
 
-                body {
+				}
 
-                    margin: 0;
+				.email-header img {
 
-                    padding: 0;
+					max-width: 200px;
 
-                    font-family: Arial, sans-serif;
+					height: auto;
 
-                    background-color: <?php echo esc_html($settings['bg_color']); ?>;
+				}
 
-                    color: <?php echo esc_html($settings['text_color']); ?>;
+				.email-body {
 
-                }
+					padding: 30px 20px;
 
-                .email-container {
+				}
 
-                    max-width: 600px;
+				.order-details {
 
-                    margin: 20px auto;
+					background: #f9f9f9;
 
-                    background: #ffffff;
+					padding: 20px;
 
-                    border-radius: 8px;
+					border-radius: 5px;
 
-                    overflow: hidden;
+					margin: 20px 0;
 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+				}
 
-                }
+				.order-items {
 
-                .email-header {
+					width: 100%;
 
-                    background-color: <?php echo esc_html($settings['header_color']); ?>;
+					border-collapse: collapse;
 
-                    padding: 30px 20px;
+					margin: 20px 0;
 
-                    text-align: center;
+				}
 
-                }
+				.order-items th {
 
-                .email-header img {
+					background: #f4f4f4;
 
-                    max-width: 200px;
+					padding: 12px;
 
-                    height: auto;
+					text-align: left;
 
-                }
+					border-bottom: 2px solid #ddd;
 
-                .email-body {
+				}
 
-                    padding: 30px 20px;
+				.order-items td {
 
-                }
+					padding: 10px 12px;
 
-                .order-details {
+					border-bottom: 1px solid #eee;
 
-                    background: #f9f9f9;
+				}
 
-                    padding: 20px;
+				.order-total {
 
-                    border-radius: 5px;
+					font-size: 1.2em;
 
-                    margin: 20px 0;
+					color: <?php echo esc_html( $settings['header_color'] ); ?>;
 
-                }
+				}
 
-                .order-items {
+				.button {
 
-                    width: 100%;
+					display: inline-block;
 
-                    border-collapse: collapse;
+					padding: 12px 30px;
 
-                    margin: 20px 0;
+					background: <?php echo esc_html( $settings['button_color'] ); ?>;
 
-                }
+					color: #ffffff !important;
 
-                .order-items th {
+					text-decoration: none;
 
-                    background: #f4f4f4;
+					border-radius: 5px;
 
-                    padding: 12px;
+					margin: 10px 0;
 
-                    text-align: left;
+					font-weight: bold;
 
-                    border-bottom: 2px solid #ddd;
+				}
 
-                }
+				.email-footer {
 
-                .order-items td {
+					background: #333;
 
-                    padding: 10px 12px;
+					color: #fff;
 
-                    border-bottom: 1px solid #eee;
+					padding: 20px;
 
-                }
+					text-align: center;
 
-                .order-total {
+					font-size: 12px;
 
-                    font-size: 1.2em;
+				}
 
-                    color: <?php echo esc_html($settings['header_color']); ?>;
+				.email-footer a {
 
-                }
+					color: #fff;
 
-                .button {
+					text-decoration: none;
 
-                    display: inline-block;
+				}
 
-                    padding: 12px 30px;
+				<?php echo esc_html( $settings['custom_css'] ); ?>
 
-                    background: <?php echo esc_html($settings['button_color']); ?>;
+			</style>
 
-                    color: #ffffff !important;
+		</head>
 
-                    text-decoration: none;
+		<body>
 
-                    border-radius: 5px;
+			<div class="email-container">
 
-                    margin: 10px 0;
+				<div class="email-header">
 
-                    font-weight: bold;
+					<?php if ( ! empty( $settings['logo'] ) ) : ?>
 
-                }
+						<img src="<?php echo esc_html( esc_url( $settings['logo'] ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>">
 
-                .email-footer {
+					<?php else : ?>
 
-                    background: #333;
+						<h1 style="color: white; margin: 0;"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></h1>
 
-                    color: #fff;
+					<?php endif; ?>
 
-                    padding: 20px;
+				</div>
 
-                    text-align: center;
+				<div class="email-body">
 
-                    font-size: 12px;
+					<?php echo wp_kses_post( $content ); ?>
 
-                }
+				</div>
 
-                .email-footer a {
+				<div class="email-footer">
 
-                    color: #fff;
+					<p>&copy; <?php echo esc_html( gmdate( 'Y' ) ); ?> <?php echo esc_html( get_bloginfo( 'name' ) ); ?>. Todos os direitos reservados.</p>
 
-                    text-decoration: none;
+					<p>Este áÂ© um email automáÂ¡tico. Por favor, náo responda.</p>
 
-                }
+				</div>
 
-                <?php echo esc_html($settings['custom_css']); ?>
+			</div>
 
-            </style>
+		</body>
 
-        </head>
+		</html>
 
-        <body>
+		<?php
 
-            <div class="email-container">
-
-                <div class="email-header">
-
-                    <?php if (!empty($settings['logo'])): ?>
-
-                        <img src="<?php echo esc_html(esc_url($settings['logo'])); ?>" alt="<?php echo esc_attr(get_bloginfo('name')); ?>">
-
-                    <?php else: ?>
-
-                        <h1 style="color: white; margin: 0;"><?php echo esc_html(get_bloginfo('name')); ?></h1>
-
-                    <?php endif; ?>
-
-                </div>
-
-                <div class="email-body">
-
-                    <?php echo wp_kses_post($content); ?>
-
-                </div>
-
-                <div class="email-footer">
-
-                    <p>&copy; <?php echo esc_html(gmdate('Y')); ?> <?php echo esc_html(get_bloginfo('name')); ?>. Todos os direitos reservados.</p>
-
-                    <p>Este áÂ© um email automáÂ¡tico. Por favor, náo responda.</p>
-
-                </div>
-
-            </div>
-
-        </body>
-
-        </html>
-
-        <?php
-
-        return ob_get_clean();
-
-    }
-
+		return ob_get_clean();
+	}
 }

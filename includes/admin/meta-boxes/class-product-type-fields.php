@@ -1,7 +1,7 @@
-<?php
+<?php // phpcs:disable WordPress.Files.FileName.InvalidClassFileName
 /**
  * Product Type Fields Manager
- * 
+ *
  * Gerencia campos específicos para cada tipo de produto com UI/UX melhorada
  *
  * @package HNG_Commerce
@@ -9,873 +9,823 @@
  * @since 1.0.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable Squiz.Commenting.VariableComment.MissingVar
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable Universal.Operators.DisallowShortTernary.Found
+// phpcs:disable Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class HNG_Product_Type_Fields {
-    
-    /**
 
-     * Singleton instance
+	/**
 
-     */
+	 * Singleton instance
+	 */
 
-    private static $instance = null;
+	private static $instance = null;
 
-    
 
-    /**
 
-     * Get instance
+	/**
 
-     */
+	 * Get instance
+	 */
+	public static function instance() {
 
-    public static function instance() {
+		if ( is_null( self::$instance ) ) {
 
-        if (is_null(self::$instance)) {
+			self::$instance = new self();
 
-            self::$instance = new self();
+		}
 
-        }
+		return self::$instance;
+	}
 
-        return self::$instance;
 
-    }
 
-    
+	/**
 
-    /**
+	 * Constructor
+	 */
+	private function __construct() {
 
-     * Constructor
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+	}
 
-     */
 
-    private function __construct() {
 
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
+	/**
 
-    }
+	 * Enqueue scripts and styles
+	 */
+	public function enqueue_scripts( $hook ) {
 
-    
+		global $post_type;
 
-    /**
+		// Verifica se estamos editando um produto HNG
 
-     * Enqueue scripts and styles
+		$is_product_edit = (
 
-     */
+			( $hook === 'post.php' || $hook === 'post-new.php' ) &&
 
-    public function enqueue_scripts($hook) {
+			( $post_type === 'hng_product' )
 
-        global $post_type;
+		);
 
-        
+		if ( ! $is_product_edit ) {
 
-        // Verifica se estamos editando um produto HNG
+			return;
 
-        $is_product_edit = (
+		}
 
-            ($hook === 'post.php' || $hook === 'post-new.php') && 
+		// Enqueue CSS
 
-            ($post_type === 'hng_product')
+		wp_enqueue_style(
+			'hng-product-type-editor',
+			HNG_COMMERCE_URL . 'assets/css/product-type-editor.css',
+			array(),
+			HNG_COMMERCE_VERSION
+		);
 
-        );
+		// Enqueue JavaScript
 
-        
+		wp_enqueue_script(
+			'hng-product-fields',
+			HNG_COMMERCE_URL . 'assets/js/product-type-fields.js',
+			array( 'jquery' ),
+			HNG_COMMERCE_VERSION,
+			true
+		);
 
-        if (!$is_product_edit) {
+		wp_localize_script(
+			'hng-product-fields',
+			'hngProductFieldsData',
+			array(
 
-            return;
+				'types' => self::get_product_types(),
 
-        }
+			)
+		);
+	}
 
-        
 
-        // Enqueue CSS
 
-        wp_enqueue_style(
+	/**
 
-            'hng-product-type-editor',
+	 * Get product types configuration
+	 */
+	public static function get_product_types() {
 
-            HNG_COMMERCE_URL . 'assets/css/product-type-editor.css',
+		return array(
 
-            [],
+			'simple'       => array(
 
-            HNG_COMMERCE_VERSION
+				'label'       => __( 'Simples', 'hng-commerce' ),
 
-        );
+				'icon'        => '📦',
 
-        
+				'description' => __( 'Produto padrão', 'hng-commerce' ),
 
-        // Enqueue JavaScript
+				'fields'      => array(
 
-        wp_enqueue_script(
+					'basic'     => array(
 
-            'hng-product-fields',
+						'sku',
+						'price',
+						'sale_price',
+						'cost',
 
-            HNG_COMMERCE_URL . 'assets/js/product-type-fields.js',
+					),
 
-            ['jquery'],
+					'shipping'  => array(
 
-            HNG_COMMERCE_VERSION,
+						'weight',
+						'length',
+						'width',
+						'height',
 
-            true
+					),
 
-        );
+					'inventory' => array(
 
-        
+						'stock',
+						'manage_stock',
+						'low_stock_threshold',
 
-        wp_localize_script('hng-product-fields', 'hngProductFieldsData', [
+					),
 
-            'types' => self::get_product_types(),
+				),
 
-        ]);
+			),
 
-    }
+			'variable'     => array(
 
-    
+				'label'       => __( 'Variável', 'hng-commerce' ),
 
-    /**
+				'icon'        => '🔀',
 
-     * Get product types configuration
+				'description' => __( 'Produto com variações', 'hng-commerce' ),
 
-     */
+				'fields'      => array(
 
-    public static function get_product_types() {
+					'attributes' => array(
 
-        return [
+						'product_attributes',
 
-            'simple' => [
+					),
 
-                'label' => __('Simples', 'hng-commerce'),
+					'variations' => array(
 
-                'icon' => '📦',
+						'product_variations',
 
-                'description' => __('Produto padrão', 'hng-commerce'),
+					),
 
-                'fields' => [
+					'shipping'   => array(
 
-                    'basic' => [
+						'weight',
+						'length',
+						'width',
+						'height',
 
-                        'sku', 'price', 'sale_price', 'cost'
+					),
 
-                    ],
+				),
 
-                    'shipping' => [
+			),
 
-                        'weight', 'length', 'width', 'height'
+			'digital'      => array(
 
-                    ],
+				'label'       => __( 'Digital', 'hng-commerce' ),
 
-                    'inventory' => [
+				'icon'        => '💾',
 
-                        'stock', 'manage_stock', 'low_stock_threshold'
+				'description' => __( 'Produto digital/download', 'hng-commerce' ),
 
-                    ]
+				'fields'      => array(
 
-                ]
+					'basic'   => array(
 
-            ],
+						'price',
+						'sale_price',
+						'cost',
 
-            'variable' => [
+					),
 
-                'label' => __('Variável', 'hng-commerce'),
+					'digital' => array(
 
-                'icon' => '🔀',
+						'download_file',
+						'download_url',
+						'download_limit',
+						'download_expiry',
 
-                'description' => __('Produto com variações', 'hng-commerce'),
+					),
 
-                'fields' => [
+				),
 
-                    'attributes' => [
+			),
 
-                        'product_attributes'
+			'subscription' => array(
 
-                    ],
+				'label'       => __( 'Assinatura', 'hng-commerce' ),
 
-                    'variations' => [
+				'icon'        => '🔄',
 
-                        'product_variations'
+				'description' => __( 'Produto com pagamento recorrente', 'hng-commerce' ),
 
-                    ],
+				'fields'      => array(
 
-                    'shipping' => [
+					'subscription' => array(
 
-                        'weight', 'length', 'width', 'height'
+						'subscription_price',
+						'subscription_recurrence',
 
-                    ]
+					),
 
-                ]
+					'shipping'     => array(
 
-            ],
+						'subscription_requires_shipping',
+						'weight',
+						'length',
+						'width',
+						'height',
 
-            'digital' => [
+					),
 
-                'label' => __('Digital', 'hng-commerce'),
+				),
 
-                'icon' => '💾',
+			),
 
-                'description' => __('Produto digital/download', 'hng-commerce'),
+			'quote'        => array(
 
-                'fields' => [
+				'label'       => __( 'Orçamento', 'hng-commerce' ),
 
-                    'basic' => [
+				'icon'        => '📋',
 
-                        'price', 'sale_price', 'cost'
+				'description' => __( 'Produto que requer orçamento', 'hng-commerce' ),
 
-                    ],
+				'fields'      => array(
 
-                    'digital' => [
+					'quote' => array(
 
-                        'download_file', 'download_url', 'download_limit', 'download_expiry'
+						'quote_requires_shipping',
+						'quote_custom_fields',
 
-                    ]
+					),
 
-                ]
+				),
 
-            ],
+			),
 
-            'subscription' => [
+			'appointment'  => array(
 
-                'label' => __('Assinatura', 'hng-commerce'),
+				'label'       => __( 'Agendamento', 'hng-commerce' ),
 
-                'icon' => '🔄',
+				'icon'        => '📅',
 
-                'description' => __('Produto com pagamento recorrente', 'hng-commerce'),
+				'description' => __( 'Serviço com horário agendado', 'hng-commerce' ),
 
-                'fields' => [
+				'fields'      => array(
 
-                    'subscription' => [
+					'basic'       => array(
 
-                        'subscription_price', 'subscription_recurrence'
+						'price',
 
-                    ],
+					),
 
-                    'shipping' => [
+					'appointment' => array(
 
-                        'subscription_requires_shipping', 'weight', 'length', 'width', 'height'
+						'booking_start_date',
+						'service_duration',
+						'appointment_professionals',
 
-                    ]
+					),
 
-                ]
+				),
 
-            ],
+			),
 
-            'quote' => [
+		);
+	}
 
-                'label' => __('Orçamento', 'hng-commerce'),
 
-                'icon' => '📋',
 
-                'description' => __('Produto que requer orçamento', 'hng-commerce'),
+	/**
 
-                'fields' => [
+	 * Get field definitions for all types
+	 */
+	public static function get_field_definitions() {
 
-                    'quote' => [
+		return array(
 
-                        'quote_requires_shipping', 'quote_custom_fields'
+			// Basic Fields
 
-                    ]
+			'sku'                            => array(
 
-                ]
+				'label'       => __( 'SKU:', 'hng-commerce' ),
 
-            ],
+				'type'        => 'text',
 
-            'appointment' => [
+				'placeholder' => __( 'Ex: PROD-001', 'hng-commerce' ),
 
-                'label' => __('Agendamento', 'hng-commerce'),
+				'help'        => __( 'Identificador único do produto', 'hng-commerce' ),
 
-                'icon' => '📅',
+			),
 
-                'description' => __('Serviço com horário agendado', 'hng-commerce'),
+			'price'                          => array(
 
-                'fields' => [
+				'label'       => __( 'Preço (R$):', 'hng-commerce' ),
 
-                    'basic' => [
+				'type'        => 'number',
 
-                        'price'
+				'step'        => '0.01',
 
-                    ],
+				'min'         => '0',
 
-                    'appointment' => [
+				'placeholder' => '0,00',
 
-                        'booking_start_date', 'service_duration', 'appointment_professionals'
+				'help'        => __( 'Preço do produto', 'hng-commerce' ),
 
-                    ]
+			),
 
-                ]
+			'sale_price'                     => array(
 
-            ]
+				'label'       => __( 'Preço Promocional (R$):', 'hng-commerce' ),
 
-        ];
+				'type'        => 'number',
 
-    }
+				'step'        => '0.01',
 
-    
+				'min'         => '0',
 
-    /**
+				'placeholder' => '0,00',
 
-     * Get field definitions for all types
+				'help'        => __( 'Deixe em branco se não houver promoção', 'hng-commerce' ),
 
-     */
+			),
 
-    public static function get_field_definitions() {
+			'cost'                           => array(
 
-        return [
+				'label'       => __( 'Custo (R$):', 'hng-commerce' ),
 
-            // Basic Fields
+				'type'        => 'number',
 
-            'sku' => [
+				'step'        => '0.01',
 
-                'label' => __('SKU:', 'hng-commerce'),
+				'min'         => '0',
 
-                'type' => 'text',
+				'placeholder' => '0,00',
 
-                'placeholder' => __('Ex: PROD-001', 'hng-commerce'),
+				'help'        => __( 'Custo para cálculo de lucro', 'hng-commerce' ),
 
-                'help' => __('Identificador único do produto', 'hng-commerce'),
+			),
 
-            ],
+			// Shipping Fields
 
-            'price' => [
+			'weight'                         => array(
 
-                'label' => __('Preço (R$):', 'hng-commerce'),
+				'label'       => __( 'Peso (kg):', 'hng-commerce' ),
 
-                'type' => 'number',
+				'type'        => 'number',
 
-                'step' => '0.01',
+				'step'        => '0.001',
 
-                'min' => '0',
+				'min'         => '0',
 
-                'placeholder' => '0,00',
+				'placeholder' => '0,000',
 
-                'help' => __('Preço do produto', 'hng-commerce'),
+				'help'        => __( 'Peso para cálculo de frete', 'hng-commerce' ),
 
-            ],
+			),
 
-            'sale_price' => [
+			'length'                         => array(
 
-                'label' => __('Preço Promocional (R$):', 'hng-commerce'),
+				'label'       => __( 'Comprimento (cm):', 'hng-commerce' ),
 
-                'type' => 'number',
+				'type'        => 'number',
 
-                'step' => '0.01',
+				'step'        => '0.01',
 
-                'min' => '0',
+				'min'         => '0',
 
-                'placeholder' => '0,00',
+				'placeholder' => '0,00',
 
-                'help' => __('Deixe em branco se não houver promoção', 'hng-commerce'),
+			),
 
-            ],
+			'width'                          => array(
 
-            'cost' => [
+				'label'       => __( 'Largura (cm):', 'hng-commerce' ),
 
-                'label' => __('Custo (R$):', 'hng-commerce'),
+				'type'        => 'number',
 
-                'type' => 'number',
+				'step'        => '0.01',
 
-                'step' => '0.01',
+				'min'         => '0',
 
-                'min' => '0',
+				'placeholder' => '0,00',
 
-                'placeholder' => '0,00',
+			),
 
-                'help' => __('Custo para cálculo de lucro', 'hng-commerce'),
+			'height'                         => array(
 
-            ],
+				'label'       => __( 'Altura (cm):', 'hng-commerce' ),
 
-            
+				'type'        => 'number',
 
-            // Shipping Fields
+				'step'        => '0.01',
 
-            'weight' => [
+				'min'         => '0',
 
-                'label' => __('Peso (kg):', 'hng-commerce'),
+				'placeholder' => '0,00',
 
-                'type' => 'number',
+			),
 
-                'step' => '0.001',
+			// Inventory
 
-                'min' => '0',
+			'stock'                          => array(
 
-                'placeholder' => '0,000',
+				'label'       => __( 'Estoque:', 'hng-commerce' ),
 
-                'help' => __('Peso para cálculo de frete', 'hng-commerce'),
+				'type'        => 'number',
 
-            ],
+				'min'         => '0',
 
-            'length' => [
+				'step'        => '1',
 
-                'label' => __('Comprimento (cm):', 'hng-commerce'),
+				'placeholder' => '0',
 
-                'type' => 'number',
+				'help'        => __( 'Quantidade disponível', 'hng-commerce' ),
 
-                'step' => '0.01',
+			),
 
-                'min' => '0',
+			'manage_stock'                   => array(
 
-                'placeholder' => '0,00',
+				'label' => __( 'Gerenciar Estoque', 'hng-commerce' ),
 
-            ],
+				'type'  => 'checkbox',
 
-            'width' => [
+				'help'  => __( 'Habilitar controle automático', 'hng-commerce' ),
 
-                'label' => __('Largura (cm):', 'hng-commerce'),
+			),
 
-                'type' => 'number',
+			'low_stock_threshold'            => array(
 
-                'step' => '0.01',
+				'label'       => __( 'Alerta de Estoque Baixo:', 'hng-commerce' ),
 
-                'min' => '0',
+				'type'        => 'number',
 
-                'placeholder' => '0,00',
+				'min'         => '0',
 
-            ],
+				'step'        => '1',
 
-            'height' => [
+				'placeholder' => '5',
 
-                'label' => __('Altura (cm):', 'hng-commerce'),
+				'help'        => __( 'Quantidade mínima para alerta', 'hng-commerce' ),
 
-                'type' => 'number',
+			),
 
-                'step' => '0.01',
+			// Variable Product - Attributes and Variations
 
-                'min' => '0',
+			'product_attributes'             => array(
 
-                'placeholder' => '0,00',
+				'label' => __( 'Atributos do Produto', 'hng-commerce' ),
 
-            ],
+				'type'  => 'attributes',
 
-            
+				'help'  => __( 'Gerenciar atributos e seus valores', 'hng-commerce' ),
 
-            // Inventory
+			),
 
-            'stock' => [
+			'product_variations'             => array(
 
-                'label' => __('Estoque:', 'hng-commerce'),
+				'label' => __( 'Variações do Produto', 'hng-commerce' ),
 
-                'type' => 'number',
+				'type'  => 'variations',
 
-                'min' => '0',
+				'help'  => __( 'Gerenciar variações por atributo', 'hng-commerce' ),
 
-                'step' => '1',
+			),
 
-                'placeholder' => '0',
+			// Digital Fields
 
-                'help' => __('Quantidade disponível', 'hng-commerce'),
+			'download_url'                   => array(
 
-            ],
+				'label'       => __( 'URL de Download:', 'hng-commerce' ),
 
-            'manage_stock' => [
+				'type'        => 'url',
 
-                'label' => __('Gerenciar Estoque', 'hng-commerce'),
+				'placeholder' => __( 'https://exemplo.com/arquivo.zip', 'hng-commerce' ),
 
-                'type' => 'checkbox',
+				'help'        => __( 'Link direto para download', 'hng-commerce' ),
 
-                'help' => __('Habilitar controle automático', 'hng-commerce'),
+			),
 
-            ],
+			'download_file'                  => array(
 
-            'low_stock_threshold' => [
+				'label' => __( 'Arquivo para Download:', 'hng-commerce' ),
 
-                'label' => __('Alerta de Estoque Baixo:', 'hng-commerce'),
+				'type'  => 'file',
 
-                'type' => 'number',
+				'help'  => __( 'Upload do arquivo para download', 'hng-commerce' ),
 
-                'min' => '0',
+			),
 
-                'step' => '1',
+			'download_limit'                 => array(
 
-                'placeholder' => '5',
+				'label'       => __( 'Limite de Downloads:', 'hng-commerce' ),
 
-                'help' => __('Quantidade mínima para alerta', 'hng-commerce'),
+				'type'        => 'number',
 
-            ],
+				'min'         => '0',
 
-            
+				'placeholder' => '0',
 
-            // Variable Product - Attributes and Variations
+				'help'        => __( '0 = ilimitado', 'hng-commerce' ),
 
-            'product_attributes' => [
+			),
 
-                'label' => __('Atributos do Produto', 'hng-commerce'),
+			'download_expiry'                => array(
 
-                'type' => 'attributes',
+				'label'       => __( 'Expiração (dias):', 'hng-commerce' ),
 
-                'help' => __('Gerenciar atributos e seus valores', 'hng-commerce'),
+				'type'        => 'number',
 
-            ],
+				'min'         => '0',
 
-            'product_variations' => [
+				'placeholder' => '30',
 
-                'label' => __('Variações do Produto', 'hng-commerce'),
+				'help'        => __( 'Dias até expirar o acesso', 'hng-commerce' ),
 
-                'type' => 'variations',
+			),
 
-                'help' => __('Gerenciar variações por atributo', 'hng-commerce'),
+			// Subscription Fields
 
-            ],
+			'subscription_price'             => array(
 
-            
+				'label'       => __( 'Preço da Assinatura (R$):', 'hng-commerce' ),
 
-            // Digital Fields
+				'type'        => 'number',
 
-            'download_url' => [
+				'step'        => '0.01',
 
-                'label' => __('URL de Download:', 'hng-commerce'),
+				'min'         => '0',
 
-                'type' => 'url',
+				'placeholder' => '0,00',
 
-                'placeholder' => __('https://exemplo.com/arquivo.zip', 'hng-commerce'),
+				'help'        => __( 'Valor cobrado a cada renovação', 'hng-commerce' ),
 
-                'help' => __('Link direto para download', 'hng-commerce'),
+			),
 
-            ],
+			'subscription_recurrence'        => array(
 
-            'download_file' => [
+				'label'   => __( 'Recorrência:', 'hng-commerce' ),
 
-                'label' => __('Arquivo para Download:', 'hng-commerce'),
+				'type'    => 'select',
 
-                'type' => 'file',
+				'options' => array(
 
-                'help' => __('Upload do arquivo para download', 'hng-commerce'),
+					'weekly'       => __( 'Semanal', 'hng-commerce' ),
 
-            ],
+					'monthly'      => __( 'Mensal', 'hng-commerce' ),
 
-            'download_limit' => [
+					'quarterly'    => __( 'Trimestral', 'hng-commerce' ),
 
-                'label' => __('Limite de Downloads:', 'hng-commerce'),
+					'semi-annual'  => __( 'Semestral', 'hng-commerce' ),
 
-                'type' => 'number',
+					'annual'       => __( 'Anual', 'hng-commerce' ),
 
-                'min' => '0',
+					'biennial'     => __( 'A cada 2 anos', 'hng-commerce' ),
 
-                'placeholder' => '0',
+					'triennial'    => __( 'A cada 3 anos', 'hng-commerce' ),
 
-                'help' => __('0 = ilimitado', 'hng-commerce'),
+					'quinquennial' => __( 'A cada 5 anos', 'hng-commerce' ),
 
-            ],
+				),
 
-            'download_expiry' => [
+				'help'    => __( 'Frequência de cobrança', 'hng-commerce' ),
 
-                'label' => __('Expiração (dias):', 'hng-commerce'),
+			),
 
-                'type' => 'number',
+			'subscription_requires_shipping' => array(
 
-                'min' => '0',
+				'label' => __( 'Requer envio do produto', 'hng-commerce' ),
 
-                'placeholder' => '30',
+				'type'  => 'checkbox',
 
-                'help' => __('Dias até expirar o acesso', 'hng-commerce'),
+				'help'  => __( 'Ative para produtos de assinatura que precisam de entrega física e preencha os dados de frete.', 'hng-commerce' ),
 
-            ],
+			),
 
-            
+			// Quote Fields
 
-            // Subscription Fields
+			'quote_requires_shipping'        => array(
 
-            'subscription_price' => [
+				'label' => __( 'Requer Frete', 'hng-commerce' ),
 
-                'label' => __('Preço da Assinatura (R$):', 'hng-commerce'),
+				'type'  => 'checkbox',
 
-                'type' => 'number',
+				'help'  => __( 'Marque se o produto requer cálculo de frete', 'hng-commerce' ),
 
-                'step' => '0.01',
+			),
 
-                'min' => '0',
+			'quote_custom_fields'            => array(
 
-                'placeholder' => '0,00',
+				'label' => __( 'Campos do Formulário', 'hng-commerce' ),
 
-                'help' => __('Valor cobrado a cada renovação', 'hng-commerce'),
+				'type'  => 'quote_fields',
 
-            ],
+				'help'  => __( 'Campos que serão solicitados no orçamento', 'hng-commerce' ),
 
-            'subscription_recurrence' => [
+			),
 
-                'label' => __('Recorrência:', 'hng-commerce'),
+			// Appointment Fields
 
-                'type' => 'select',
+			'booking_start_date'             => array(
 
-                'options' => [
+				'label' => __( 'Data de Início do Agendamento:', 'hng-commerce' ),
 
-                    'weekly' => __('Semanal', 'hng-commerce'),
+				'type'  => 'date',
 
-                    'monthly' => __('Mensal', 'hng-commerce'),
+				'help'  => __( 'A partir de qual data este serviço pode ser agendado', 'hng-commerce' ),
 
-                    'quarterly' => __('Trimestral', 'hng-commerce'),
+			),
 
-                    'semi-annual' => __('Semestral', 'hng-commerce'),
+			'service_duration'               => array(
 
-                    'annual' => __('Anual', 'hng-commerce'),
+				'label'       => __( 'Duração do Serviço (minutos):', 'hng-commerce' ),
 
-                    'biennial' => __('A cada 2 anos', 'hng-commerce'),
+				'type'        => 'number',
 
-                    'triennial' => __('A cada 3 anos', 'hng-commerce'),
+				'min'         => '15',
 
-                    'quinquennial' => __('A cada 5 anos', 'hng-commerce'),
+				'step'        => '15',
 
-                ],
+				'placeholder' => '60',
 
-                'help' => __('Frequência de cobrança', 'hng-commerce'),
+				'help'        => __( 'Quanto tempo dura cada agendamento (em minutos)', 'hng-commerce' ),
 
-            ],
+			),
 
-            'subscription_requires_shipping' => [
+			'appointment_professionals'      => array(
 
-                'label' => __('Requer envio do produto', 'hng-commerce'),
+				'label' => __( 'Profissionais Disponíveis', 'hng-commerce' ),
 
-                'type' => 'checkbox',
+				'type'  => 'professionals',
 
-                'help' => __('Ative para produtos de assinatura que precisam de entrega física e preencha os dados de frete.', 'hng-commerce'),
+				'help'  => __( 'Profissionais que podem realizar este serviço. A capacidade de agendamentos simultâneos é baseada no número de profissionais.', 'hng-commerce' ),
 
-            ],
+			),
 
-            
+			// Legacy fields (kept for backward compatibility)
 
-            // Quote Fields
+			'duration'                       => array(
 
-            'quote_requires_shipping' => [
+				'label'       => __( 'Duração (minutos):', 'hng-commerce' ),
 
-                'label' => __('Requer Frete', 'hng-commerce'),
+				'type'        => 'number',
 
-                'type' => 'checkbox',
+				'min'         => '1',
 
-                'help' => __('Marque se o produto requer cálculo de frete', 'hng-commerce'),
+				'step'        => '15',
 
-            ],
+				'placeholder' => '60',
 
-            'quote_custom_fields' => [
+				'help'        => __( 'Quanto tempo dura cada agendamento', 'hng-commerce' ),
 
-                'label' => __('Campos do Formulário', 'hng-commerce'),
+			),
 
-                'type' => 'quote_fields',
+			'buffer_time'                    => array(
 
-                'help' => __('Campos que serão solicitados no orçamento', 'hng-commerce'),
+				'label'       => __( 'Tempo de Buffer (minutos):', 'hng-commerce' ),
 
-            ],
+				'type'        => 'number',
 
-            
+				'min'         => '0',
 
-            // Appointment Fields
+				'step'        => '15',
 
-            'booking_start_date' => [
+				'placeholder' => '0',
 
-                'label' => __('Data de Início do Agendamento:', 'hng-commerce'),
+				'help'        => __( 'Tempo para preparação entre agendamentos', 'hng-commerce' ),
 
-                'type' => 'date',
+			),
 
-                'help' => __('A partir de qual data este serviço pode ser agendado', 'hng-commerce'),
+			'max_capacity'                   => array(
 
-            ],
+				'label'       => __( 'Capacidade Máxima:', 'hng-commerce' ),
 
-            'service_duration' => [
+				'type'        => 'number',
 
-                'label' => __('Duração do Serviço (minutos):', 'hng-commerce'),
+				'min'         => '1',
 
-                'type' => 'number',
+				'step'        => '1',
 
-                'min' => '15',
+				'placeholder' => '1',
 
-                'step' => '15',
+				'help'        => __( 'Quantas pessoas podem agendar', 'hng-commerce' ),
 
-                'placeholder' => '60',
+			),
 
-                'help' => __('Quanto tempo dura cada agendamento (em minutos)', 'hng-commerce'),
+		);
+	}
 
-            ],
 
-            'appointment_professionals' => [
 
-                'label' => __('Profissionais Disponíveis', 'hng-commerce'),
+	/**
 
-                'type' => 'professionals',
+	 * Render field based on definition
+	 */
+	public static function render_field( $field_key, $field_def, $post_id, $product_type ) {
 
-                'help' => __('Profissionais que podem realizar este serviço. A capacidade de agendamentos simultâneos é baseada no número de profissionais.', 'hng-commerce'),
+		$meta_key = '_' . $field_key;
 
-            ],
+		$value = get_post_meta( $post_id, $meta_key, true );
 
-            
+		$field_id = 'hng_field_' . $field_key;
 
-            // Legacy fields (kept for backward compatibility)
+		$field_name = $meta_key;
 
-            'duration' => [
+		?>
 
-                'label' => __('Duração (minutos):', 'hng-commerce'),
+		<div class="hng-field-wrapper" data-field="<?php echo esc_attr( $field_key ); ?>">
 
-                'type' => 'number',
+			<?php if ( ! empty( $field_def['label'] ) && $field_def['type'] !== 'notice' && $field_def['type'] !== 'checkbox' ) : ?>
 
-                'min' => '1',
+				<label for="<?php echo esc_attr( $field_id ); ?>" class="hng-field-label">
 
-                'step' => '15',
+					<?php echo esc_html( $field_def['label'] ); ?>
 
-                'placeholder' => '60',
+				</label>
 
-                'help' => __('Quanto tempo dura cada agendamento', 'hng-commerce'),
+			<?php endif; ?>
 
-            ],
+			
 
-            'buffer_time' => [
+			<div class="hng-field-input">
 
-                'label' => __('Tempo de Buffer (minutos):', 'hng-commerce'),
+				<?php
 
-                'type' => 'number',
+				switch ( $field_def['type'] ) {
 
-                'min' => '0',
+					case 'attributes':
+						// Product attributes manager
 
-                'step' => '15',
+						self::render_attributes_field( $field_key, $post_id );
 
-                'placeholder' => '0',
+						break;
 
-                'help' => __('Tempo para preparação entre agendamentos', 'hng-commerce'),
+					case 'variations':
+						// Product variations manager
 
-            ],
+						self::render_variations_field( $field_key, $post_id );
 
-            'max_capacity' => [
+						break;
 
-                'label' => __('Capacidade Máxima:', 'hng-commerce'),
+					case 'quote_fields':
+						// Quote custom fields builder
 
-                'type' => 'number',
+						self::render_quote_fields( $field_key, $post_id );
 
-                'min' => '1',
+						break;
 
-                'step' => '1',
+					case 'professionals':
+						// Appointment professionals manager
 
-                'placeholder' => '1',
+						self::render_professionals_field( $field_key, $post_id );
 
-                'help' => __('Quantas pessoas podem agendar', 'hng-commerce'),
+						break;
 
-            ],
+					case 'notice':
+						// Info box
 
-        ];
+						printf(
+							'<div class="hng-notice hng-notice-info">ℹ️ %s</div>',
+							esc_html( $field_def['text'] )
+						);
 
-    }
+						break;
 
-    
+					case 'checkbox':
+						printf(
+							'<label class="hng-checkbox-label"><input type="checkbox" id="%s" name="%s" value="1" %s class="hng-checkbox"> %s</label>',
+							esc_attr( $field_id ),
+							esc_attr( $field_name ),
+							checked( $value, '1', false ),
+							esc_html( $field_def['label'] )
+						);
 
-    /**
+						break;
 
-     * Render field based on definition
+					case 'file':
+						// File upload with media library
 
-     */
-
-    public static function render_field($field_key, $field_def, $post_id, $product_type) {
-
-        $meta_key = '_' . $field_key;
-
-        $value = get_post_meta($post_id, $meta_key, true);
-
-        $field_id = 'hng_field_' . $field_key;
-
-        $field_name = $meta_key;
-
-        
-
-        ?>
-
-        <div class="hng-field-wrapper" data-field="<?php echo esc_attr($field_key); ?>">
-
-            <?php if (!empty($field_def['label']) && $field_def['type'] !== 'notice' && $field_def['type'] !== 'checkbox'): ?>
-
-                <label for="<?php echo esc_attr($field_id); ?>" class="hng-field-label">
-
-                    <?php echo esc_html($field_def['label']); ?>
-
-                </label>
-
-            <?php endif; ?>
-
-            
-
-            <div class="hng-field-input">
-
-                <?php
-
-                switch ($field_def['type']) {
-
-                    case 'attributes':
-
-                        // Product attributes manager
-
-                        self::render_attributes_field($field_key, $post_id);
-
-                        break;
-
-                    
-
-                    case 'variations':
-
-                        // Product variations manager
-
-                        self::render_variations_field($field_key, $post_id);
-
-                        break;
-
-                    
-
-                    case 'quote_fields':
-
-                        // Quote custom fields builder
-
-                        self::render_quote_fields($field_key, $post_id);
-
-                        break;
-
-                    
-
-                    case 'professionals':
-
-                        // Appointment professionals manager
-
-                        self::render_professionals_field($field_key, $post_id);
-
-                        break;
-
-                    
-
-                    case 'notice':
-
-                        // Info box
-
-                        printf(
-
-                            '<div class="hng-notice hng-notice-info">ℹ️ %s</div>',
-
-                            esc_html($field_def['text'])
-
-                        );
-
-                        break;
-
-                    
-
-                    case 'checkbox':
-
-                        printf(
-
-                            '<label class="hng-checkbox-label"><input type="checkbox" id="%s" name="%s" value="1" %s class="hng-checkbox"> %s</label>',
-
-                            esc_attr($field_id),
-
-                            esc_attr($field_name),
-
-                            checked($value, '1', false),
-
-                            esc_html($field_def['label'])
-
-                        );
-
-                        break;
-
-                    
-
-                    case 'file':
-
-                        // File upload with media library
-
-                        printf(
-
-                            '<div class="hng-file-upload">
+						printf(
+							'<div class="hng-file-upload">
 
                                 <input type="hidden" id="%s" name="%s" value="%s" class="hng-file-input">
 
@@ -890,1636 +840,1543 @@ class HNG_Product_Type_Fields {
                                 <button type="button" class="button hng-remove-file" style="display:%s;">❌ Remover</button>
 
                             </div>',
+							esc_attr( $field_id ),
+							esc_attr( $field_name ),
+							esc_attr( $value ),
+							esc_attr( $field_id ),
+							esc_html__( 'Selecionar Arquivo', 'hng-commerce' ),
+							$value ? esc_html( basename( (string) ( get_attached_file( $value ) ?: '' ) ) ) : esc_html__( 'Nenhum arquivo selecionado', 'hng-commerce' ),
+							$value ? 'inline-block' : 'none'
+						);
 
-                            esc_attr($field_id),
+						break;
 
-                            esc_attr($field_name),
+					case 'text':
+					case 'url':
+					case 'date':
+					case 'number':
+						$extra_attrs = implode(
+							' ',
+							array_filter(
+								array(
+									! empty( $field_def['step'] ) ? 'step="' . esc_attr( $field_def['step'] ) . '"' : '',
+									! empty( $field_def['min'] ) ? 'min="' . esc_attr( $field_def['min'] ) . '"' : '',
+									! empty( $field_def['max'] ) ? 'max="' . esc_attr( $field_def['max'] ) . '"' : '',
+									! empty( $field_def['placeholder'] ) ? 'placeholder="' . esc_attr( $field_def['placeholder'] ) . '"' : '',
+								)
+							)
+						);
+						$extra_attrs = wp_kses_post( $extra_attrs );
 
-                            esc_attr($value),
+						printf(
+							'<input type="%s" id="%s" name="%s" value="%s" class="hng-input" %s>',
+							esc_attr( $field_def['type'] ),
+							esc_attr( $field_id ),
+							esc_attr( $field_name ),
+							esc_attr( $value ),
+							wp_kses_post( $extra_attrs )
+						);
+						break;
 
-                            esc_attr($field_id),
+					case 'textarea':
+						printf(
+							'<textarea id="%s" name="%s" class="hng-textarea" rows="5" %s>%s</textarea>',
+							esc_attr( $field_id ),
+							esc_attr( $field_name ),
+							! empty( $field_def['placeholder'] ) ? 'placeholder="' . esc_attr( $field_def['placeholder'] ) . '"' : '',
+							esc_textarea( $value )
+						);
 
-                            esc_html__('Selecionar Arquivo', 'hng-commerce'),
+						break;
 
-                            $value ? esc_html(basename((string) (get_attached_file($value) ?: ''))) : esc_html__('Nenhum arquivo selecionado', 'hng-commerce'),
+					case 'select':
+						echo '<select id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" class="hng-select">';
 
-                            $value ? 'inline-block' : 'none'
+						echo '<option value="">' . esc_html__( 'Selecione...', 'hng-commerce' ) . '</option>';
 
-                        );
+						if ( ! empty( $field_def['options'] ) ) {
 
-                        break;
+							foreach ( $field_def['options'] as $option_value => $option_label ) {
 
-                    
+								printf(
+									'<option value="%s" %s>%s</option>',
+									esc_attr( $option_value ),
+									selected( $value, $option_value, false ),
+									esc_html( $option_label )
+								);
 
-                    case 'text':
+							}
+						}
 
-                    case 'url':
+						echo '</select>';
 
-                    case 'date':
+						break;
 
-                    case 'number':
-                        $extra_attrs = implode(' ', array_filter([
-                            !empty($field_def['step']) ? 'step="' . esc_attr($field_def['step']) . '"' : '',
-                            !empty($field_def['min']) ? 'min="' . esc_attr($field_def['min']) . '"' : '',
-                            !empty($field_def['max']) ? 'max="' . esc_attr($field_def['max']) . '"' : '',
-                            !empty($field_def['placeholder']) ? 'placeholder="' . esc_attr($field_def['placeholder']) . '"' : '',
-                        ]));
-                        $extra_attrs = wp_kses_post($extra_attrs);
-                        
-                        printf(
-                            '<input type="%s" id="%s" name="%s" value="%s" class="hng-input" %s>',
-                            esc_attr($field_def['type']),
-                            esc_attr($field_id),
-                            esc_attr($field_name),
-                            esc_attr($value),
-                            wp_kses_post($extra_attrs)
-                        );
-                        break;
+				}
 
-                    
+				?>
 
-                    case 'textarea':
+			</div>
 
-                        printf(
+			
 
-                            '<textarea id="%s" name="%s" class="hng-textarea" rows="5" %s>%s</textarea>',
+			<?php if ( ! empty( $field_def['help'] ) && $field_def['type'] !== 'notice' ) : ?>
 
-                            esc_attr($field_id),
+				<p class="hng-field-help">
 
-                            esc_attr($field_name),
+					<small><?php echo esc_html( $field_def['help'] ); ?></small>
 
-                            !empty($field_def['placeholder']) ? 'placeholder="' . esc_attr($field_def['placeholder']) . '"' : '',
+				</p>
 
-                            esc_textarea($value)
+			<?php endif; ?>
 
-                        );
+		</div>
 
-                        break;
+		<?php
+	}
 
-                    
 
-                    case 'select':
 
-                        echo '<select id="' . esc_attr($field_id) . '" name="' . esc_attr($field_name) . '" class="hng-select">';
+	/**
 
-                        echo '<option value="">' . esc_html__('Selecione...', 'hng-commerce') . '</option>';
+	 * Render repeater item
+	 */
+	private static function render_repeater_item( $field_key, $field_def, $index, $item ) {
 
-                        if (!empty($field_def['options'])) {
+		?>
 
-                            foreach ($field_def['options'] as $option_value => $option_label) {
+		<div class="hng-repeater-item" data-index="<?php echo esc_attr( $index ); ?>">
 
-                                printf(
+			<div class="hng-repeater-item-header">
 
-                                    '<option value="%s" %s>%s</option>',
+				<span class="hng-repeater-handle">⋮⋮</span>
 
-                                    esc_attr($option_value),
+				<span class="hng-repeater-title"><?php echo esc_html__( 'Campo', 'hng-commerce' ) . ' #' . esc_html( $index + 1 ); ?></span>
 
-                                    selected($value, $option_value, false),
+				<button type="button" class="button-link hng-remove-repeater-item" title="<?php echo esc_attr__( 'Remover', 'hng-commerce' ); ?>">❌</button>
 
-                                    esc_html($option_label)
+			</div>
 
-                                );
+			<div class="hng-repeater-item-content">
 
-                            }
+				<?php if ( ! empty( $field_def['fields'] ) ) : ?>
 
-                        }
+					<?php foreach ( $field_def['fields'] as $sub_key => $sub_def ) : ?>
 
-                        echo '</select>';
+						<div class="hng-repeater-field">
 
-                        break;
+							<label><?php echo esc_html( $sub_def['label'] ); ?></label>
 
-                }
+							<?php
 
-                ?>
+							$sub_name = '_' . $field_key . '[' . $index . '][' . $sub_key . ']';
 
-            </div>
+							$sub_value = isset( $item[ $sub_key ] ) ? $item[ $sub_key ] : '';
 
-            
+							switch ( $sub_def['type'] ) {
 
-            <?php if (!empty($field_def['help']) && $field_def['type'] !== 'notice'): ?>
+								case 'text':
+								case 'number':
+									printf(
+										'<input type="%s" name="%s" value="%s" placeholder="%s" class="hng-input">',
+										esc_attr( $sub_def['type'] ),
+										esc_attr( $sub_name ),
+										esc_attr( $sub_value ),
+										! empty( $sub_def['placeholder'] ) ? esc_attr( $sub_def['placeholder'] ) : ''
+									);
 
-                <p class="hng-field-help">
+									break;
 
-                    <small><?php echo esc_html($field_def['help']); ?></small>
+								case 'select':
+									printf( '<select name="%s" class="hng-select">', esc_attr( $sub_name ) );
 
-                </p>
+									if ( ! empty( $sub_def['options'] ) ) {
 
-            <?php endif; ?>
+										foreach ( $sub_def['options'] as $opt_val => $opt_label ) {
 
-        </div>
+											printf(
+												'<option value="%s" %s>%s</option>',
+												esc_attr( $opt_val ),
+												selected( $sub_value, $opt_val, false ),
+												esc_html( $opt_label )
+											);
 
-        <?php
+										}
+									}
 
-    }
+									echo '</select>';
 
-    
+									break;
 
-    /**
+								case 'checkbox':
+									printf(
+										'<label><input type="checkbox" name="%s" value="1" %s> %s</label>',
+										esc_attr( $sub_name ),
+										checked( $sub_value, '1', false ),
+										esc_html( $sub_def['label'] )
+									);
 
-     * Render repeater item
+									break;
 
-     */
+								case 'textarea':
+									printf(
+										'<textarea name="%s" rows="2" placeholder="%s" class="hng-textarea">%s</textarea>',
+										esc_attr( $sub_name ),
+										! empty( $sub_def['placeholder'] ) ? esc_attr( $sub_def['placeholder'] ) : '',
+										esc_textarea( $sub_value )
+									);
 
-    private static function render_repeater_item($field_key, $field_def, $index, $item) {
+									break;
 
-        ?>
+							}
 
-        <div class="hng-repeater-item" data-index="<?php echo esc_attr($index); ?>">
+							?>
 
-            <div class="hng-repeater-item-header">
+						</div>
 
-                <span class="hng-repeater-handle">⋮⋮</span>
+					<?php endforeach; ?>
 
-                <span class="hng-repeater-title"><?php echo esc_html__('Campo', 'hng-commerce') . ' #' . esc_html($index + 1); ?></span>
+				<?php endif; ?>
 
-                <button type="button" class="button-link hng-remove-repeater-item" title="<?php echo esc_attr__('Remover', 'hng-commerce'); ?>">❌</button>
+			</div>
 
-            </div>
+		</div>
 
-            <div class="hng-repeater-item-content">
+		<?php
+	}
 
-                <?php if (!empty($field_def['fields'])): ?>
 
-                    <?php foreach ($field_def['fields'] as $sub_key => $sub_def): ?>
 
-                        <div class="hng-repeater-field">
+	/**
 
-                            <label><?php echo esc_html($sub_def['label']); ?></label>
+	 * Render product attributes field
+	 */
+	private static function render_attributes_field( $field_key, $post_id ) {
 
-                            <?php
+		$attributes = get_post_meta( $post_id, '_' . $field_key, true ) ?: array();
 
-                            $sub_name = '_' . $field_key . '[' . $index . '][' . $sub_key . ']';
+		?>
 
-                            $sub_value = isset($item[$sub_key]) ? $item[$sub_key] : '';
+		<div class="hng-attributes-manager">
 
-                            
+			<div class="hng-attributes-list" id="attributes-list">
 
-                            switch ($sub_def['type']) {
+				<?php if ( ! empty( $attributes ) && is_array( $attributes ) ) : ?>
 
-                                case 'text':
+					<?php foreach ( $attributes as $index => $attr ) : ?>
 
-                                case 'number':
+						<div class="hng-attribute-item">
 
-                                    printf(
+							<input type="text" 
 
-                                        '<input type="%s" name="%s" value="%s" placeholder="%s" class="hng-input">',
+									name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][name]" 
 
-                                        esc_attr($sub_def['type']),
+									placeholder="Nome do Atributo (ex: Cor, Tamanho)" 
 
-                                        esc_attr($sub_name),
+									value="<?php echo esc_attr( $attr['name'] ?? '' ); ?>"
 
-                                        esc_attr($sub_value),
+									class="hng-attribute-name">
 
-                                        !empty($sub_def['placeholder']) ? esc_attr($sub_def['placeholder']) : ''
+							<textarea placeholder="Valores separados por vírgula (ex: Vermelho, Azul, Verde)"
 
-                                    );
+										name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][values]"
 
-                                    break;
+										class="hng-attribute-values"><?php echo esc_textarea( $attr['values'] ?? '' ); ?></textarea>
 
-                                
+							<button type="button" class="button hng-remove-attribute" onclick="this.parentElement.remove();">❌ Remover</button>
 
-                                case 'select':
+						</div>
 
-                                    printf('<select name="%s" class="hng-select">', esc_attr($sub_name));
+					<?php endforeach; ?>
 
-                                    if (!empty($sub_def['options'])) {
+				<?php endif; ?>
 
-                                        foreach ($sub_def['options'] as $opt_val => $opt_label) {
+			</div>
 
-                                            printf(
+			<button type="button" class="button hng-add-attribute" onclick="addAttribute();">➕ Adicionar Atributo</button>
 
-                                                '<option value="%s" %s>%s</option>',
+			
 
-                                                esc_attr($opt_val),
+			<script>
 
-                                                selected($sub_value, $opt_val, false),
+			function addAttribute() {
 
-                                                esc_html($opt_label)
+				const list = document.getElementById('attributes-list');
 
-                                            );
+				const index = list.children.length;
 
-                                        }
+				const html = `
 
-                                    }
+					<div class="hng-attribute-item">
 
-                                    echo '</select>';
+						<input type="text" 
 
-                                    break;
+								name="_<?php echo esc_js( $field_key ); ?>[${index}][name]" 
 
-                                
+								placeholder="Nome do Atributo (ex: Cor, Tamanho)"
 
-                                case 'checkbox':
+								class="hng-attribute-name">
 
-                                    printf(
+						<textarea placeholder="Valores separados por vírgula (ex: Vermelho, Azul, Verde)"
 
-                                        '<label><input type="checkbox" name="%s" value="1" %s> %s</label>',
+									name="_<?php echo esc_js( $field_key ); ?>[${index}][values]"
 
-                                        esc_attr($sub_name),
+									class="hng-attribute-values"></textarea>
 
-                                        checked($sub_value, '1', false),
+						<button type="button" class="button hng-remove-attribute" onclick="this.parentElement.remove();">❌ Remover</button>
 
-                                        esc_html($sub_def['label'])
+					</div>
 
-                                    );
+				`;
 
-                                    break;
+				list.insertAdjacentHTML('beforeend', html);
 
-                                
+			}
 
-                                case 'textarea':
+			</script>
 
-                                    printf(
+		</div>
 
-                                        '<textarea name="%s" rows="2" placeholder="%s" class="hng-textarea">%s</textarea>',
+		<?php
+	}
 
-                                        esc_attr($sub_name),
 
-                                        !empty($sub_def['placeholder']) ? esc_attr($sub_def['placeholder']) : '',
 
-                                        esc_textarea($sub_value)
+	/**
 
-                                    );
+	 * Render product variations field
+	 */
+	private static function render_variations_field( $field_key, $post_id ) {
 
-                                    break;
+		$variations = get_post_meta( $post_id, '_' . $field_key, true ) ?: array();
 
-                            }
+		$attributes = get_post_meta( $post_id, '_product_attributes', true ) ?: array();
 
-                            ?>
+		?>
 
-                        </div>
+		<div class="hng-variations-manager">
 
-                    <?php endforeach; ?>
+			<p class="description">Configure preço, imagens e outros dados para cada variação</p>
 
-                <?php endif; ?>
+			<div class="hng-variations-list" id="variations-list">
 
-            </div>
+				<?php if ( ! empty( $variations ) && is_array( $variations ) ) : ?>
 
-        </div>
+					<?php foreach ( $variations as $index => $var ) : ?>
 
-        <?php
+						<div class="hng-variation-item">
 
-    }
+							<h4 class="hng-variation-title" onclick="toggleVariation(this);">
 
-    
+								<span class="toggle-arrow">▼</span>
 
-    /**
+								<?php echo esc_html( $var['title'] ?? 'Variação ' . ( $index + 1 ) ); ?>
 
-     * Render product attributes field
+							</h4>
 
-     */
+							<div class="hng-variation-content" style="display: block;">
 
-    private static function render_attributes_field($field_key, $post_id) {
+								<input type="text" 
 
-        $attributes = get_post_meta($post_id, '_' . $field_key, true) ?: [];
+										name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][title]" 
 
-        ?>
+										placeholder="Título da variação (ex: Vermelho - P)"
 
-        <div class="hng-attributes-manager">
+										value="<?php echo esc_attr( $var['title'] ?? '' ); ?>"
 
-            <div class="hng-attributes-list" id="attributes-list">
+										class="hng-variation-title-input">
 
-                <?php if (!empty($attributes) && is_array($attributes)): ?>
+								
 
-                    <?php foreach ($attributes as $index => $attr): ?>
+								<label>Preço (R$):</label>
 
-                        <div class="hng-attribute-item">
+								<input type="number" 
 
-                            <input type="text" 
+										step="0.01" 
 
-                                   name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][name]" 
+										min="0"
 
-                                   placeholder="Nome do Atributo (ex: Cor, Tamanho)" 
+										name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][price]"
 
-                                   value="<?php echo esc_attr($attr['name'] ?? ''); ?>"
+										placeholder="0,00"
 
-                                   class="hng-attribute-name">
+										value="<?php echo esc_attr( $var['price'] ?? '' ); ?>">
 
-                            <textarea placeholder="Valores separados por vírgula (ex: Vermelho, Azul, Verde)"
+								
 
-                                      name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][values]"
+								<label>Imagens:</label>
 
-                                      class="hng-attribute-values"><?php echo esc_textarea($attr['values'] ?? ''); ?></textarea>
+								<button type="button" class="button hng-upload-variation-image" onclick="uploadVariationImage(<?php echo esc_js( $index ); ?>);">
 
-                            <button type="button" class="button hng-remove-attribute" onclick="this.parentElement.remove();">❌ Remover</button>
+									🖼️ Adicionar Imagem
 
-                        </div>
+								</button>
 
-                    <?php endforeach; ?>
+								<div class="hng-variation-images" id="variation-images-<?php echo esc_attr( $index ); ?>">
 
-                <?php endif; ?>
+									<?php if ( ! empty( $var['images'] ) && is_array( $var['images'] ) ) : ?>
 
-            </div>
+										<?php foreach ( $var['images'] as $img_id ) : ?>
 
-            <button type="button" class="button hng-add-attribute" onclick="addAttribute();">➕ Adicionar Atributo</button>
+											<div class="hng-image-preview">
 
-            
+												<?php echo wp_get_attachment_image( $img_id, 'thumbnail' ); ?>
 
-            <script>
+												<button type="button" onclick="removeImage(this);">✕</button>
 
-            function addAttribute() {
+												<input type="hidden" name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][images][]" value="<?php echo esc_attr( $img_id ); ?>">
 
-                const list = document.getElementById('attributes-list');
+											</div>
 
-                const index = list.children.length;
+										<?php endforeach; ?>
 
-                const html = `
+									<?php endif; ?>
 
-                    <div class="hng-attribute-item">
+								</div>
 
-                        <input type="text" 
+								
 
-                               name="_<?php echo esc_js($field_key); ?>[${index}][name]" 
+								<label>Atributo:</label>
 
-                               placeholder="Nome do Atributo (ex: Cor, Tamanho)"
+								<select name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][attribute]" class="hng-variation-attribute">
 
-                               class="hng-attribute-name">
+									<option value="">Selecione um atributo</option>
 
-                        <textarea placeholder="Valores separados por vírgula (ex: Vermelho, Azul, Verde)"
+									<?php foreach ( $attributes as $attr ) : ?>
 
-                                  name="_<?php echo esc_js($field_key); ?>[${index}][values]"
+										<option value="<?php echo esc_attr( $attr['name'] ?? '' ); ?>" 
 
-                                  class="hng-attribute-values"></textarea>
+												<?php selected( $var['attribute'] ?? '', $attr['name'] ?? '' ); ?>>
 
-                        <button type="button" class="button hng-remove-attribute" onclick="this.parentElement.remove();">❌ Remover</button>
+											<?php echo esc_html( $attr['name'] ?? '' ); ?>
 
-                    </div>
+										</option>
 
-                `;
+									<?php endforeach; ?>
 
-                list.insertAdjacentHTML('beforeend', html);
+								</select>
 
-            }
+								
 
-            </script>
+								<button type="button" class="button hng-remove-variation" onclick="this.closest('.hng-variation-item').remove();">❌ Remover Variação</button>
 
-        </div>
+							</div>
 
-        <?php
+						</div>
 
-    }
+					<?php endforeach; ?>
 
-    
+				<?php endif; ?>
 
-    /**
+			</div>
 
-     * Render product variations field
+			<button type="button" class="button hng-add-variation" onclick="addVariation();">➕ Adicionar Variação</button>
 
-     */
+			
 
-    private static function render_variations_field($field_key, $post_id) {
+			<script>
 
-        $variations = get_post_meta($post_id, '_' . $field_key, true) ?: [];
+			// Função para obter atributos atuais do formulário
 
-        $attributes = get_post_meta($post_id, '_product_attributes', true) ?: [];
+			function getAttributeOptions() {
 
-        ?>
+				const attributesInputs = document.querySelectorAll('#attributes-list input[name*="[name]"]');
 
-        <div class="hng-variations-manager">
+				const attributes = [];
 
-            <p class="description">Configure preço, imagens e outros dados para cada variação</p>
+				attributesInputs.forEach(input => {
 
-            <div class="hng-variations-list" id="variations-list">
+					const name = input.value.trim();
 
-                <?php if (!empty($variations) && is_array($variations)): ?>
+					if (name) {
 
-                    <?php foreach ($variations as $index => $var): ?>
+						attributes.push(name);
 
-                        <div class="hng-variation-item">
+					}
 
-                            <h4 class="hng-variation-title" onclick="toggleVariation(this);">
+				});
 
-                                <span class="toggle-arrow">▼</span>
+				return attributes;
 
-                                <?php echo esc_html($var['title'] ?? 'Variação ' . ($index + 1)); ?>
+			}
 
-                            </h4>
+			
 
-                            <div class="hng-variation-content" style="display: block;">
+			// Função para atualizar os selects de atributos nas variações
 
-                                <input type="text" 
+			function updateVariationAttributes() {
 
-                                       name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][title]" 
+				const attributes = getAttributeOptions();
 
-                                       placeholder="Título da variação (ex: Vermelho - P)"
+				const selects = document.querySelectorAll('.hng-variation-attribute');
 
-                                       value="<?php echo esc_attr($var['title'] ?? ''); ?>"
+				
 
-                                       class="hng-variation-title-input">
+				selects.forEach(select => {
 
-                                
+					const currentValue = select.value;
 
-                                <label>Preço (R$):</label>
+					select.innerHTML = '<option value="">Selecione um atributo</option>';
 
-                                <input type="number" 
+					
 
-                                       step="0.01" 
+					attributes.forEach(attr => {
 
-                                       min="0"
+						const option = document.createElement('option');
 
-                                       name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][price]"
+						option.value = attr;
 
-                                       placeholder="0,00"
+						option.textContent = attr;
 
-                                       value="<?php echo esc_attr($var['price'] ?? ''); ?>">
+						if (attr === currentValue) {
 
-                                
+							option.selected = true;
 
-                                <label>Imagens:</label>
+						}
 
-                                <button type="button" class="button hng-upload-variation-image" onclick="uploadVariationImage(<?php echo esc_js($index); ?>);">
+						select.appendChild(option);
 
-                                    🖼️ Adicionar Imagem
+					});
 
-                                </button>
+				});
 
-                                <div class="hng-variation-images" id="variation-images-<?php echo esc_attr($index); ?>">
+			}
 
-                                    <?php if (!empty($var['images']) && is_array($var['images'])): ?>
+			
 
-                                        <?php foreach ($var['images'] as $img_id): ?>
+			function addVariation() {
 
-                                            <div class="hng-image-preview">
+				const list = document.getElementById('variations-list');
 
-                                                <?php echo wp_get_attachment_image($img_id, 'thumbnail'); ?>
+				const index = list.children.length;
 
-                                                <button type="button" onclick="removeImage(this);">✕</button>
+				const attributes = getAttributeOptions();
 
-                                                <input type="hidden" name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][images][]" value="<?php echo esc_attr($img_id); ?>">
+				
 
-                                            </div>
+				let attributeOptions = '<option value="">Selecione um atributo</option>';
 
-                                        <?php endforeach; ?>
+				attributes.forEach(attr => {
 
-                                    <?php endif; ?>
+					attributeOptions += `<option value="${attr}">${attr}</option>`;
 
-                                </div>
+				});
 
-                                
+				
 
-                                <label>Atributo:</label>
+				const html = `
 
-                                <select name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][attribute]" class="hng-variation-attribute">
+					<div class="hng-variation-item">
 
-                                    <option value="">Selecione um atributo</option>
+						<h4 class="hng-variation-title" onclick="toggleVariation(this);">
 
-                                    <?php foreach ($attributes as $attr): ?>
+							<span class="toggle-arrow">▼</span>
 
-                                        <option value="<?php echo esc_attr($attr['name'] ?? ''); ?>" 
+							Variação ${index + 1}
 
-                                                <?php selected($var['attribute'] ?? '', $attr['name'] ?? ''); ?>>
+						</h4>
 
-                                            <?php echo esc_html($attr['name'] ?? ''); ?>
+						<div class="hng-variation-content" style="display: block;">
 
-                                        </option>
+							<input type="text" 
 
-                                    <?php endforeach; ?>
+									name="_<?php echo esc_js( $field_key ); ?>[${index}][title]" 
 
-                                </select>
+									placeholder="Título da variação (ex: Vermelho - P)"
 
-                                
+									class="hng-variation-title-input">
 
-                                <button type="button" class="button hng-remove-variation" onclick="this.closest('.hng-variation-item').remove();">❌ Remover Variação</button>
+							
 
-                            </div>
+							<label>Preço (R$):</label>
 
-                        </div>
+							<input type="number" 
 
-                    <?php endforeach; ?>
+									step="0.01" 
 
-                <?php endif; ?>
+									min="0"
 
-            </div>
+									name="_<?php echo esc_js( $field_key ); ?>[${index}][price]"
 
-            <button type="button" class="button hng-add-variation" onclick="addVariation();">➕ Adicionar Variação</button>
+									placeholder="0,00">
 
-            
+							
 
-            <script>
+							<label>Imagens:</label>
 
-            // Função para obter atributos atuais do formulário
+							<button type="button" class="button hng-upload-variation-image" onclick="uploadVariationImage(${index});">
 
-            function getAttributeOptions() {
+								🖼️ Adicionar Imagem
 
-                const attributesInputs = document.querySelectorAll('#attributes-list input[name*="[name]"]');
+							</button>
 
-                const attributes = [];
+							<div class="hng-variation-images" id="variation-images-${index}"></div>
 
-                attributesInputs.forEach(input => {
+							
 
-                    const name = input.value.trim();
+							<label>Atributo:</label>
 
-                    if (name) {
+							<select name="_<?php echo esc_js( $field_key ); ?>[${index}][attribute]" class="hng-variation-attribute">
 
-                        attributes.push(name);
+								${attributeOptions}
 
-                    }
+							</select>
 
-                });
+							
 
-                return attributes;
+							<button type="button" class="button hng-remove-variation" onclick="this.closest('.hng-variation-item').remove();">❌ Remover Variação</button>
 
-            }
+						</div>
 
-            
+					</div>
 
-            // Função para atualizar os selects de atributos nas variações
+				`;
 
-            function updateVariationAttributes() {
+				list.insertAdjacentHTML('beforeend', html);
 
-                const attributes = getAttributeOptions();
+			}
 
-                const selects = document.querySelectorAll('.hng-variation-attribute');
+			
 
-                
+			function toggleVariation(header) {
 
-                selects.forEach(select => {
+				const content = header.nextElementSibling;
 
-                    const currentValue = select.value;
+				content.style.display = content.style.display === 'none' ? 'block' : 'none';
 
-                    select.innerHTML = '<option value="">Selecione um atributo</option>';
+				header.querySelector('.toggle-arrow').textContent = content.style.display === 'none' ? '▶' : '▼';
 
-                    
+			}
 
-                    attributes.forEach(attr => {
+			
 
-                        const option = document.createElement('option');
+			// Adicionar listener nos inputs de atributos para atualizar variações automaticamente
 
-                        option.value = attr;
+			document.addEventListener('DOMContentLoaded', function() {
 
-                        option.textContent = attr;
+				const attributesList = document.getElementById('attributes-list');
 
-                        if (attr === currentValue) {
+				if (attributesList) {
 
-                            option.selected = true;
+					// Observer para detectar mudanças nos atributos
 
-                        }
+					const observer = new MutationObserver(function(mutations) {
 
-                        select.appendChild(option);
+						updateVariationAttributes();
 
-                    });
+					});
 
-                });
+					
 
-            }
+					observer.observe(attributesList, {
 
-            
+						childList: true,
 
-            function addVariation() {
+						subtree: true
 
-                const list = document.getElementById('variations-list');
+					});
 
-                const index = list.children.length;
+					
 
-                const attributes = getAttributeOptions();
+					// Listener para mudanças nos inputs existentes
 
-                
+					attributesList.addEventListener('input', function(e) {
 
-                let attributeOptions = '<option value="">Selecione um atributo</option>';
+						if (e.target.matches('input[name*="[name]"]')) {
 
-                attributes.forEach(attr => {
+							updateVariationAttributes();
 
-                    attributeOptions += `<option value="${attr}">${attr}</option>`;
+						}
 
-                });
+					});
 
-                
+				}
 
-                const html = `
+			});
 
-                    <div class="hng-variation-item">
+			</script>
 
-                        <h4 class="hng-variation-title" onclick="toggleVariation(this);">
+		</div>
 
-                            <span class="toggle-arrow">▼</span>
+		<?php
+	}
 
-                            Variação ${index + 1}
 
-                        </h4>
 
-                        <div class="hng-variation-content" style="display: block;">
+	/**
 
-                            <input type="text" 
+	 * Render quote custom fields builder
+	 */
+	private static function render_quote_fields( $field_key, $post_id ) {
 
-                                   name="_<?php echo esc_js($field_key); ?>[${index}][title]" 
+		$fields = get_post_meta( $post_id, '_' . $field_key, true ) ?: array();
 
-                                   placeholder="Título da variação (ex: Vermelho - P)"
+		?>
 
-                                   class="hng-variation-title-input">
+		<div class="hng-quote-fields-builder">
 
-                            
+			<div class="hng-quote-fields-list" id="quote-fields-list">
 
-                            <label>Preço (R$):</label>
+				<?php if ( ! empty( $fields ) && is_array( $fields ) ) : ?>
 
-                            <input type="number" 
+					<?php foreach ( $fields as $index => $field ) : ?>
 
-                                   step="0.01" 
+						<?php self::render_quote_field_row( $field_key, $index, $field ); ?>
 
-                                   min="0"
+					<?php endforeach; ?>
 
-                                   name="_<?php echo esc_js($field_key); ?>[${index}][price]"
+				<?php endif; ?>
 
-                                   placeholder="0,00">
+			</div>
 
-                            
+			<button type="button" class="button hng-add-quote-field" id="add-quote-field-btn">➕ Adicionar Campo</button>
 
-                            <label>Imagens:</label>
+			
 
-                            <button type="button" class="button hng-upload-variation-image" onclick="uploadVariationImage(${index});">
+			<script>
 
-                                🖼️ Adicionar Imagem
+			(function() {
 
-                            </button>
+				let fieldIndex = <?php echo count( $fields ); ?>;
 
-                            <div class="hng-variation-images" id="variation-images-${index}"></div>
+				
 
-                            
+				document.getElementById('add-quote-field-btn').addEventListener('click', function() {
 
-                            <label>Atributo:</label>
+					addQuoteField();
 
-                            <select name="_<?php echo esc_js($field_key); ?>[${index}][attribute]" class="hng-variation-attribute">
+				});
 
-                                ${attributeOptions}
+				
 
-                            </select>
+				function addQuoteField() {
 
-                            
+					const list = document.getElementById('quote-fields-list');
 
-                            <button type="button" class="button hng-remove-variation" onclick="this.closest('.hng-variation-item').remove();">❌ Remover Variação</button>
+					const index = fieldIndex++;
 
-                        </div>
+					const fieldKey = '<?php echo esc_js( $field_key ); ?>';
 
-                    </div>
+					
 
-                `;
+					const html = `
 
-                list.insertAdjacentHTML('beforeend', html);
+						<div class="hng-quote-field-item" data-index="${index}">
 
-            }
+							<div class="hng-quote-field-row">
 
-            
+								<input type="text" 
 
-            function toggleVariation(header) {
+										name="_${fieldKey}[${index}][label]" 
 
-                const content = header.nextElementSibling;
+										placeholder="Título do Campo"
 
-                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+										class="hng-quote-field-label">
 
-                header.querySelector('.toggle-arrow').textContent = content.style.display === 'none' ? '▶' : '▼';
+								
 
-            }
+								<select name="_${fieldKey}[${index}][type]" class="hng-quote-field-type" onchange="handleFieldTypeChange(this, ${index})">
 
-            
+									<option value="text">Texto</option>
 
-            // Adicionar listener nos inputs de atributos para atualizar variações automaticamente
+									<option value="textarea">Texto Longo</option>
 
-            document.addEventListener('DOMContentLoaded', function() {
+									<option value="number">Número</option>
 
-                const attributesList = document.getElementById('attributes-list');
+									<option value="date">Data</option>
 
-                if (attributesList) {
+									<option value="yesno">Sim/Não</option>
 
-                    // Observer para detectar mudanças nos atributos
+									<option value="select">Seleção</option>
 
-                    const observer = new MutationObserver(function(mutations) {
+									<option value="file">Upload de Arquivo</option>
 
-                        updateVariationAttributes();
+								</select>
 
-                    });
+								
 
-                    
+								<label class="hng-quote-field-required-label">
 
-                    observer.observe(attributesList, {
+									<input type="checkbox" 
 
-                        childList: true,
+											name="_${fieldKey}[${index}][required]" 
 
-                        subtree: true
+											value="1"> Obrigatório
 
-                    });
+								</label>
 
-                    
+								
 
-                    // Listener para mudanças nos inputs existentes
+								<button type="button" class="button hng-remove-quote-field" onclick="removeQuoteField(this);">❌</button>
 
-                    attributesList.addEventListener('input', function(e) {
+							</div>
 
-                        if (e.target.matches('input[name*="[name]"]')) {
+							
 
-                            updateVariationAttributes();
+							<div class="hng-quote-field-options" style="display: none;">
 
-                        }
+								<input type="text" 
 
-                    });
+										name="_${fieldKey}[${index}][options]" 
 
-                }
+										placeholder="Opções separadas por vírgula (Ex: Opção 1, Opção 2, Opção 3)"
 
-            });
+										class="hng-quote-field-options-input">
 
-            </script>
+							</div>
 
-        </div>
+							
 
-        <?php
+							<div class="hng-quote-field-conditional">
 
-    }
+								<label class="hng-quote-field-conditional-toggle">
 
-    
+									<input type="checkbox" 
 
-    /**
+											name="_${fieldKey}[${index}][is_conditional]" 
 
-     * Render quote custom fields builder
+											value="1"
 
-     */
+											onchange="toggleConditionalOptions(this, ${index})"> 
 
-    private static function render_quote_fields($field_key, $post_id) {
+									Campo Condicional (aparece apenas se outro campo for marcado)
 
-        $fields = get_post_meta($post_id, '_' . $field_key, true) ?: [];
+								</label>
 
-        ?>
+								<div class="hng-quote-field-conditional-options" style="display: none;">
 
-        <div class="hng-quote-fields-builder">
+									<select name="_${fieldKey}[${index}][condition_field]" class="hng-condition-field-select">
 
-            <div class="hng-quote-fields-list" id="quote-fields-list">
+										<option value="">-- Selecione o campo --</option>
 
-                <?php if (!empty($fields) && is_array($fields)): ?>
+									</select>
 
-                    <?php foreach ($fields as $index => $field): ?>
+									<select name="_${fieldKey}[${index}][condition_value]" class="hng-condition-value-select">
 
-                        <?php self::render_quote_field_row($field_key, $index, $field); ?>
+										<option value="yes">Se for SIM</option>
 
-                    <?php endforeach; ?>
+										<option value="no">Se for NÃO</option>
 
-                <?php endif; ?>
+									</select>
 
-            </div>
+								</div>
 
-            <button type="button" class="button hng-add-quote-field" id="add-quote-field-btn">➕ Adicionar Campo</button>
+							</div>
 
-            
+						</div>
 
-            <script>
+					`;
 
-            (function() {
+					list.insertAdjacentHTML('beforeend', html);
 
-                let fieldIndex = <?php echo count($fields); ?>;
+					updateConditionalFieldOptions();
 
-                
+				}
 
-                document.getElementById('add-quote-field-btn').addEventListener('click', function() {
+				
 
-                    addQuoteField();
+				window.removeQuoteField = function(btn) {
 
-                });
+					btn.closest('.hng-quote-field-item').remove();
 
-                
+					updateConditionalFieldOptions();
 
-                function addQuoteField() {
+				};
 
-                    const list = document.getElementById('quote-fields-list');
+				
 
-                    const index = fieldIndex++;
+				window.handleFieldTypeChange = function(select, index) {
 
-                    const fieldKey = '<?php echo esc_js($field_key); ?>';
+					const item = select.closest('.hng-quote-field-item');
 
-                    
+					const optionsDiv = item.querySelector('.hng-quote-field-options');
 
-                    const html = `
+					
 
-                        <div class="hng-quote-field-item" data-index="${index}">
+					if (select.value === 'select') {
 
-                            <div class="hng-quote-field-row">
+						optionsDiv.style.display = 'block';
 
-                                <input type="text" 
+					} else {
 
-                                       name="_${fieldKey}[${index}][label]" 
+						optionsDiv.style.display = 'none';
 
-                                       placeholder="Título do Campo"
+					}
 
-                                       class="hng-quote-field-label">
+					
 
-                                
+					updateConditionalFieldOptions();
 
-                                <select name="_${fieldKey}[${index}][type]" class="hng-quote-field-type" onchange="handleFieldTypeChange(this, ${index})">
+				};
 
-                                    <option value="text">Texto</option>
+				
 
-                                    <option value="textarea">Texto Longo</option>
+				window.toggleConditionalOptions = function(checkbox, index) {
 
-                                    <option value="number">Número</option>
+					const item = checkbox.closest('.hng-quote-field-item');
 
-                                    <option value="date">Data</option>
+					const optionsDiv = item.querySelector('.hng-quote-field-conditional-options');
 
-                                    <option value="yesno">Sim/Não</option>
+					optionsDiv.style.display = checkbox.checked ? 'flex' : 'none';
 
-                                    <option value="select">Seleção</option>
+					
 
-                                    <option value="file">Upload de Arquivo</option>
+					if (checkbox.checked) {
 
-                                </select>
+						updateConditionalFieldOptions();
 
-                                
+					}
 
-                                <label class="hng-quote-field-required-label">
+				};
 
-                                    <input type="checkbox" 
+				
 
-                                           name="_${fieldKey}[${index}][required]" 
+				window.updateConditionalFieldOptions = function() {
 
-                                           value="1"> Obrigatório
+					const list = document.getElementById('quote-fields-list');
 
-                                </label>
+					const items = list.querySelectorAll('.hng-quote-field-item');
 
-                                
+					
 
-                                <button type="button" class="button hng-remove-quote-field" onclick="removeQuoteField(this);">❌</button>
+					// Collect all yesno fields
 
-                            </div>
+					const yesnoFields = [];
 
-                            
+					items.forEach((item, idx) => {
 
-                            <div class="hng-quote-field-options" style="display: none;">
+						const typeSelect = item.querySelector('.hng-quote-field-type');
 
-                                <input type="text" 
+						const labelInput = item.querySelector('.hng-quote-field-label');
 
-                                       name="_${fieldKey}[${index}][options]" 
+						if (typeSelect && typeSelect.value === 'yesno' && labelInput && labelInput.value) {
 
-                                       placeholder="Opções separadas por vírgula (Ex: Opção 1, Opção 2, Opção 3)"
+							yesnoFields.push({
 
-                                       class="hng-quote-field-options-input">
+								index: item.dataset.index,
 
-                            </div>
+								label: labelInput.value
 
-                            
+							});
 
-                            <div class="hng-quote-field-conditional">
+						}
 
-                                <label class="hng-quote-field-conditional-toggle">
+					});
 
-                                    <input type="checkbox" 
+					
 
-                                           name="_${fieldKey}[${index}][is_conditional]" 
+					// Update all condition field selects
 
-                                           value="1"
+					items.forEach(item => {
 
-                                           onchange="toggleConditionalOptions(this, ${index})"> 
+						const conditionSelect = item.querySelector('.hng-condition-field-select');
 
-                                    Campo Condicional (aparece apenas se outro campo for marcado)
+						if (conditionSelect) {
 
-                                </label>
+							const currentValue = conditionSelect.value;
 
-                                <div class="hng-quote-field-conditional-options" style="display: none;">
+							conditionSelect.innerHTML = '<option value="">-- Selecione o campo --</option>';
 
-                                    <select name="_${fieldKey}[${index}][condition_field]" class="hng-condition-field-select">
+							yesnoFields.forEach(f => {
 
-                                        <option value="">-- Selecione o campo --</option>
+								if (f.index !== item.dataset.index) {
 
-                                    </select>
+									const option = document.createElement('option');
 
-                                    <select name="_${fieldKey}[${index}][condition_value]" class="hng-condition-value-select">
+									option.value = f.index;
 
-                                        <option value="yes">Se for SIM</option>
+									option.textContent = f.label;
 
-                                        <option value="no">Se for NÃO</option>
+									if (currentValue === f.index) option.selected = true;
 
-                                    </select>
+									conditionSelect.appendChild(option);
 
-                                </div>
+								}
 
-                            </div>
+							});
 
-                        </div>
+						}
 
-                    `;
+					});
 
-                    list.insertAdjacentHTML('beforeend', html);
+				};
 
-                    updateConditionalFieldOptions();
+				
 
-                }
+				// Initialize on page load
 
-                
+				document.addEventListener('DOMContentLoaded', function() {
 
-                window.removeQuoteField = function(btn) {
+					// Setup existing fields
 
-                    btn.closest('.hng-quote-field-item').remove();
+					document.querySelectorAll('.hng-quote-field-type').forEach(function(select) {
 
-                    updateConditionalFieldOptions();
+						const item = select.closest('.hng-quote-field-item');
 
-                };
+						const optionsDiv = item.querySelector('.hng-quote-field-options');
 
-                
+						if (select.value === 'select' && optionsDiv) {
 
-                window.handleFieldTypeChange = function(select, index) {
+							optionsDiv.style.display = 'block';
 
-                    const item = select.closest('.hng-quote-field-item');
+						}
 
-                    const optionsDiv = item.querySelector('.hng-quote-field-options');
+					});
 
-                    
+					
 
-                    if (select.value === 'select') {
+					document.querySelectorAll('.hng-conditional-checkbox').forEach(function(checkbox) {
 
-                        optionsDiv.style.display = 'block';
+						if (checkbox.checked) {
 
-                    } else {
+							const item = checkbox.closest('.hng-quote-field-item');
 
-                        optionsDiv.style.display = 'none';
+							const optionsDiv = item.querySelector('.hng-quote-field-conditional-options');
 
-                    }
+							if (optionsDiv) optionsDiv.style.display = 'flex';
 
-                    
+						}
 
-                    updateConditionalFieldOptions();
+					});
 
-                };
+					
 
-                
+					updateConditionalFieldOptions();
 
-                window.toggleConditionalOptions = function(checkbox, index) {
+					
 
-                    const item = checkbox.closest('.hng-quote-field-item');
+					// Watch for label changes to update conditional options
 
-                    const optionsDiv = item.querySelector('.hng-quote-field-conditional-options');
+					document.getElementById('quote-fields-list').addEventListener('input', function(e) {
 
-                    optionsDiv.style.display = checkbox.checked ? 'flex' : 'none';
+						if (e.target.classList.contains('hng-quote-field-label')) {
 
-                    
+							updateConditionalFieldOptions();
 
-                    if (checkbox.checked) {
+						}
 
-                        updateConditionalFieldOptions();
+					});
 
-                    }
+				});
 
-                };
+			})();
 
-                
+			</script>
 
-                window.updateConditionalFieldOptions = function() {
+		</div>
 
-                    const list = document.getElementById('quote-fields-list');
+		
 
-                    const items = list.querySelectorAll('.hng-quote-field-item');
+		<style>
 
-                    
+		.hng-quote-fields-builder {
 
-                    // Collect all yesno fields
+			background: #f9fafb;
 
-                    const yesnoFields = [];
+			border: 1px solid #e5e7eb;
 
-                    items.forEach((item, idx) => {
+			border-radius: 8px;
 
-                        const typeSelect = item.querySelector('.hng-quote-field-type');
+			padding: 16px;
 
-                        const labelInput = item.querySelector('.hng-quote-field-label');
+		}
 
-                        if (typeSelect && typeSelect.value === 'yesno' && labelInput && labelInput.value) {
+		.hng-quote-field-item {
 
-                            yesnoFields.push({
+			background: #fff;
 
-                                index: item.dataset.index,
+			border: 1px solid #e5e7eb;
 
-                                label: labelInput.value
+			border-radius: 6px;
 
-                            });
+			padding: 12px;
 
-                        }
+			margin-bottom: 10px;
 
-                    });
+		}
 
-                    
+		.hng-quote-field-row {
 
-                    // Update all condition field selects
+			display: flex;
 
-                    items.forEach(item => {
+			gap: 10px;
 
-                        const conditionSelect = item.querySelector('.hng-condition-field-select');
+			align-items: center;
 
-                        if (conditionSelect) {
+			flex-wrap: wrap;
 
-                            const currentValue = conditionSelect.value;
+		}
 
-                            conditionSelect.innerHTML = '<option value="">-- Selecione o campo --</option>';
+		.hng-quote-field-label {
 
-                            yesnoFields.forEach(f => {
+			flex: 1;
 
-                                if (f.index !== item.dataset.index) {
+			min-width: 200px;
 
-                                    const option = document.createElement('option');
+		}
 
-                                    option.value = f.index;
+		.hng-quote-field-type {
 
-                                    option.textContent = f.label;
+			min-width: 140px;
 
-                                    if (currentValue === f.index) option.selected = true;
+		}
 
-                                    conditionSelect.appendChild(option);
+		.hng-quote-field-required-label {
 
-                                }
+			display: flex;
 
-                            });
+			align-items: center;
 
-                        }
+			gap: 4px;
 
-                    });
+			font-size: 13px;
 
-                };
+			white-space: nowrap;
 
-                
+		}
 
-                // Initialize on page load
+		.hng-quote-field-options {
 
-                document.addEventListener('DOMContentLoaded', function() {
+			margin-top: 10px;
 
-                    // Setup existing fields
+			padding-top: 10px;
 
-                    document.querySelectorAll('.hng-quote-field-type').forEach(function(select) {
+			border-top: 1px dashed #e5e7eb;
 
-                        const item = select.closest('.hng-quote-field-item');
+		}
 
-                        const optionsDiv = item.querySelector('.hng-quote-field-options');
+		.hng-quote-field-options-input {
 
-                        if (select.value === 'select' && optionsDiv) {
+			width: 100%;
 
-                            optionsDiv.style.display = 'block';
+		}
 
-                        }
+		.hng-quote-field-conditional {
 
-                    });
+			margin-top: 10px;
 
-                    
+			padding-top: 10px;
 
-                    document.querySelectorAll('.hng-conditional-checkbox').forEach(function(checkbox) {
+			border-top: 1px dashed #e5e7eb;
 
-                        if (checkbox.checked) {
+		}
 
-                            const item = checkbox.closest('.hng-quote-field-item');
+		.hng-quote-field-conditional-toggle {
 
-                            const optionsDiv = item.querySelector('.hng-quote-field-conditional-options');
+			display: flex;
 
-                            if (optionsDiv) optionsDiv.style.display = 'flex';
+			align-items: center;
 
-                        }
+			gap: 6px;
 
-                    });
+			font-size: 12px;
 
-                    
+			color: #6b7280;
 
-                    updateConditionalFieldOptions();
+		}
 
-                    
+		.hng-quote-field-conditional-options {
 
-                    // Watch for label changes to update conditional options
+			display: flex;
 
-                    document.getElementById('quote-fields-list').addEventListener('input', function(e) {
+			gap: 10px;
 
-                        if (e.target.classList.contains('hng-quote-field-label')) {
+			margin-top: 8px;
 
-                            updateConditionalFieldOptions();
+			padding: 10px;
 
-                        }
+			background: #fef3c7;
 
-                    });
+			border-radius: 4px;
 
-                });
+		}
 
-            })();
+		.hng-condition-field-select,
 
-            </script>
+		.hng-condition-value-select {
 
-        </div>
+			flex: 1;
 
-        
+		}
 
-        <style>
+		.hng-remove-quote-field {
 
-        .hng-quote-fields-builder {
+			color: #dc2626 !important;
 
-            background: #f9fafb;
+			border-color: #dc2626 !important;
 
-            border: 1px solid #e5e7eb;
+		}
 
-            border-radius: 8px;
+		</style>
 
-            padding: 16px;
+		<?php
+	}
 
-        }
 
-        .hng-quote-field-item {
 
-            background: #fff;
+	/**
 
-            border: 1px solid #e5e7eb;
+	 * Render a single quote field row
+	 */
+	private static function render_quote_field_row( $field_key, $index, $field ) {
 
-            border-radius: 6px;
+		$type = $field['type'] ?? 'text';
 
-            padding: 12px;
+		$is_conditional = ! empty( $field['is_conditional'] );
 
-            margin-bottom: 10px;
+		?>
 
-        }
+		<div class="hng-quote-field-item" data-index="<?php echo esc_attr( $index ); ?>">
 
-        .hng-quote-field-row {
+			<div class="hng-quote-field-row">
 
-            display: flex;
+				<input type="text" 
 
-            gap: 10px;
+						name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][label]" 
 
-            align-items: center;
+						placeholder="Título do Campo"
 
-            flex-wrap: wrap;
+						value="<?php echo esc_attr( $field['label'] ?? '' ); ?>"
 
-        }
+						class="hng-quote-field-label">
 
-        .hng-quote-field-label {
+				
 
-            flex: 1;
+				<select name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][type]" 
 
-            min-width: 200px;
+						class="hng-quote-field-type" 
 
-        }
+						onchange="handleFieldTypeChange(this, <?php echo esc_attr( $index ); ?>)">
 
-        .hng-quote-field-type {
+					<option value="text" <?php selected( $type, 'text' ); ?>>Texto</option>
 
-            min-width: 140px;
+					<option value="textarea" <?php selected( $type, 'textarea' ); ?>>Texto Longo</option>
 
-        }
+					<option value="number" <?php selected( $type, 'number' ); ?>>Número</option>
 
-        .hng-quote-field-required-label {
+					<option value="date" <?php selected( $type, 'date' ); ?>>Data</option>
 
-            display: flex;
+					<option value="yesno" <?php selected( $type, 'yesno' ); ?>>Sim/Não</option>
 
-            align-items: center;
+					<option value="select" <?php selected( $type, 'select' ); ?>>Seleção</option>
 
-            gap: 4px;
+					<option value="file" <?php selected( $type, 'file' ); ?>>Upload de Arquivo</option>
 
-            font-size: 13px;
+				</select>
 
-            white-space: nowrap;
+				
 
-        }
+				<label class="hng-quote-field-required-label">
 
-        .hng-quote-field-options {
+					<input type="checkbox" 
 
-            margin-top: 10px;
+							name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][required]" 
 
-            padding-top: 10px;
+							value="1"
 
-            border-top: 1px dashed #e5e7eb;
+							<?php checked( ! empty( $field['required'] ) ); ?>> Obrigatório
 
-        }
+				</label>
 
-        .hng-quote-field-options-input {
+				
 
-            width: 100%;
+				<button type="button" class="button hng-remove-quote-field" onclick="removeQuoteField(this);">❌</button>
 
-        }
+			</div>
 
-        .hng-quote-field-conditional {
+			
 
-            margin-top: 10px;
+			<div class="hng-quote-field-options" style="display: <?php echo $type === 'select' ? 'block' : 'none'; ?>;">
 
-            padding-top: 10px;
+				<input type="text" 
 
-            border-top: 1px dashed #e5e7eb;
+						name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][options]" 
 
-        }
+						placeholder="Opções separadas por vírgula (Ex: Opção 1, Opção 2, Opção 3)"
 
-        .hng-quote-field-conditional-toggle {
+						value="<?php echo esc_attr( $field['options'] ?? '' ); ?>"
 
-            display: flex;
+						class="hng-quote-field-options-input">
 
-            align-items: center;
+			</div>
 
-            gap: 6px;
+			
 
-            font-size: 12px;
+			<div class="hng-quote-field-conditional">
 
-            color: #6b7280;
+				<label class="hng-quote-field-conditional-toggle">
 
-        }
+					<input type="checkbox" 
 
-        .hng-quote-field-conditional-options {
+							name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][is_conditional]" 
 
-            display: flex;
+							value="1"
 
-            gap: 10px;
+							class="hng-conditional-checkbox"
 
-            margin-top: 8px;
+							onchange="toggleConditionalOptions(this, <?php echo esc_attr( $index ); ?>)"
 
-            padding: 10px;
+							<?php checked( $is_conditional ); ?>> 
 
-            background: #fef3c7;
+					Campo Condicional (aparece apenas se outro campo for marcado)
 
-            border-radius: 4px;
+				</label>
 
-        }
+				<div class="hng-quote-field-conditional-options" style="display: <?php echo $is_conditional ? 'flex' : 'none'; ?>;">
 
-        .hng-condition-field-select,
+					<select name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][condition_field]" class="hng-condition-field-select">
 
-        .hng-condition-value-select {
+						<option value="">-- Selecione o campo --</option>
 
-            flex: 1;
+						<?php // Options will be populated by JavaScript ?>
 
-        }
+					</select>
 
-        .hng-remove-quote-field {
+					<select name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][condition_value]" class="hng-condition-value-select">
 
-            color: #dc2626 !important;
+						<option value="yes" <?php selected( $field['condition_value'] ?? '', 'yes' ); ?>>Se for SIM</option>
 
-            border-color: #dc2626 !important;
+						<option value="no" <?php selected( $field['condition_value'] ?? '', 'no' ); ?>>Se for NÃO</option>
 
-        }
+					</select>
 
-        </style>
+					<input type="hidden" 
 
-        <?php
+							name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][condition_field_saved]" 
 
-    }
+							value="<?php echo esc_attr( $field['condition_field'] ?? '' ); ?>"
 
-    
+							class="hng-condition-field-saved">
 
-    /**
+				</div>
 
-     * Render a single quote field row
+			</div>
 
-     */
+		</div>
 
-    private static function render_quote_field_row($field_key, $index, $field) {
+		<?php
+	}
 
-        $type = $field['type'] ?? 'text';
 
-        $is_conditional = !empty($field['is_conditional']);
 
-        ?>
+	/**
 
-        <div class="hng-quote-field-item" data-index="<?php echo esc_attr($index); ?>">
+	 * Render appointment professionals field
+	 */
+	private static function render_professionals_field( $field_key, $post_id ) {
 
-            <div class="hng-quote-field-row">
+		$professionals = get_post_meta( $post_id, '_' . $field_key, true ) ?: array();
 
-                <input type="text" 
+		?>
 
-                       name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][label]" 
+		<div class="hng-professionals-manager">
 
-                       placeholder="Título do Campo"
+			<div class="hng-professionals-list" id="professionals-list">
 
-                       value="<?php echo esc_attr($field['label'] ?? ''); ?>"
+				<?php if ( ! empty( $professionals ) && is_array( $professionals ) ) : ?>
 
-                       class="hng-quote-field-label">
+					<?php foreach ( $professionals as $index => $prof ) : ?>
 
-                
+						<div class="hng-professional-item">
 
-                <select name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][type]" 
+							<input type="text" 
 
-                        class="hng-quote-field-type" 
+									name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][name]" 
 
-                        onchange="handleFieldTypeChange(this, <?php echo esc_attr($index); ?>)">
+									placeholder="Nome do Profissional"
 
-                    <option value="text" <?php selected($type, 'text'); ?>>Texto</option>
+									value="<?php echo esc_attr( $prof['name'] ?? '' ); ?>"
 
-                    <option value="textarea" <?php selected($type, 'textarea'); ?>>Texto Longo</option>
+									class="hng-professional-name">
 
-                    <option value="number" <?php selected($type, 'number'); ?>>Número</option>
+							
 
-                    <option value="date" <?php selected($type, 'date'); ?>>Data</option>
+							<input type="email" 
 
-                    <option value="yesno" <?php selected($type, 'yesno'); ?>>Sim/Não</option>
+									name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][email]" 
 
-                    <option value="select" <?php selected($type, 'select'); ?>>Seleção</option>
+									placeholder="Email"
 
-                    <option value="file" <?php selected($type, 'file'); ?>>Upload de Arquivo</option>
+									value="<?php echo esc_attr( $prof['email'] ?? '' ); ?>"
 
-                </select>
+									class="hng-professional-email">
 
-                
+							
 
-                <label class="hng-quote-field-required-label">
+							<input type="tel" 
 
-                    <input type="checkbox" 
+									name="_<?php echo esc_attr( $field_key ); ?>[<?php echo esc_attr( $index ); ?>][phone]" 
 
-                           name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][required]" 
+									placeholder="Telefone"
 
-                           value="1"
+									value="<?php echo esc_attr( $prof['phone'] ?? '' ); ?>"
 
-                           <?php checked(!empty($field['required'])); ?>> Obrigatório
+									class="hng-professional-phone">
 
-                </label>
+							
 
-                
+							<button type="button" class="button hng-remove-professional" onclick="this.parentElement.remove(); updateProfessionalCount();">❌ Remover</button>
 
-                <button type="button" class="button hng-remove-quote-field" onclick="removeQuoteField(this);">❌</button>
+						</div>
 
-            </div>
+					<?php endforeach; ?>
 
-            
+				<?php endif; ?>
 
-            <div class="hng-quote-field-options" style="display: <?php echo $type === 'select' ? 'block' : 'none'; ?>;">
+			</div>
 
-                <input type="text" 
+			
 
-                       name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][options]" 
+			<div class="hng-professionals-info">
 
-                       placeholder="Opções separadas por vírgula (Ex: Opção 1, Opção 2, Opção 3)"
+				<p><strong>Total de Profissionais:</strong> <span id="professional-count">0</span></p>
 
-                       value="<?php echo esc_attr($field['options'] ?? ''); ?>"
+				<p class="description">
 
-                       class="hng-quote-field-options-input">
+					💡 <strong>Dica:</strong> O número de profissionais disponíveis determina quantos clientes podem agendar o serviço 
 
-            </div>
+					no mesmo horário. Por exemplo, se o serviço tem duração de 1 hora:
 
-            
+				</p>
 
-            <div class="hng-quote-field-conditional">
+				<ul>
 
-                <label class="hng-quote-field-conditional-toggle">
+					<li>1 profissional = Apenas 1 cliente por hora</li>
 
-                    <input type="checkbox" 
+					<li>2 profissionais = Até 2 clientes no mesmo horário</li>
 
-                           name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][is_conditional]" 
+					<li>3+ profissionais = Até N clientes simultâneos</li>
 
-                           value="1"
+				</ul>
 
-                           class="hng-conditional-checkbox"
+			</div>
 
-                           onchange="toggleConditionalOptions(this, <?php echo esc_attr($index); ?>)"
+			
 
-                           <?php checked($is_conditional); ?>> 
+			<button type="button" class="button hng-add-professional" onclick="addProfessional();">➕ Adicionar Profissional</button>
 
-                    Campo Condicional (aparece apenas se outro campo for marcado)
+			
 
-                </label>
+			<script>
 
-                <div class="hng-quote-field-conditional-options" style="display: <?php echo $is_conditional ? 'flex' : 'none'; ?>;">
+			function addProfessional() {
 
-                    <select name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][condition_field]" class="hng-condition-field-select">
+				const list = document.getElementById('professionals-list');
 
-                        <option value="">-- Selecione o campo --</option>
+				const index = list.children.length;
 
-                        <?php // Options will be populated by JavaScript ?>
+				const html = `
 
-                    </select>
+					<div class="hng-professional-item">
 
-                    <select name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][condition_value]" class="hng-condition-value-select">
+						<input type="text" 
 
-                        <option value="yes" <?php selected($field['condition_value'] ?? '', 'yes'); ?>>Se for SIM</option>
+								name="_<?php echo esc_js( $field_key ); ?>[${index}][name]" 
 
-                        <option value="no" <?php selected($field['condition_value'] ?? '', 'no'); ?>>Se for NÃO</option>
+								placeholder="Nome do Profissional"
 
-                    </select>
+								class="hng-professional-name">
 
-                    <input type="hidden" 
+						
 
-                           name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][condition_field_saved]" 
+						<input type="email" 
 
-                           value="<?php echo esc_attr($field['condition_field'] ?? ''); ?>"
+								name="_<?php echo esc_js( $field_key ); ?>[${index}][email]" 
 
-                           class="hng-condition-field-saved">
+								placeholder="Email"
 
-                </div>
+								class="hng-professional-email">
 
-            </div>
+						
 
-        </div>
+						<input type="tel" 
 
-        <?php
+								name="_<?php echo esc_js( $field_key ); ?>[${index}][phone]" 
 
-    }
+								placeholder="Telefone"
 
-    
+								class="hng-professional-phone">
 
-    /**
+						
 
-     * Render appointment professionals field
+						<button type="button" class="button hng-remove-professional" onclick="this.parentElement.remove(); updateProfessionalCount();">❌ Remover</button>
 
-     */
+					</div>
 
-    private static function render_professionals_field($field_key, $post_id) {
+				`;
 
-        $professionals = get_post_meta($post_id, '_' . $field_key, true) ?: [];
+				list.insertAdjacentHTML('beforeend', html);
 
-        ?>
+				updateProfessionalCount();
 
-        <div class="hng-professionals-manager">
+			}
 
-            <div class="hng-professionals-list" id="professionals-list">
+			
 
-                <?php if (!empty($professionals) && is_array($professionals)): ?>
+			function updateProfessionalCount() {
 
-                    <?php foreach ($professionals as $index => $prof): ?>
+				const list = document.getElementById('professionals-list');
 
-                        <div class="hng-professional-item">
+				const count = list.children.length;
 
-                            <input type="text" 
+				document.getElementById('professional-count').textContent = count;
 
-                                   name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][name]" 
+			}
 
-                                   placeholder="Nome do Profissional"
+			
 
-                                   value="<?php echo esc_attr($prof['name'] ?? ''); ?>"
+			// Initialize count on page load
 
-                                   class="hng-professional-name">
+			document.addEventListener('DOMContentLoaded', function() {
 
-                            
+				updateProfessionalCount();
 
-                            <input type="email" 
+			});
 
-                                   name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][email]" 
+			</script>
 
-                                   placeholder="Email"
+		</div>
 
-                                   value="<?php echo esc_attr($prof['email'] ?? ''); ?>"
+		<?php
+	}
 
-                                   class="hng-professional-email">
 
-                            
 
-                            <input type="tel" 
+	/**
 
-                                   name="_<?php echo esc_attr($field_key); ?>[<?php echo esc_attr($index); ?>][phone]" 
+	 * Get fields for a specific product type
+	 */
+	public static function get_type_fields( $type ) {
 
-                                   placeholder="Telefone"
+		$types = self::get_product_types();
 
-                                   value="<?php echo esc_attr($prof['phone'] ?? ''); ?>"
+		if ( ! isset( $types[ $type ] ) ) {
 
-                                   class="hng-professional-phone">
+			return array();
 
-                            
+		}
 
-                            <button type="button" class="button hng-remove-professional" onclick="this.parentElement.remove(); updateProfessionalCount();">❌ Remover</button>
+		$fields = array();
 
-                        </div>
+		$definitions = self::get_field_definitions();
 
-                    <?php endforeach; ?>
+		if ( isset( $types[ $type ]['fields'] ) ) {
 
-                <?php endif; ?>
+			foreach ( $types[ $type ]['fields'] as $section => $field_keys ) {
 
-            </div>
+				foreach ( $field_keys as $field_key ) {
 
-            
+					if ( isset( $definitions[ $field_key ] ) ) {
 
-            <div class="hng-professionals-info">
+						$fields[ $section ][ $field_key ] = $definitions[ $field_key ];
 
-                <p><strong>Total de Profissionais:</strong> <span id="professional-count">0</span></p>
+					}
+				}
+			}
+		}
 
-                <p class="description">
-
-                    💡 <strong>Dica:</strong> O número de profissionais disponíveis determina quantos clientes podem agendar o serviço 
-
-                    no mesmo horário. Por exemplo, se o serviço tem duração de 1 hora:
-
-                </p>
-
-                <ul>
-
-                    <li>1 profissional = Apenas 1 cliente por hora</li>
-
-                    <li>2 profissionais = Até 2 clientes no mesmo horário</li>
-
-                    <li>3+ profissionais = Até N clientes simultâneos</li>
-
-                </ul>
-
-            </div>
-
-            
-
-            <button type="button" class="button hng-add-professional" onclick="addProfessional();">➕ Adicionar Profissional</button>
-
-            
-
-            <script>
-
-            function addProfessional() {
-
-                const list = document.getElementById('professionals-list');
-
-                const index = list.children.length;
-
-                const html = `
-
-                    <div class="hng-professional-item">
-
-                        <input type="text" 
-
-                               name="_<?php echo esc_js($field_key); ?>[${index}][name]" 
-
-                               placeholder="Nome do Profissional"
-
-                               class="hng-professional-name">
-
-                        
-
-                        <input type="email" 
-
-                               name="_<?php echo esc_js($field_key); ?>[${index}][email]" 
-
-                               placeholder="Email"
-
-                               class="hng-professional-email">
-
-                        
-
-                        <input type="tel" 
-
-                               name="_<?php echo esc_js($field_key); ?>[${index}][phone]" 
-
-                               placeholder="Telefone"
-
-                               class="hng-professional-phone">
-
-                        
-
-                        <button type="button" class="button hng-remove-professional" onclick="this.parentElement.remove(); updateProfessionalCount();">❌ Remover</button>
-
-                    </div>
-
-                `;
-
-                list.insertAdjacentHTML('beforeend', html);
-
-                updateProfessionalCount();
-
-            }
-
-            
-
-            function updateProfessionalCount() {
-
-                const list = document.getElementById('professionals-list');
-
-                const count = list.children.length;
-
-                document.getElementById('professional-count').textContent = count;
-
-            }
-
-            
-
-            // Initialize count on page load
-
-            document.addEventListener('DOMContentLoaded', function() {
-
-                updateProfessionalCount();
-
-            });
-
-            </script>
-
-        </div>
-
-        <?php
-
-    }
-
-    
-
-    /**
-
-     * Get fields for a specific product type
-
-     */
-
-    public static function get_type_fields($type) {
-
-        $types = self::get_product_types();
-
-        if (!isset($types[$type])) {
-
-            return [];
-
-        }
-
-        
-
-        $fields = [];
-
-        $definitions = self::get_field_definitions();
-
-        
-
-        if (isset($types[$type]['fields'])) {
-
-            foreach ($types[$type]['fields'] as $section => $field_keys) {
-
-                foreach ($field_keys as $field_key) {
-
-                    if (isset($definitions[$field_key])) {
-
-                        $fields[$section][$field_key] = $definitions[$field_key];
-
-                    }
-
-                }
-
-            }
-
-        }
-
-        
-
-        return $fields;
-
-    }
-
+		return $fields;
+	}
 }
 
 

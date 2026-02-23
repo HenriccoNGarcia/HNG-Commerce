@@ -2,674 +2,678 @@
 /**
  * JavaScript para Email Customizer Page v2
  * Funcionalidades de customização e preview de emails
+ *
+ * @package HNG_Commerce
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.FileComment.MissingPackageTag
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 ?>
 <script>
 
 jQuery(document).ready(function($) {
 
-    // Fallback para variável global
-    if (typeof hngEmailCustomizer === 'undefined') {
-        var hngEmailCustomizer = {
-            ajax_url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-            nonce: '<?php echo esc_attr(wp_create_nonce('hng_email_customizer')); ?>',
-            current_type: '<?php echo esc_attr($current_type); ?>',
-            i18n: {}
-        };
-        var ajaxurl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
-    }
-    
-    // Definir i18n corretamente
-    var i18n = {
-        saving: '<?php echo esc_js(__('Salvando...', 'hng-commerce')); ?>',
-        saved: '<?php echo esc_js(__('Salvo!', 'hng-commerce')); ?>',
-        error: '<?php echo esc_js(__('Erro', 'hng-commerce')); ?>',
-        sending: '<?php echo esc_js(__('Enviando...', 'hng-commerce')); ?>',
-        sent: '<?php echo esc_js(__('Enviado!', 'hng-commerce')); ?>',
-        testSent: '<?php echo esc_js(__('Email de teste enviado com sucesso!', 'hng-commerce')); ?>',
-        confirmReset: '<?php echo esc_js(__('Tem certeza que deseja restaurar o template padrão? Esta ação não pode ser desfeita.', 'hng-commerce')); ?>',
-        selectLogo: '<?php echo esc_js(__('Selecionar Logo', 'hng-commerce')); ?>',
-        useLogo: '<?php echo esc_js(__('Usar este logo', 'hng-commerce')); ?>',
-        clickToAdd: '<?php echo esc_js(__('Clique para adicionar logo', 'hng-commerce')); ?>'
-    };
+	// Fallback para variável global
+	if (typeof hngEmailCustomizer === 'undefined') {
+		var hngEmailCustomizer = {
+			ajax_url: '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
+			nonce: '<?php echo esc_attr( wp_create_nonce( 'hng_email_customizer' ) ); ?>',
+			current_type: '<?php echo esc_attr( $current_type ); ?>',
+			i18n: {}
+		};
+		var ajaxurl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
+	}
+	
+	// Definir i18n corretamente
+	var i18n = {
+		saving: '<?php echo esc_js( __( 'Salvando...', 'hng-commerce' ) ); ?>',
+		saved: '<?php echo esc_js( __( 'Salvo!', 'hng-commerce' ) ); ?>',
+		error: '<?php echo esc_js( __( 'Erro', 'hng-commerce' ) ); ?>',
+		sending: '<?php echo esc_js( __( 'Enviando...', 'hng-commerce' ) ); ?>',
+		sent: '<?php echo esc_js( __( 'Enviado!', 'hng-commerce' ) ); ?>',
+		testSent: '<?php echo esc_js( __( 'Email de teste enviado com sucesso!', 'hng-commerce' ) ); ?>',
+		confirmReset: '<?php echo esc_js( __( 'Tem certeza que deseja restaurar o template padrão? Esta ação não pode ser desfeita.', 'hng-commerce' ) ); ?>',
+		selectLogo: '<?php echo esc_js( __( 'Selecionar Logo', 'hng-commerce' ) ); ?>',
+		useLogo: '<?php echo esc_js( __( 'Usar este logo', 'hng-commerce' ) ); ?>',
+		clickToAdd: '<?php echo esc_js( __( 'Clique para adicionar logo', 'hng-commerce' ) ); ?>'
+	};
 
-    let previewTimeout;
-    let isPreviewLock = false;
+	let previewTimeout;
+	let isPreviewLock = false;
 
-    
+	
 
-    /* ============================================
-       TAB SWITCHING
-       ============================================ */
+	/* ============================================
+		TAB SWITCHING
+		============================================ */
 
-    $('.tab-btn').on('click', function() {
+	$('.tab-btn').on('click', function() {
 
-        const tabName = $(this).data('tab');
+		const tabName = $(this).data('tab');
 
-        
+		
 
-        $('.tab-btn').removeClass('active');
+		$('.tab-btn').removeClass('active');
 
-        $(this).addClass('active');
+		$(this).addClass('active');
 
-        
+		
 
-        $('.tab-content').removeClass('active');
+		$('.tab-content').removeClass('active');
 
-        $('.tab-content[data-tab="' + tabName + '"]').addClass('active');
+		$('.tab-content[data-tab="' + tabName + '"]').addClass('active');
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       COLOR PICKER
-       ============================================ */
+	/* ============================================
+		COLOR PICKER
+		============================================ */
 
-    // Destruir color pickers existentes antes de inicializar
-    if ($.isFunction($.fn.wpColorPicker)) {
-        // Destruir instâncias antigas
-        $('.color-picker').each(function() {
-            if ($(this).hasClass('wp-color-picker')) {
-                $(this).wpColorPicker('destroy');
-            }
-        });
-        
-        // Inicializar novamente sem paleta de cores
-        $('.color-picker').wpColorPicker({
-            palettes: false, // Desabilita paleta de cores
-            change: function() {
-                updatePreview();
-            }
-        });
-    }
+	// Destruir color pickers existentes antes de inicializar
+	if ($.isFunction($.fn.wpColorPicker)) {
+		// Destruir instâncias antigas
+		$('.color-picker').each(function() {
+			if ($(this).hasClass('wp-color-picker')) {
+				$(this).wpColorPicker('destroy');
+			}
+		});
+		
+		// Inicializar novamente sem paleta de cores
+		$('.color-picker').wpColorPicker({
+			palettes: false, // Desabilita paleta de cores
+			change: function() {
+				updatePreview();
+			}
+		});
+	}
 
-    
+	
 
-    /* ============================================
-       SAVE EMAIL TEMPLATE
-       ============================================ */
+	/* ============================================
+		SAVE EMAIL TEMPLATE
+		============================================ */
 
-    $('#save-email-template').on('click', function(e) {
+	$('#save-email-template').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        
+		
 
-        const $button = $(this);
+		const $button = $(this);
 
-        const originalText = $button.html();
+		const originalText = $button.html();
 
-        
+		
 
-        const data = {
+		const data = {
 
-            action: 'hng_save_email_template',
+			action: 'hng_save_email_template',
 
-            nonce: $('#hng_email_nonce').val(),
+			nonce: $('#hng_email_nonce').val(),
 
-            email_type: $('#current-email-type').val(),
+			email_type: $('#current-email-type').val(),
 
-            subject: $('#email-subject').val(),
+			subject: $('#email-subject').val(),
 
-            from_name: $('#from-name').val(),
+			from_name: $('#from-name').val(),
 
-            from_email: $('#from-email').val(),
+			from_email: $('#from-email').val(),
 
-            header_color: $('#header-color').val(),
+			header_color: $('#header-color').val(),
 
-            button_color: $('#button-color').val(),
+			button_color: $('#button-color').val(),
 
-            text_color: $('#text-color').val(),
+			text_color: $('#text-color').val(),
 
-            bg_color: $('#bg-color').val(),
+			bg_color: $('#bg-color').val(),
 
-            logo: $('#email-logo').val(),
+			logo: $('#email-logo').val(),
 
-            content: tinymce.get('email-content-editor') ? tinymce.get('email-content-editor').getContent() : $('#email-content-editor').val()
+			content: tinymce.get('email-content-editor') ? tinymce.get('email-content-editor').getContent() : $('#email-content-editor').val()
 
-        };
+		};
 
-        
+		
 
-        $button.prop('disabled', true).html('<span class="spinner is-active" style="float: left;"></span> ' + i18n.saving);
+		$button.prop('disabled', true).html('<span class="spinner is-active" style="float: left;"></span> ' + i18n.saving);
 
-        
+		
 
-        $.post(ajaxurl, data, function(response) {
+		$.post(ajaxurl, data, function(response) {
 
-            if (response.success) {
+			if (response.success) {
 
-                $button.html('✓ ' + i18n.saved).css('background-color', '#46b450').css('border-color', '#46b450');
+				$button.html('✓ ' + i18n.saved).css('background-color', '#46b450').css('border-color', '#46b450');
 
-                setTimeout(function() {
+				setTimeout(function() {
 
-                    $button.html(originalText).prop('disabled', false).css('background-color', '').css('border-color', '');
+					$button.html(originalText).prop('disabled', false).css('background-color', '').css('border-color', '');
 
-                }, 2000);
+				}, 2000);
 
-                updatePreview();
+				updatePreview();
 
-            } else {
+			} else {
 
-                alert(i18n.error + ': ' + (response.data.message || 'Erro desconhecido'));
+				alert(i18n.error + ': ' + (response.data.message || 'Erro desconhecido'));
 
-                $button.prop('disabled', false).html(originalText);
+				$button.prop('disabled', false).html(originalText);
 
-            }
+			}
 
-        });
+		});
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       RESET EMAIL TEMPLATE
-       ============================================ */
+	/* ============================================
+		RESET EMAIL TEMPLATE
+		============================================ */
 
-    $('#reset-template').on('click', function(e) {
+	$('#reset-template').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        
+		
 
-        if (!confirm(i18n.confirmReset)) {
+		if (!confirm(i18n.confirmReset)) {
 
-            return;
+			return;
 
-        }
+		}
 
-        
+		
 
-        const $button = $(this);
+		const $button = $(this);
 
-        const originalText = $button.html();
+		const originalText = $button.html();
 
-        
+		
 
-        $.post(ajaxurl, {
+		$.post(ajaxurl, {
 
-            action: 'hng_reset_email_template',
+			action: 'hng_reset_email_template',
 
-            nonce: $('#hng_email_nonce').val(),
+			nonce: $('#hng_email_nonce').val(),
 
-            email_type: $('#current-email-type').val()
+			email_type: $('#current-email-type').val()
 
-        }, function(response) {
+		}, function(response) {
 
-            if (response.success) {
+			if (response.success) {
 
-                location.reload();
+				location.reload();
 
-            } else {
+			} else {
 
-                alert(i18n.error);
+				alert(i18n.error);
 
-            }
+			}
 
-        });
+		});
 
-    });
-    
-    
-    
-    /* ============================================
-       USE GLOBAL SETTINGS BUTTON
-       ============================================ */
+	});
+	
+	
+	
+	/* ============================================
+		USE GLOBAL SETTINGS BUTTON
+		============================================ */
 
-    $('#use-global-settings').on('click', function(e) {
+	$('#use-global-settings').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        
+		
 
-        if (!confirm('Deseja usar as cores e logo das Configurações Globais?\nSuas configurações personalizadas de cores/logo serão removidas.')) {
+		if (!confirm('Deseja usar as cores e logo das Configurações Globais?\nSuas configurações personalizadas de cores/logo serão removidas.')) {
 
-            return;
+			return;
 
-        }
+		}
 
-        
+		
 
-        const $button = $(this);
+		const $button = $(this);
 
-        const originalText = $button.html();
+		const originalText = $button.html();
 
-        $button.prop('disabled', true).html('<span class="spinner is-active"></span> Aplicando...');
+		$button.prop('disabled', true).html('<span class="spinner is-active"></span> Aplicando...');
 
-        
+		
 
-        $.post(ajaxurl, {
+		$.post(ajaxurl, {
 
-            action: 'hng_use_global_settings',
+			action: 'hng_use_global_settings',
 
-            nonce: $('#hng_email_nonce').val(),
+			nonce: $('#hng_email_nonce').val(),
 
-            email_type: $('#current-email-type').val()
+			email_type: $('#current-email-type').val()
 
-        }, function(response) {
+		}, function(response) {
 
-            if (response.success) {
+			if (response.success) {
 
-                alert(response.data.message || 'Configurações globais aplicadas!');
+				alert(response.data.message || 'Configurações globais aplicadas!');
 
-                location.reload();
+				location.reload();
 
-            } else {
+			} else {
 
-                alert(response.data && response.data.message ? response.data.message : 'Erro ao aplicar configurações');
+				alert(response.data && response.data.message ? response.data.message : 'Erro ao aplicar configurações');
 
-                $button.prop('disabled', false).html(originalText);
+				$button.prop('disabled', false).html(originalText);
 
-            }
+			}
 
-        });
+		});
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       LOGO UPLOAD
-       ============================================ */
+	/* ============================================
+		LOGO UPLOAD
+		============================================ */
 
-    let mediaFrame;
+	let mediaFrame;
 
-    
+	
 
-    $('#upload-logo').on('click', function(e) {
+	$('#upload-logo').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        
+		
 
-        if (mediaFrame) {
+		if (mediaFrame) {
 
-            mediaFrame.open();
+			mediaFrame.open();
 
-            return;
+			return;
 
-        }
+		}
 
-        
+		
 
-        mediaFrame = wp.media({
+		mediaFrame = wp.media({
 
-            title: i18n.selectLogo,
+			title: i18n.selectLogo,
 
-            button: { text: i18n.useLogo },
+			button: { text: i18n.useLogo },
 
-            multiple: false,
+			multiple: false,
 
-            library: { type: 'image' }
+			library: { type: 'image' }
 
-        });
+		});
 
-        
+		
 
-        mediaFrame.on('select', function() {
+		mediaFrame.on('select', function() {
 
-            const attachment = mediaFrame.state().get('selection').first().toJSON();
+			const attachment = mediaFrame.state().get('selection').first().toJSON();
 
-            $('#email-logo').val(attachment.url);
+			$('#email-logo').val(attachment.url);
 
-            updateLogoPreview(attachment.url);
+			updateLogoPreview(attachment.url);
 
-            updatePreview();
+			updatePreview();
 
-        });
+		});
 
-        
+		
 
-        mediaFrame.open();
+		mediaFrame.open();
 
-    });
+	});
 
-    
+	
 
-    $('#remove-logo').on('click', function(e) {
+	$('#remove-logo').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        $('#email-logo').val('');
+		$('#email-logo').val('');
 
-        updateLogoPreview('');
+		updateLogoPreview('');
 
-        updatePreview();
+		updatePreview();
 
-    });
+	});
 
-    
+	
 
-    function updateLogoPreview(url) {
+	function updateLogoPreview(url) {
 
-        const $preview = $('.logo-preview-box');
+		const $preview = $('.logo-preview-box');
 
-        
+		
 
-        if (url) {
+		if (url) {
 
-            $preview.html('<img src="' + url + '" class="logo-img">');
+			$preview.html('<img src="' + url + '" class="logo-img">');
 
-            $('#remove-logo').show();
+			$('#remove-logo').show();
 
-        } else {
+		} else {
 
-            $preview.html('<div class="logo-placeholder"><span class="dashicons dashicons-format-image"></span><p>' + i18n.clickToAdd + '</p></div>');
+			$preview.html('<div class="logo-placeholder"><span class="dashicons dashicons-format-image"></span><p>' + i18n.clickToAdd + '</p></div>');
 
-            $('#remove-logo').hide();
+			$('#remove-logo').hide();
 
-        }
+		}
 
-    }
+	}
 
-    
+	
 
-    /* ============================================
-       LIVE PREVIEW UPDATE
-       ============================================ */
+	/* ============================================
+		LIVE PREVIEW UPDATE
+		============================================ */
 
-    function updatePreview() {
+	function updatePreview() {
 
-        if (isPreviewLock) return;
+		if (isPreviewLock) return;
 
-        
+		
 
-        clearTimeout(previewTimeout);
+		clearTimeout(previewTimeout);
 
-        previewTimeout = setTimeout(function() {
+		previewTimeout = setTimeout(function() {
 
-            loadPreview();
+			loadPreview();
 
-        }, 500);
+		}, 500);
 
-    }
+	}
 
-    
+	
 
-    function loadPreview() {
-        // Mostrar loading
-        $('.preview-loading').show();
-        $('#email-preview-editable').css('opacity', '0.5');
-        
-        // Pegar conteúdo atual do editor (não salvo)
-        var currentContent = '';
-        if (typeof tinymce !== 'undefined' && tinymce.get('email-content-editor')) {
-            currentContent = tinymce.get('email-content-editor').getContent();
-        } else {
-            currentContent = $('#email-content-editor').val();
-        }
-        
-        $.post(ajaxurl, {
-            action: 'hng_get_email_preview',
-            nonce: $('#hng_email_nonce').val(),
-            email_type: $('#current-email-type').val(),
-            order_id: $('#preview-order').val(),
-            // Enviar dados atuais para preview em tempo real
-            live_content: currentContent,
-            live_logo: $('#email-logo').val(),
-            live_header_color: $('#header-color').val(),
-            live_button_color: $('#button-color').val(),
-            live_text_color: $('#text-color').val(),
-            live_bg_color: $('#bg-color').val()
-        }, function(response) {
-            // Esconder loading
-            $('.preview-loading').hide();
-            $('#email-preview-editable').css('opacity', '1');
-            
-            if (response.success) {
-                $('#email-preview-editable').html(response.data.html);
-                // Também atualizar o editor de código
-                $('#email-code-editor').val(response.data.html);
-            } else {
-                $('#email-preview-editable').html('<div style="padding: 20px; color: red;">Erro ao carregar preview: ' + (response.data ? response.data.message : 'Erro desconhecido') + '</div>');
-            }
-        }).fail(function(xhr, status, error) {
-            // Esconder loading em caso de erro
-            $('.preview-loading').hide();
-            $('#email-preview-editable').css('opacity', '1').html('<div style="padding: 20px; color: red;">Erro de conexão: ' + error + '</div>');
-        });
+	function loadPreview() {
+		// Mostrar loading
+		$('.preview-loading').show();
+		$('#email-preview-editable').css('opacity', '0.5');
+		
+		// Pegar conteúdo atual do editor (não salvo)
+		var currentContent = '';
+		if (typeof tinymce !== 'undefined' && tinymce.get('email-content-editor')) {
+			currentContent = tinymce.get('email-content-editor').getContent();
+		} else {
+			currentContent = $('#email-content-editor').val();
+		}
+		
+		$.post(ajaxurl, {
+			action: 'hng_get_email_preview',
+			nonce: $('#hng_email_nonce').val(),
+			email_type: $('#current-email-type').val(),
+			order_id: $('#preview-order').val(),
+			// Enviar dados atuais para preview em tempo real
+			live_content: currentContent,
+			live_logo: $('#email-logo').val(),
+			live_header_color: $('#header-color').val(),
+			live_button_color: $('#button-color').val(),
+			live_text_color: $('#text-color').val(),
+			live_bg_color: $('#bg-color').val()
+		}, function(response) {
+			// Esconder loading
+			$('.preview-loading').hide();
+			$('#email-preview-editable').css('opacity', '1');
+			
+			if (response.success) {
+				$('#email-preview-editable').html(response.data.html);
+				// Também atualizar o editor de código
+				$('#email-code-editor').val(response.data.html);
+			} else {
+				$('#email-preview-editable').html('<div style="padding: 20px; color: red;">Erro ao carregar preview: ' + (response.data ? response.data.message : 'Erro desconhecido') + '</div>');
+			}
+		}).fail(function(xhr, status, error) {
+			// Esconder loading em caso de erro
+			$('.preview-loading').hide();
+			$('#email-preview-editable').css('opacity', '1').html('<div style="padding: 20px; color: red;">Erro de conexão: ' + error + '</div>');
+		});
 
-    }
+	}
 
-    
+	
 
-    /* ============================================
-       PREVIEW CONTROLS
-       ============================================ */
+	/* ============================================
+		PREVIEW CONTROLS
+		============================================ */
 
-    $('#refresh-preview').on('click', function() {
+	$('#refresh-preview').on('click', function() {
 
-        loadPreview();
+		loadPreview();
 
-    });
+	});
 
-    
+	
 
-    $('#send-test-email').on('click', function(e) {
+	$('#send-test-email').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        
+		
 
-        const $button = $(this);
+		const $button = $(this);
 
-        const originalText = $button.html();
+		const originalText = $button.html();
 
-        
+		
 
-        $.post(ajaxurl, {
+		$.post(ajaxurl, {
 
-            action: 'hng_send_test_email',
+			action: 'hng_send_test_email',
 
-            nonce: $('#hng_email_nonce').val(),
+			nonce: $('#hng_email_nonce').val(),
 
-            email_type: $('#current-email-type').val()
+			email_type: $('#current-email-type').val()
 
-        }, function(response) {
+		}, function(response) {
 
-            if (response.success) {
+			if (response.success) {
 
-                alert(i18n.testSent);
+				alert(i18n.testSent);
 
-                $button.html('✓ ' + i18n.sent).css('background-color', '#46b450');
+				$button.html('✓ ' + i18n.sent).css('background-color', '#46b450');
 
-                setTimeout(function() {
+				setTimeout(function() {
 
-                    $button.html(originalText).css('background-color', '');
+					$button.html(originalText).css('background-color', '');
 
-                }, 2000);
+				}, 2000);
 
-            } else {
+			} else {
 
-                alert(i18n.error + ': ' + (response.data.message || ''));
+				alert(i18n.error + ': ' + (response.data.message || ''));
 
-            }
+			}
 
-        });
+		});
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       MODE TOGGLE
-       ============================================ */
+	/* ============================================
+		MODE TOGGLE
+		============================================ */
 
-    $('.mode-btn').on('click', function() {
+	$('.mode-btn').on('click', function() {
 
-        const mode = $(this).data('mode');
+		const mode = $(this).data('mode');
 
-        
+		
 
-        $('.mode-btn').removeClass('active');
+		$('.mode-btn').removeClass('active');
 
-        $(this).addClass('active');
+		$(this).addClass('active');
 
-        
+		
 
-        if (mode === 'visual') {
+		if (mode === 'visual') {
 
-            $('#visual-mode-preview').show();
+			$('#visual-mode-preview').show();
 
-            $('#code-mode-preview').hide();
+			$('#code-mode-preview').hide();
 
-        } else {
+		} else {
 
-            $('#visual-mode-preview').hide();
+			$('#visual-mode-preview').hide();
 
-            $('#code-mode-preview').show();
+			$('#code-mode-preview').show();
 
-        }
+		}
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       DEVICE TABS
-       ============================================ */
+	/* ============================================
+		DEVICE TABS
+		============================================ */
 
-    $('.device-tab').on('click', function() {
+	$('.device-tab').on('click', function() {
 
-        const device = $(this).data('device');
+		const device = $(this).data('device');
 
-        
+		
 
-        $('.device-tab').removeClass('active');
+		$('.device-tab').removeClass('active');
 
-        $(this).addClass('active');
+		$(this).addClass('active');
 
-        
+		
 
-        $('.preview-viewport').hide();
+		$('.preview-viewport').hide();
 
-        $('.preview-viewport.' + device).show();
+		$('.preview-viewport.' + device).show();
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       VARIABLES DRAGGING
-       ============================================ */
+	/* ============================================
+		VARIABLES DRAGGING
+		============================================ */
 
-    $('.variable-item').on('dragstart', function(e) {
+	$('.variable-item').on('dragstart', function(e) {
 
-        const variable = $(this).data('variable');
+		const variable = $(this).data('variable');
 
-        e.originalEvent.dataTransfer.setData('text/plain', variable);
+		e.originalEvent.dataTransfer.setData('text/plain', variable);
 
-        $(this).css('opacity', '0.5');
+		$(this).css('opacity', '0.5');
 
-    }).on('dragend', function() {
+	}).on('dragend', function() {
 
-        $(this).css('opacity', '1');
+		$(this).css('opacity', '1');
 
-    });
+	});
 
-    
+	
 
-    $('.copy-var-btn').on('click', function(e) {
+	$('.copy-var-btn').on('click', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        const variable = $(this).closest('.variable-item').data('variable');
+		const variable = $(this).closest('.variable-item').data('variable');
 
-        
+		
 
-        if (tinymce.get('email-content-editor')) {
+		if (tinymce.get('email-content-editor')) {
 
-            tinymce.get('email-content-editor').execCommand('mceInsertContent', false, variable);
+			tinymce.get('email-content-editor').execCommand('mceInsertContent', false, variable);
 
-        } else {
+		} else {
 
-            $('#email-content-editor').val($('#email-content-editor').val() + variable);
+			$('#email-content-editor').val($('#email-content-editor').val() + variable);
 
-        }
+		}
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       PREVIEW EDITOR DRAG DROP
-       ============================================ */
+	/* ============================================
+		PREVIEW EDITOR DRAG DROP
+		============================================ */
 
-    const $previewEditor = $('#email-preview-editable');
+	const $previewEditor = $('#email-preview-editable');
 
-    
+	
 
-    $previewEditor.on('dragover', function(e) {
+	$previewEditor.on('dragover', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        $(this).css('background-color', '#f0f8ff');
+		$(this).css('background-color', '#f0f8ff');
 
-    }).on('dragleave', function() {
+	}).on('dragleave', function() {
 
-        $(this).css('background-color', '');
+		$(this).css('background-color', '');
 
-    }).on('drop', function(e) {
+	}).on('drop', function(e) {
 
-        e.preventDefault();
+		e.preventDefault();
 
-        $(this).css('background-color', '');
+		$(this).css('background-color', '');
 
-        
+		
 
-        const variable = e.originalEvent.dataTransfer.getData('text/plain');
+		const variable = e.originalEvent.dataTransfer.getData('text/plain');
 
-        if (variable) {
+		if (variable) {
 
-            $(this).append(' ' + variable);
+			$(this).append(' ' + variable);
 
-            updatePreview();
+			updatePreview();
 
-        }
+		}
 
-    });
+	});
 
-    
+	
 
-    /* ============================================
-       INITIALIZATION
-       ============================================ */
+	/* ============================================
+		INITIALIZATION
+		============================================ */
 
-    // Load preview after DOM is ready
-    setTimeout(function() {
-        loadPreview();
-    }, 500);
+	// Load preview after DOM is ready
+	setTimeout(function() {
+		loadPreview();
+	}, 500);
 
-    
+	
 
-    // Auto-update on content changes
-    setTimeout(function() {
-        var editor = tinymce.get('email-content-editor');
-        if (editor) {
-            editor.on('change', function() {
-                updatePreview();
-            });
-        } else {
-            $('#email-content-editor').on('change keyup', function() {
-                updatePreview();
-            });
-        }
-    }, 500);
+	// Auto-update on content changes
+	setTimeout(function() {
+		var editor = tinymce.get('email-content-editor');
+		if (editor) {
+			editor.on('change', function() {
+				updatePreview();
+			});
+		} else {
+			$('#email-content-editor').on('change keyup', function() {
+				updatePreview();
+			});
+		}
+	}, 500);
 
-    
+	
 
-    // Input changes trigger preview update
-    $('#email-subject, #from-name, #from-email, #email-logo, .color-picker').on('change keyup', function() {
+	// Input changes trigger preview update
+	$('#email-subject, #from-name, #from-email, #email-logo, .color-picker').on('change keyup', function() {
 
-        updatePreview();
+		updatePreview();
 
-    });
+	});
 
 });
 

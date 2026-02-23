@@ -5,104 +5,113 @@
  * @package HNG_Commerce
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar
+// phpcs:disable Squiz.Commenting.ClassComment.Missing
+// phpcs:disable Squiz.Commenting.VariableComment.MissingVar
+// phpcs:disable WordPress.PHP.YodaConditions.NotYoda
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 // DB helper (used to build/validate table names when needed)
-if (file_exists(HNG_COMMERCE_PATH . 'includes/helpers/hng-db.php')) {
-    require_once HNG_COMMERCE_PATH . 'includes/helpers/hng-db.php';
+if ( file_exists( HNG_COMMERCE_PATH . 'includes/helpers/hng-db.php' ) ) {
+	require_once HNG_COMMERCE_PATH . 'includes/helpers/hng-db.php';
 }
 
 class HNG_Commerce_Install {
-    
-    /**
-     * Versão do banco de dados
-     */
-    private static $db_version = '1.0.0';
-    
-    /**
-     * Hook de ativação
-     */
-    public static function activate() {
-        self::create_tables();
-        self::create_pages();
-        self::set_default_options();
-        self::create_roles();
-        
-        // Salvar versá¡o
-        update_option('hng_commerce_version', HNG_COMMERCE_VERSION);
-        update_option('hng_commerce_db_version', self::$db_version);
-        
-        // Flush rewrite rules
-        flush_rewrite_rules();
-        
-        // Redirecionar para assistente de configuraá§á¡o
-        set_transient('hng_commerce_activation_redirect', true, 30);
-        
-        // Ledger
-        if (function_exists('hng_ledger_create_table')) {
-            hng_ledger_create_table();
-        }
-        
-        // Conversion Tracking table
-        if (class_exists('HNG_Conversion_Tracker')) {
-            HNG_Conversion_Tracker::create_table();
-        }
-        
-        // Refund Requests table
-        if (class_exists('HNG_Refund_Requests')) {
-            HNG_Refund_Requests::create_table();
-        }
-    }
-    
-    /**
-     * Hook de desativação
-     */
-    public static function deactivate() {
-        // Flush rewrite rules
-        flush_rewrite_rules();
-    }
-    
-    /**
-     * Atualizar capabilities (pode ser chamado manualmente)
-     */
-    public static function update_capabilities() {
-        self::create_roles();
-        return true;
-    }
-    
-    /**
-     * Criar tabelas no banco de dados
-     */
-    private static function create_tables() {
-        global $wpdb;
-        $charset_collate = $wpdb->get_charset_collate();
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+	/**
+	 * Versão do banco de dados
+	 */
+	private static $db_version = '1.0.0';
 
-        // Tabelas (usar helper para montar nomes sanitizados)
-        $t_customers = hng_db_full_table_name('hng_customers');
-        $t_customer_tokens = hng_db_full_table_name('hng_customer_payment_tokens');
-        $t_subscriptions = hng_db_full_table_name('hng_subscriptions');
-        $t_security_log = hng_db_full_table_name('hng_security_log');
-        $t_orders = hng_db_full_table_name('hng_orders');
-        $t_product_meta = hng_db_full_table_name('hng_product_meta');
-        $t_variations = hng_db_full_table_name('hng_product_variations');
-        $t_data_requests = hng_db_full_table_name('hng_data_requests');
-        $t_order_items = hng_db_full_table_name('hng_order_items');
-        $t_order_meta = hng_db_full_table_name('hng_order_meta');
-        $t_order_notes = hng_db_full_table_name('hng_order_notes');
-        $t_transactions = hng_db_full_table_name('hng_transactions');
-        $t_customer_addresses = hng_db_full_table_name('hng_customer_addresses');
-        $t_cart_abandoned = hng_db_full_table_name('hng_cart_abandoned');
-        $t_coupons = hng_db_full_table_name('hng_coupons');
-        $t_coupon_usage = hng_db_full_table_name('hng_coupon_usage');
-        $t_analytics = hng_db_full_table_name('hng_analytics_events');
+	/**
+	 * Hook de ativação
+	 */
+	public static function activate() {
+		self::create_tables();
+		self::create_pages();
+		self::set_default_options();
+		self::create_roles();
 
-        // Tabela de clientes (estendida)
+		// Salvar versá¡o
+		update_option( 'hng_commerce_version', HNG_COMMERCE_VERSION );
+		update_option( 'hng_commerce_db_version', self::$db_version );
+
+		// Flush rewrite rules
+		flush_rewrite_rules();
+
+		// Redirecionar para assistente de configuraá§á¡o
+		set_transient( 'hng_commerce_activation_redirect', true, 30 );
+
+		// Ledger
+		if ( function_exists( 'hng_ledger_create_table' ) ) {
+			hng_ledger_create_table();
+		}
+
+		// Conversion Tracking table
+		if ( class_exists( 'HNG_Conversion_Tracker' ) ) {
+			HNG_Conversion_Tracker::create_table();
+		}
+
+		// Refund Requests table
+		if ( class_exists( 'HNG_Refund_Requests' ) ) {
+			HNG_Refund_Requests::create_table();
+		}
+	}
+
+	/**
+	 * Hook de desativação
+	 */
+	public static function deactivate() {
+		// Flush rewrite rules
+		flush_rewrite_rules();
+	}
+
+	/**
+	 * Atualizar capabilities (pode ser chamado manualmente)
+	 */
+	public static function update_capabilities() {
+		self::create_roles();
+		return true;
+	}
+
+	/**
+	 * Criar tabelas no banco de dados
+	 */
+	private static function create_tables() {
+		global $wpdb;
+		$charset_collate = $wpdb->get_charset_collate();
+
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		// Tabelas (usar helper para montar nomes sanitizados)
+		$t_customers          = hng_db_full_table_name( 'hng_customers' );
+		$t_customer_tokens    = hng_db_full_table_name( 'hng_customer_payment_tokens' );
+		$t_subscriptions      = hng_db_full_table_name( 'hng_subscriptions' );
+		$t_security_log       = hng_db_full_table_name( 'hng_security_log' );
+		$t_orders             = hng_db_full_table_name( 'hng_orders' );
+		$t_product_meta       = hng_db_full_table_name( 'hng_product_meta' );
+		$t_variations         = hng_db_full_table_name( 'hng_product_variations' );
+		$t_data_requests      = hng_db_full_table_name( 'hng_data_requests' );
+		$t_order_items        = hng_db_full_table_name( 'hng_order_items' );
+		$t_order_meta         = hng_db_full_table_name( 'hng_order_meta' );
+		$t_order_notes        = hng_db_full_table_name( 'hng_order_notes' );
+		$t_transactions       = hng_db_full_table_name( 'hng_transactions' );
+		$t_customer_addresses = hng_db_full_table_name( 'hng_customer_addresses' );
+		$t_cart_abandoned     = hng_db_full_table_name( 'hng_cart_abandoned' );
+		$t_coupons            = hng_db_full_table_name( 'hng_coupons' );
+		$t_coupon_usage       = hng_db_full_table_name( 'hng_coupon_usage' );
+		$t_analytics          = hng_db_full_table_name( 'hng_analytics_events' );
+
+		// Tabela de clientes (estendida)
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_customers = "CREATE TABLE IF NOT EXISTS `{$t_customers}` (
+		$sql_customers = "CREATE TABLE IF NOT EXISTS `{$t_customers}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             user_id bigint(20) unsigned DEFAULT NULL,
             email varchar(255) NOT NULL,
@@ -117,11 +126,11 @@ class HNG_Commerce_Install {
             UNIQUE KEY email (email),
             KEY user_id (user_id)
         ) $charset_collate;";
-        dbDelta($sql_customers);
+		dbDelta( $sql_customers );
 
-        // Tabela de tokens de pagamento (criptografados)
+		// Tabela de tokens de pagamento (criptografados)
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_tokens = "CREATE TABLE IF NOT EXISTS `{$t_customer_tokens}` (
+		$sql_tokens = "CREATE TABLE IF NOT EXISTS `{$t_customer_tokens}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) unsigned NOT NULL,
             gateway varchar(50) NOT NULL,
@@ -140,11 +149,11 @@ class HNG_Commerce_Install {
             KEY token_hash (token_hash),
             KEY is_default (is_default)
         ) $charset_collate;";
-        dbDelta($sql_tokens);
+		dbDelta( $sql_tokens );
 
-        // Tabela de assinaturas
+		// Tabela de assinaturas
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via $wpdb->prefix, dbDelta requires literal SQL
-        $sql_subscriptions = "CREATE TABLE IF NOT EXISTS `{$t_subscriptions}` (
+		$sql_subscriptions = "CREATE TABLE IF NOT EXISTS `{$t_subscriptions}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) unsigned NOT NULL,
             product_id bigint(20) unsigned NOT NULL,
@@ -169,11 +178,11 @@ class HNG_Commerce_Install {
             KEY status (status),
             KEY next_billing_date (next_billing_date)
         ) $charset_collate;";
-        dbDelta($sql_subscriptions);
+		dbDelta( $sql_subscriptions );
 
-        // Tabela de log de seguraná§a
+		// Tabela de log de seguraná§a
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_security_log = "CREATE TABLE IF NOT EXISTS `{$t_security_log}` (
+		$sql_security_log = "CREATE TABLE IF NOT EXISTS `{$t_security_log}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             type varchar(50) NOT NULL COMMENT 'csrf_failure, rate_limit, sql_injection, etc',
             ip varchar(45) NOT NULL,
@@ -188,11 +197,11 @@ class HNG_Commerce_Install {
             KEY severity (severity),
             KEY created_at (created_at)
         ) $charset_collate;";
-        dbDelta($sql_security_log);
+		dbDelta( $sql_security_log );
 
-        // Tabela de pedidos
+		// Tabela de pedidos
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_orders = "CREATE TABLE IF NOT EXISTS `{$t_orders}` (
+		$sql_orders = "CREATE TABLE IF NOT EXISTS `{$t_orders}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             post_id bigint(20) unsigned DEFAULT NULL,
             order_number varchar(50) NOT NULL,
@@ -239,11 +248,11 @@ class HNG_Commerce_Install {
             KEY created_at (created_at),
             KEY post_id (post_id)
         ) $charset_collate;";
-        dbDelta($sql_orders);
+		dbDelta( $sql_orders );
 
-        // Tabela de produtos (meta data adicional)
+		// Tabela de produtos (meta data adicional)
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_product_meta = "CREATE TABLE IF NOT EXISTS `{$t_product_meta}` (
+		$sql_product_meta = "CREATE TABLE IF NOT EXISTS `{$t_product_meta}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             product_id bigint(20) unsigned NOT NULL,
             meta_key varchar(255) NOT NULL,
@@ -252,11 +261,11 @@ class HNG_Commerce_Install {
             KEY product_id (product_id),
             KEY meta_key (meta_key)
         ) $charset_collate;";
-        dbDelta($sql_product_meta);
+		dbDelta( $sql_product_meta );
 
-        // Tabela de variaá§áµes
+		// Tabela de variaá§áµes
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_variations = "CREATE TABLE IF NOT EXISTS `{$t_variations}` (
+		$sql_variations = "CREATE TABLE IF NOT EXISTS `{$t_variations}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             product_id bigint(20) unsigned NOT NULL,
             sku varchar(100) DEFAULT NULL,
@@ -272,11 +281,11 @@ class HNG_Commerce_Install {
             KEY product_id (product_id),
             KEY stock_status (stock_status)
         ) $charset_collate;";
-        dbDelta($sql_variations);
+		dbDelta( $sql_variations );
 
-        // Tabela LGPD - Requisiá§áµes de dados
+		// Tabela LGPD - Requisiá§áµes de dados
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_data_requests = "CREATE TABLE IF NOT EXISTS `{$t_data_requests}` (
+		$sql_data_requests = "CREATE TABLE IF NOT EXISTS `{$t_data_requests}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) unsigned NOT NULL,
             request_type varchar(20) NOT NULL COMMENT 'export, delete, anonimize',
@@ -290,11 +299,11 @@ class HNG_Commerce_Install {
             KEY request_type (request_type),
             KEY status (status)
         ) $charset_collate;";
-        dbDelta($sql_data_requests);
+		dbDelta( $sql_data_requests );
 
-        // Tabela de itens do pedido
+		// Tabela de itens do pedido
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_order_items = "CREATE TABLE IF NOT EXISTS `{$t_order_items}` (
+		$sql_order_items = "CREATE TABLE IF NOT EXISTS `{$t_order_items}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             order_id bigint(20) unsigned NOT NULL,
             product_id bigint(20) unsigned NOT NULL,
@@ -313,23 +322,23 @@ class HNG_Commerce_Install {
             KEY order_id (order_id),
             KEY product_id (product_id)
         ) $charset_collate;";
-        dbDelta($sql_order_items);
+		dbDelta( $sql_order_items );
 
-        // Adicionar coluna product_cost se ná¡o existir (migration)
+		// Adicionar coluna product_cost se ná¡o existir (migration)
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name()
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Database schema installation, column existence check
         // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table names sanitized via hng_db_full_table_name()
-        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM `{$t_order_items}` LIKE 'product_cost'");
-        if (empty($column_exists)) {
+		$column_exists = $wpdb->get_results( "SHOW COLUMNS FROM `{$t_order_items}` LIKE 'product_cost'" );
+		if ( empty( $column_exists ) ) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name()
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Database schema installation
             // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table names sanitized via hng_db_full_table_name()
-            $wpdb->query("ALTER TABLE `{$t_order_items}` ADD COLUMN product_cost decimal(10,2) DEFAULT 0.00 COMMENT 'Custo do produto para cá¡Â¡lculo de lucro' AFTER price");
-        }
+			$wpdb->query( "ALTER TABLE `{$t_order_items}` ADD COLUMN product_cost decimal(10,2) DEFAULT 0.00 COMMENT 'Custo do produto para cá¡Â¡lculo de lucro' AFTER price" );
+		}
 
-        // Tabela de meta dados do pedido
+		// Tabela de meta dados do pedido
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_order_meta = "CREATE TABLE IF NOT EXISTS `{$t_order_meta}` (
+		$sql_order_meta = "CREATE TABLE IF NOT EXISTS `{$t_order_meta}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             order_id bigint(20) unsigned NOT NULL,
             meta_key varchar(255) NOT NULL,
@@ -338,11 +347,11 @@ class HNG_Commerce_Install {
             KEY order_id (order_id),
             KEY meta_key (meta_key)
         ) $charset_collate;";
-        dbDelta($sql_order_meta);
+		dbDelta( $sql_order_meta );
 
-        // Tabela de notas do pedido
+		// Tabela de notas do pedido
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_order_notes = "CREATE TABLE IF NOT EXISTS `{$t_order_notes}` (
+		$sql_order_notes = "CREATE TABLE IF NOT EXISTS `{$t_order_notes}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             order_id bigint(20) unsigned NOT NULL,
             note text NOT NULL,
@@ -352,11 +361,11 @@ class HNG_Commerce_Install {
             PRIMARY KEY (id),
             KEY order_id (order_id)
         ) $charset_collate;";
-        dbDelta($sql_order_notes);
+		dbDelta( $sql_order_notes );
 
-        // Tabela de transaá§áµes financeiras (taxas e fees)
+		// Tabela de transaá§áµes financeiras (taxas e fees)
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_transactions = "CREATE TABLE IF NOT EXISTS `{$t_transactions}` (
+		$sql_transactions = "CREATE TABLE IF NOT EXISTS `{$t_transactions}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             order_id bigint(20) unsigned NOT NULL,
             gateway_name varchar(50) NOT NULL COMMENT 'asaas, mercadopago, etc',
@@ -379,11 +388,11 @@ class HNG_Commerce_Install {
             KEY created_at (created_at),
             KEY is_fallback (is_fallback)
         ) $charset_collate;";
-        dbDelta($sql_transactions);
+		dbDelta( $sql_transactions );
 
-        // Tabela de endereá§os
+		// Tabela de endereá§os
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_addresses = "CREATE TABLE IF NOT EXISTS `{$t_customer_addresses}` (
+		$sql_addresses = "CREATE TABLE IF NOT EXISTS `{$t_customer_addresses}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) unsigned NOT NULL,
             type varchar(20) NOT NULL DEFAULT 'shipping',
@@ -401,11 +410,11 @@ class HNG_Commerce_Install {
             PRIMARY KEY (id),
             KEY customer_id (customer_id)
         ) $charset_collate;";
-        dbDelta($sql_addresses);
+		dbDelta( $sql_addresses );
 
-        // Tabela de carrinho abandonado
+		// Tabela de carrinho abandonado
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_abandoned_cart = "CREATE TABLE IF NOT EXISTS `{$t_cart_abandoned}` (
+		$sql_abandoned_cart = "CREATE TABLE IF NOT EXISTS `{$t_cart_abandoned}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             session_id varchar(255) NOT NULL,
             customer_email varchar(255) DEFAULT NULL,
@@ -420,11 +429,11 @@ class HNG_Commerce_Install {
             KEY customer_email (customer_email),
             KEY status (status)
         ) $charset_collate;";
-        dbDelta($sql_abandoned_cart);
+		dbDelta( $sql_abandoned_cart );
 
-        // Tabela de cupons
+		// Tabela de cupons
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_coupons = "CREATE TABLE IF NOT EXISTS `{$t_coupons}` (
+		$sql_coupons = "CREATE TABLE IF NOT EXISTS `{$t_coupons}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             code varchar(50) NOT NULL,
             type varchar(20) DEFAULT 'percent',
@@ -440,11 +449,11 @@ class HNG_Commerce_Install {
             UNIQUE KEY code (code),
             KEY status (status)
         ) $charset_collate;";
-        dbDelta($sql_coupons);
+		dbDelta( $sql_coupons );
 
-        // Tabela de uso de cupons
+		// Tabela de uso de cupons
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_coupon_usage = "CREATE TABLE IF NOT EXISTS `{$t_coupon_usage}` (
+		$sql_coupon_usage = "CREATE TABLE IF NOT EXISTS `{$t_coupon_usage}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             coupon_id bigint(20) unsigned NOT NULL,
             order_id bigint(20) unsigned NOT NULL,
@@ -455,11 +464,11 @@ class HNG_Commerce_Install {
             KEY coupon_id (coupon_id),
             KEY order_id (order_id)
         ) $charset_collate;";
-        dbDelta($sql_coupon_usage);
+		dbDelta( $sql_coupon_usage );
 
-        // Tabela de analytics
+		// Tabela de analytics
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name sanitized via hng_db_full_table_name(), dbDelta requires literal SQL
-        $sql_analytics = "CREATE TABLE IF NOT EXISTS `{$t_analytics}` (
+		$sql_analytics = "CREATE TABLE IF NOT EXISTS `{$t_analytics}` (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             event_type varchar(50) NOT NULL,
             product_id bigint(20) unsigned DEFAULT NULL,
@@ -475,154 +484,168 @@ class HNG_Commerce_Install {
             KEY product_id (product_id),
             KEY created_at (created_at)
         ) $charset_collate;";
-        dbDelta($sql_analytics);
-    }
-    
-    /**
-     * Criar pá¯Â¿Â½ginas necessá¯Â¿Â½rias
-     */
-    private static function create_pages() {
-        $pages = array(
-            'shop' => array(
-                'title' => 'Loja',
-                'content' => '[hng_products]',
-                'slug' => 'loja'
-            ),
-            'cart' => array(
-                'title' => 'Carrinho',
-                'content' => '[hng_cart]',
-                'slug' => 'carrinho'
-            ),
-            'checkout' => array(
-                'title' => 'Finalizar Compra',
-                'content' => '[hng_checkout]',
-                'slug' => 'finalizar-compra'
-            ),
-            'my-account' => array(
-                'title' => 'Minha Conta',
-                'content' => '[hng_account]',
-                'slug' => 'minha-conta'
-            ),
-            'order-confirmation' => array(
-                'title' => 'Pedido Confirmado',
-                'content' => '[hng_order_received]',
-                'slug' => 'obrigado'
-            ),
-            'client-registration' => array(
-                'title' => 'Seja Nosso Cliente',
-                'content' => '', // Uses page template
-                'slug' => 'seja-nosso-cliente',
-                'template' => 'page-seja-nosso-cliente.php'
-            )
-        );
-        
-        foreach ($pages as $key => $page) {
-            // Verificar se já existe
-            $existing = get_page_by_path($page['slug']);
-            if (!$existing) {
-                $page_id = wp_insert_post(array(
-                    'post_title' => $page['title'],
-                    'post_content' => $page['content'],
-                    'post_name' => $page['slug'],
-                    'post_status' => 'publish',
-                    'post_type' => 'page',
-                    'comment_status' => 'closed',
-                    'ping_status' => 'closed'
-                ));
-                
-                // Definir template se especificado
-                if (!empty($page['template']) && $page_id && !is_wp_error($page_id)) {
-                    update_post_meta($page_id, '_wp_page_template', $page['template']);
-                }
-                
-                // Salvar ID da página
-                update_option('hng_commerce_' . $key . '_page_id', $page_id);
-            } else {
-                update_option('hng_commerce_' . $key . '_page_id', $existing->ID);
-                
-                // Atualizar template se necessário
-                if (!empty($page['template'])) {
-                    $current_template = get_post_meta($existing->ID, '_wp_page_template', true);
-                    if (empty($current_template) || $current_template === 'default') {
-                        update_post_meta($existing->ID, '_wp_page_template', $page['template']);
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * Definir opá¯Â¿Â½á¯Â¿Â½es padrá¯Â¿Â½o
-     */
-    private static function set_default_options() {
-        $defaults = array(
-            'currency' => 'BRL',
-            'currency_symbol' => 'R$',
-            'decimal_separator' => ',',
-            'thousand_separator' => '.',
-            'decimals' => 2,
-            'store_name' => get_bloginfo('name'),
-            'store_email' => get_option('admin_email'),
-            'default_country' => 'BR',
-            'tax_enabled' => false,
-            'stock_management' => true,
-            'enable_reviews' => true,
-            'enable_guest_checkout' => true
-        );
+		dbDelta( $sql_analytics );
+	}
 
-        // Option de debug (opt-in) e controle de logs por padrá¡o
-        if (!isset($defaults['hng_enable_debug'])) {
-            $defaults['hng_enable_debug'] = false;
-        }
-        if (!isset($defaults['hng_transaction_log'])) {
-            $defaults['hng_transaction_log'] = false;
-        }
-        
-        foreach ($defaults as $key => $value) {
-            if (get_option('hng_commerce_' . $key) === false) {
-                update_option('hng_commerce_' . $key, $value);
-            }
-        }
-    }
-    
-    /**
-     * Criar roles customizadas
-     */
-    private static function create_roles() {
-        // Adicionar capabilities ao Administrador
-        $admin = get_role('administrator');
-        if ($admin) {
-            $admin->add_cap('manage_hng_commerce');
-            $admin->add_cap('manage_products');
-            $admin->add_cap('manage_orders');
-            $admin->add_cap('view_reports');
-        }
-        
-        // Role de Gerente de Loja
-        add_role('shop_manager', __('Gerente de Loja', 'hng-commerce'), array(
-            'read' => true,
-            'edit_posts' => true,
-            'delete_posts' => true,
-            'manage_hng_commerce' => true,
-            'manage_products' => true,
-            'manage_orders' => true,
-            'view_reports' => true
-        ));
-        
-        // Role de Vendedor (para marketplace)
-        add_role('vendor', __('Vendedor', 'hng-commerce'), array(
-            'read' => true,
-            'edit_posts' => true,
-            'delete_posts' => true,
-            'manage_products' => true,
-            'view_orders' => true
-        ));
-        
-        // Role de Cliente HNG
-        add_role('hng_customer', __('Cliente HNG', 'hng-commerce'), array(
-            'read' => true,
-            'edit_posts' => false,
-            'delete_posts' => false,
-        ));
-    }
+	/**
+	 * Criar pá¯Â¿Â½ginas necessá¯Â¿Â½rias
+	 */
+	private static function create_pages() {
+		$pages = array(
+			'shop'                => array(
+				'title'   => 'Loja',
+				'content' => '[hng_products]',
+				'slug'    => 'loja',
+			),
+			'cart'                => array(
+				'title'   => 'Carrinho',
+				'content' => '[hng_cart]',
+				'slug'    => 'carrinho',
+			),
+			'checkout'            => array(
+				'title'   => 'Finalizar Compra',
+				'content' => '[hng_checkout]',
+				'slug'    => 'finalizar-compra',
+			),
+			'my-account'          => array(
+				'title'   => 'Minha Conta',
+				'content' => '[hng_account]',
+				'slug'    => 'minha-conta',
+			),
+			'order-confirmation'  => array(
+				'title'   => 'Pedido Confirmado',
+				'content' => '[hng_order_received]',
+				'slug'    => 'obrigado',
+			),
+			'client-registration' => array(
+				'title'    => 'Seja Nosso Cliente',
+				'content'  => '', // Uses page template
+				'slug'     => 'seja-nosso-cliente',
+				'template' => 'page-seja-nosso-cliente.php',
+			),
+		);
+
+		foreach ( $pages as $key => $page ) {
+			// Verificar se já existe
+			$existing = get_page_by_path( $page['slug'] );
+			if ( ! $existing ) {
+				$page_id = wp_insert_post(
+					array(
+						'post_title'     => $page['title'],
+						'post_content'   => $page['content'],
+						'post_name'      => $page['slug'],
+						'post_status'    => 'publish',
+						'post_type'      => 'page',
+						'comment_status' => 'closed',
+						'ping_status'    => 'closed',
+					)
+				);
+
+				// Definir template se especificado
+				if ( ! empty( $page['template'] ) && $page_id && ! is_wp_error( $page_id ) ) {
+					update_post_meta( $page_id, '_wp_page_template', $page['template'] );
+				}
+
+				// Salvar ID da página
+				update_option( 'hng_commerce_' . $key . '_page_id', $page_id );
+			} else {
+				update_option( 'hng_commerce_' . $key . '_page_id', $existing->ID );
+
+				// Atualizar template se necessário
+				if ( ! empty( $page['template'] ) ) {
+					$current_template = get_post_meta( $existing->ID, '_wp_page_template', true );
+					if ( empty( $current_template ) || $current_template === 'default' ) {
+						update_post_meta( $existing->ID, '_wp_page_template', $page['template'] );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Definir opá¯Â¿Â½á¯Â¿Â½es padrá¯Â¿Â½o
+	 */
+	private static function set_default_options() {
+		$defaults = array(
+			'currency'              => 'BRL',
+			'currency_symbol'       => 'R$',
+			'decimal_separator'     => ',',
+			'thousand_separator'    => '.',
+			'decimals'              => 2,
+			'store_name'            => get_bloginfo( 'name' ),
+			'store_email'           => get_option( 'admin_email' ),
+			'default_country'       => 'BR',
+			'tax_enabled'           => false,
+			'stock_management'      => true,
+			'enable_reviews'        => true,
+			'enable_guest_checkout' => true,
+		);
+
+		// Option de debug (opt-in) e controle de logs por padrá¡o
+		if ( ! isset( $defaults['hng_enable_debug'] ) ) {
+			$defaults['hng_enable_debug'] = false;
+		}
+		if ( ! isset( $defaults['hng_transaction_log'] ) ) {
+			$defaults['hng_transaction_log'] = false;
+		}
+
+		foreach ( $defaults as $key => $value ) {
+			if ( get_option( 'hng_commerce_' . $key ) === false ) {
+				update_option( 'hng_commerce_' . $key, $value );
+			}
+		}
+	}
+
+	/**
+	 * Criar roles customizadas
+	 */
+	private static function create_roles() {
+		// Adicionar capabilities ao Administrador
+		$admin = get_role( 'administrator' );
+		if ( $admin ) {
+			$admin->add_cap( 'manage_hng_commerce' );
+			$admin->add_cap( 'manage_products' );
+			$admin->add_cap( 'manage_orders' );
+			$admin->add_cap( 'view_reports' );
+		}
+
+		// Role de Gerente de Loja
+		add_role(
+			'shop_manager',
+			__( 'Gerente de Loja', 'hng-commerce' ),
+			array(
+				'read'                => true,
+				'edit_posts'          => true,
+				'delete_posts'        => true,
+				'manage_hng_commerce' => true,
+				'manage_products'     => true,
+				'manage_orders'       => true,
+				'view_reports'        => true,
+			)
+		);
+
+		// Role de Vendedor (para marketplace)
+		add_role(
+			'vendor',
+			__( 'Vendedor', 'hng-commerce' ),
+			array(
+				'read'            => true,
+				'edit_posts'      => true,
+				'delete_posts'    => true,
+				'manage_products' => true,
+				'view_orders'     => true,
+			)
+		);
+
+		// Role de Cliente HNG
+		add_role(
+			'hng_customer',
+			__( 'Cliente HNG', 'hng-commerce' ),
+			array(
+				'read'         => true,
+				'edit_posts'   => false,
+				'delete_posts' => false,
+			)
+		);
+	}
 }

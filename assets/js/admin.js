@@ -1114,11 +1114,11 @@ jQuery(document).ready(function ($) {
 
         bindEvents: function () {
 
-            // Import WooCommerce
+            // Import external data
 
             console.log('ImportExport: binding events');
 
-            $(document).on('click', '#hng-import-woocommerce', function (e) { console.log('ImportExport: #hng-import-woocommerce clicked'); return ImportExport.importWooCommerce.call(this, e); });
+            $(document).on('click', '#hng-import-external-data', function (e) { console.log('ImportExport: #hng-import-external-data clicked'); return ImportExport.importExternalData.call(this, e); });
 
 
 
@@ -1282,7 +1282,7 @@ jQuery(document).ready(function ($) {
 
 
 
-        importWooCommerce: function (e) {
+        importExternalData: function (e) {
 
             e.preventDefault();
 
@@ -1290,7 +1290,7 @@ jQuery(document).ready(function ($) {
 
 
 
-            if (!confirm('Iniciar importação do WooCommerce?')) {
+            if (!confirm('Iniciar importação de dados externos?')) {
 
                 return;
 
@@ -1306,7 +1306,7 @@ jQuery(document).ready(function ($) {
 
                 data: {
 
-                    action: 'hng_import_woocommerce',
+                    action: 'hng_import_external_data',
 
                     import_type: importType,
 
@@ -1320,7 +1320,7 @@ jQuery(document).ready(function ($) {
 
                     HNG_Notifications.info('Importação iniciada...');
 
-                    $('#hng-import-woocommerce').addClass('hng-loading');
+                    $('#hng-import-external-data').addClass('hng-loading');
 
                 },
 
@@ -1340,7 +1340,7 @@ jQuery(document).ready(function ($) {
 
                 complete: function () {
 
-                    $('#hng-import-woocommerce').removeClass('hng-loading');
+                    $('#hng-import-external-data').removeClass('hng-loading');
 
                 }
 
@@ -1402,7 +1402,7 @@ jQuery(document).ready(function ($) {
 
         // Debug: log clicks on import/export controls to ensure events fire
 
-        $(document).on('click', '#hng-import-woocommerce, #hng-export-products, #hng-export-orders', function (e) {
+        $(document).on('click', '#hng-import-external-data, #hng-export-products, #hng-export-orders', function (e) {
 
             console.log('Debug: clicked', this.id);
 
@@ -1452,7 +1452,7 @@ jQuery(document).ready(function ($) {
 
         try {
 
-            const btn = e.target.closest && e.target.closest('#hng-import-woocommerce, #hng-export-products, #hng-export-orders');
+            const btn = e.target.closest && e.target.closest('#hng-import-external-data, #hng-export-products, #hng-export-orders');
 
             if (!btn) return;
 
@@ -1462,11 +1462,11 @@ jQuery(document).ready(function ($) {
 
             // Call corresponding handler directly
 
-            if (id === 'hng-import-woocommerce') {
+            if (id === 'hng-import-external-data') {
 
                 e.preventDefault();
 
-                ImportExport.importWooCommerce.call(btn, e);
+                ImportExport.importExternalData.call(btn, e);
 
             } else if (id === 'hng-export-products') {
 

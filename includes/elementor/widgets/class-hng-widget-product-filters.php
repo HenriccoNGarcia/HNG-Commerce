@@ -1,272 +1,282 @@
 <?php
-
 /**
-
  * Widget Elementor: Filtros de Busca de Produtos HNG Commerce
-
+ *
+ * @package HNG_Commerce
  */
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+// phpcs:disable Squiz.Commenting
+// phpcs:disable WordPress.PHP.YodaConditions
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 
 
 class HNG_Widget_Product_Filters extends \Elementor\Widget_Base {
 
-    public function get_name() {
+	public function get_name() {
 
-        return 'hng-product-filters';
+		return 'hng-product-filters';
+	}
 
-    }
+	public function get_title() {
 
-    public function get_title() {
+		return __( 'Filtros de Produtos (HNG)', 'hng-commerce' );
+	}
 
-        return __( 'Filtros de Produtos (HNG)', 'hng-commerce');
+	public function get_icon() {
 
-    }
+		return 'eicon-filter';
+	}
 
-    public function get_icon() {
+	public function get_categories() {
 
-        return 'eicon-filter';
+		return array( 'hng-commerce' );
+	}
 
-    }
+	public function get_keywords() {
 
-    public function get_categories() {
+		return array( 'filtro', 'produtos', 'busca', 'hng', 'ecommerce' );
+	}
 
-        return ['hng-commerce'];
 
-    }
 
-    public function get_keywords() {
+	protected function register_controls() {
 
-        return [ 'filtro', 'produtos', 'busca', 'hng', 'woocommerce' ];
+		$this->start_controls_section(
+			'section_filters',
+			array(
 
-    }
+				'label' => __( 'Filtros Disponíveis', 'hng-commerce' ),
 
+				'tab'   => \Elementor\Controls_Manager::TAB_CONTENT,
 
+			)
+		);
 
-    protected function register_controls() {
+		$this->add_control(
+			'show_search',
+			array(
 
-        $this->start_controls_section(
+				'label'   => __( 'Campo de busca', 'hng-commerce' ),
 
-            'section_filters',
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
 
-            [
+				'default' => 'yes',
 
-                'label' => __( 'Filtros Disponíveis', 'hng-commerce'),
+			)
+		);
 
-                'tab' => \Elementor\Controls_Manager::TAB_CONTENT,
+		$this->add_control(
+			'show_categories',
+			array(
 
-            ]
+				'label'   => __( 'Categorias', 'hng-commerce' ),
 
-        );
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
 
-        $this->add_control('show_search', [
+				'default' => 'yes',
 
-            'label' => __('Campo de busca', 'hng-commerce'),
+			)
+		);
 
-            'type' => \Elementor\Controls_Manager::SWITCHER,
+		$this->add_control(
+			'show_price',
+			array(
 
-            'default' => 'yes',
+				'label'   => __( 'Faixa de preço', 'hng-commerce' ),
 
-        ]);
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
 
-        $this->add_control('show_categories', [
+				'default' => 'yes',
 
-            'label' => __('Categorias', 'hng-commerce'),
+			)
+		);
 
-            'type' => \Elementor\Controls_Manager::SWITCHER,
+		$this->add_control(
+			'show_orderby',
+			array(
 
-            'default' => 'yes',
+				'label'   => __( 'Ordenação', 'hng-commerce' ),
 
-        ]);
+				'type'    => \Elementor\Controls_Manager::SWITCHER,
 
-        $this->add_control('show_price', [
+				'default' => 'yes',
 
-            'label' => __('Faixa de preço', 'hng-commerce'),
+			)
+		);
 
-            'type' => \Elementor\Controls_Manager::SWITCHER,
+		$this->end_controls_section();
 
-            'default' => 'yes',
+		$this->start_controls_section(
+			'section_style',
+			array(
 
-        ]);
+				'label' => __( 'Estilo', 'hng-commerce' ),
 
-        $this->add_control('show_orderby', [
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
 
-            'label' => __('Ordenação', 'hng-commerce'),
+			)
+		);
 
-            'type' => \Elementor\Controls_Manager::SWITCHER,
+		$this->add_control(
+			'background_color',
+			array(
 
-            'default' => 'yes',
+				'label'     => __( 'Cor de fundo', 'hng-commerce' ),
 
-        ]);
+				'type'      => \Elementor\Controls_Manager::COLOR,
 
-        $this->end_controls_section();
+				'selectors' => array(
 
+					'{{WRAPPER}} .hng-product-filters' => 'background-color: {{VALUE}};',
 
+				),
 
-        $this->start_controls_section(
+			)
+		);
 
-            'section_style',
+		$this->add_responsive_control(
+			'padding',
+			array(
 
-            [
+				'label'     => __( 'Padding', 'hng-commerce' ),
 
-                'label' => __( 'Estilo', 'hng-commerce'),
+				'type'      => \Elementor\Controls_Manager::DIMENSIONS,
 
-                'tab' => \Elementor\Controls_Manager::TAB_STYLE,
+				'selectors' => array(
 
-            ]
+					'{{WRAPPER}} .hng-product-filters' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 
-        );
+				),
 
-        $this->add_control('background_color', [
+			)
+		);
 
-            'label' => __('Cor de fundo', 'hng-commerce'),
+		$this->end_controls_section();
+	}
 
-            'type' => \Elementor\Controls_Manager::COLOR,
 
-            'selectors' => [
 
-                '{{WRAPPER}} .hng-product-filters' => 'background-color: {{VALUE}};',
-
-            ],
-
-        ]);
-
-        $this->add_responsive_control('padding', [
-
-            'label' => __('Padding', 'hng-commerce'),
-
-            'type' => \Elementor\Controls_Manager::DIMENSIONS,
-
-            'selectors' => [
-
-                '{{WRAPPER}} .hng-product-filters' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-
-            ],
-
-        ]);
-
-        $this->end_controls_section();
-
-    }
-
-
-
-    protected function render() {
+	protected function render() {
 
         // phpcs:disable WordPress.Security.NonceVerification.Recommended -- All GET parameters in this widget are read-only product filters (search, category, price, orderby), no data modification
 
-        $settings = $this->get_settings_for_display();
+		$settings = $this->get_settings_for_display();
 
-        ?>
+		?>
 
-        <form class="hng-product-filters" method="get" action="<?php echo esc_url( get_post_type_archive_link( 'hng_product' ) ); ?>" aria-label="Filtros de busca de produtos">
+		<form class="hng-product-filters" method="get" action="<?php echo esc_url( get_post_type_archive_link( 'hng_product' ) ); ?>" aria-label="Filtros de busca de produtos">
 
-            <?php if ( $settings['show_search'] === 'yes' ) : ?>
+			<?php if ( $settings['show_search'] === 'yes' ) : ?>
 
-                <div class="hng-filter-search">
+				<div class="hng-filter-search">
 
-                    <label for="hng_search_query" class="screen-reader-text"><?php esc_html_e('Buscar produtos', 'hng-commerce'); ?></label>
+					<label for="hng_search_query" class="screen-reader-text"><?php esc_html_e( 'Buscar produtos', 'hng-commerce' ); ?></label>
 
-                    <input type="search" id="hng_search_query" name="s" placeholder="<?php esc_attr_e('Buscar produtos...', 'hng-commerce'); ?>" value="<?php echo isset($_GET['s']) ? esc_attr(sanitize_text_field(wp_unslash($_GET['s']))) : ''; ?>" />
+					<input type="search" id="hng_search_query" name="s" placeholder="<?php esc_attr_e( 'Buscar produtos...', 'hng-commerce' ); ?>" value="<?php echo isset( $_GET['s'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) : ''; ?>" />
 
-                </div>
+				</div>
 
-            <?php endif; ?>
+			<?php endif; ?>
 
-            <?php if ( $settings['show_categories'] === 'yes' ) : ?>
+			<?php if ( $settings['show_categories'] === 'yes' ) : ?>
 
-                <div class="hng-filter-categories">
+				<div class="hng-filter-categories">
 
-                    <label for="hng_filter_cat"><?php esc_html_e('Categoria', 'hng-commerce'); ?></label>
+					<label for="hng_filter_cat"><?php esc_html_e( 'Categoria', 'hng-commerce' ); ?></label>
 
-                    <?php
+					<?php
 
-                    $hng_filter_cat = isset($_GET['hng_product_cat']) ? sanitize_text_field(wp_unslash($_GET['hng_product_cat'])) : '';
+					$hng_filter_cat = isset( $_GET['hng_product_cat'] ) ? sanitize_text_field( wp_unslash( $_GET['hng_product_cat'] ) ) : '';
 
-                    wp_dropdown_categories([
+					wp_dropdown_categories(
+						array(
 
-                        'show_option_all' => __('Todas', 'hng-commerce'),
+							'show_option_all' => __( 'Todas', 'hng-commerce' ),
 
-                        'taxonomy' => 'hng_product_cat',
+							'taxonomy'        => 'hng_product_cat',
 
-                        'name' => 'hng_product_cat',
+							'name'            => 'hng_product_cat',
 
-                        'id' => 'hng_filter_cat',
+							'id'              => 'hng_filter_cat',
 
-                        'selected' => $hng_filter_cat,
+							'selected'        => $hng_filter_cat,
 
-                        'hide_empty' => false,
+							'hide_empty'      => false,
 
-                    ]);
+						)
+					);
 
-                    ?>
+					?>
 
-                </div>
+				</div>
 
-            <?php endif; ?>
+			<?php endif; ?>
 
-            <?php if ( $settings['show_price'] === 'yes' ) : ?>
+			<?php if ( $settings['show_price'] === 'yes' ) : ?>
 
-                <div class="hng-filter-price">
+				<div class="hng-filter-price">
 
-                    <label><?php esc_html_e('Preço', 'hng-commerce'); ?></label>
+					<label><?php esc_html_e( 'Preço', 'hng-commerce' ); ?></label>
 
-                    <?php
-                    $min_price = isset($_GET['min_price']) ? absint(wp_unslash($_GET['min_price'])) : '';
-                    $max_price = isset($_GET['max_price']) ? absint(wp_unslash($_GET['max_price'])) : '';
-                    ?>
+					<?php
+					$min_price = isset( $_GET['min_price'] ) ? absint( wp_unslash( $_GET['min_price'] ) ) : '';
+					$max_price = isset( $_GET['max_price'] ) ? absint( wp_unslash( $_GET['max_price'] ) ) : '';
+					?>
 
-                    <input type="number" name="min_price" placeholder="<?php esc_attr_e('Mínimo', 'hng-commerce'); ?>" value="<?php echo $min_price === '' ? '' : esc_attr($min_price); ?>" min="0" />
+					<input type="number" name="min_price" placeholder="<?php esc_attr_e( 'Mínimo', 'hng-commerce' ); ?>" value="<?php echo $min_price === '' ? '' : esc_attr( $min_price ); ?>" min="0" />
 
-                    <input type="number" name="max_price" placeholder="<?php esc_attr_e('Máximo', 'hng-commerce'); ?>" value="<?php echo $max_price === '' ? '' : esc_attr($max_price); ?>" min="0" />
+					<input type="number" name="max_price" placeholder="<?php esc_attr_e( 'Máximo', 'hng-commerce' ); ?>" value="<?php echo $max_price === '' ? '' : esc_attr( $max_price ); ?>" min="0" />
 
-                </div>
+				</div>
 
-            <?php endif; ?>
+			<?php endif; ?>
 
-            <?php if ( $settings['show_orderby'] === 'yes' ) : ?>
+			<?php if ( $settings['show_orderby'] === 'yes' ) : ?>
 
-                <div class="hng-filter-orderby">
+				<div class="hng-filter-orderby">
 
-                    <label for="hng_orderby"><?php esc_html_e('Ordenar por', 'hng-commerce'); ?></label>
+					<label for="hng_orderby"><?php esc_html_e( 'Ordenar por', 'hng-commerce' ); ?></label>
 
-                    <select name="orderby" id="hng_orderby">
+					<select name="orderby" id="hng_orderby">
 
-                        <?php $orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : ''; ?>
+						<?php $orderby = isset( $_GET['orderby'] ) ? sanitize_text_field( wp_unslash( $_GET['orderby'] ) ) : ''; ?>
 
-                        <option value="date" <?php selected($orderby, 'date'); ?>><?php esc_html_e('Mais recentes', 'hng-commerce'); ?></option>
+						<option value="date" <?php selected( $orderby, 'date' ); ?>><?php esc_html_e( 'Mais recentes', 'hng-commerce' ); ?></option>
 
-                        <option value="price_asc" <?php selected($orderby, 'price_asc'); ?>><?php esc_html_e('Menor preço', 'hng-commerce'); ?></option>
+						<option value="price_asc" <?php selected( $orderby, 'price_asc' ); ?>><?php esc_html_e( 'Menor preço', 'hng-commerce' ); ?></option>
 
-                        <option value="price_desc" <?php selected($orderby, 'price_desc'); ?>><?php esc_html_e('Maior preço', 'hng-commerce'); ?></option>
+						<option value="price_desc" <?php selected( $orderby, 'price_desc' ); ?>><?php esc_html_e( 'Maior preço', 'hng-commerce' ); ?></option>
 
-                        <option value="title" <?php selected($orderby, 'title'); ?>><?php esc_html_e('A-Z', 'hng-commerce'); ?></option>
+						<option value="title" <?php selected( $orderby, 'title' ); ?>><?php esc_html_e( 'A-Z', 'hng-commerce' ); ?></option>
 
-                    </select>
+					</select>
 
-                </div>
+				</div>
 
-            <?php endif; ?>
+			<?php endif; ?>
 
-            <button type="submit" class="hng-filter-submit"><?php esc_html_e('Filtrar', 'hng-commerce'); ?></button>
+			<button type="submit" class="hng-filter-submit"><?php esc_html_e( 'Filtrar', 'hng-commerce' ); ?></button>
 
-        </form>
+		</form>
 
-        <?php
-
-    }
-
+		<?php
+	}
 }
 
 
 
 // Register widget
 
-add_action('elementor/widgets/widgets_registered', function($widgets_manager){
+add_action(
+	'elementor/widgets/widgets_registered',
+	function ( $widgets_manager ) {
 
-    require_once __FILE__;
+		require_once __FILE__;
 
-    $widgets_manager->register_widget_type( new HNG_Widget_Product_Filters() );
-
-});
+		$widgets_manager->register_widget_type( new HNG_Widget_Product_Filters() );
+	}
+);

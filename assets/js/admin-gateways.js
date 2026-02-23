@@ -1,861 +1,877 @@
 /**
 
  * HNG Admin Gateway Management Scripts
-
  */
 
-(function($) {
+(function ($) {
 
-    'use strict';
+	'use strict';
 
+	// Global flag to prevent auto-check from running multiple times
 
+	let statusCheckCompleted = false;
 
-    // Global flag to prevent auto-check from running multiple times
+	// Notification helper
 
-    let statusCheckCompleted = false;
+	window.hngShowNotification = function (message, type, duration) {
 
+		type = type || 'info';
 
+		duration = duration || 3000;
 
-    // Notification helper
+		const icons = {
 
-    window.hngShowNotification = function(message, type, duration) {
+			success: '<span class="dashicons dashicons-yes-alt"></span>',
 
-        type = type || 'info';
+			error: '<span class="dashicons dashicons-no-alt"></span>',
 
-        duration = duration || 3000;
+			warning: '<span class="dashicons dashicons-warning"></span>',
 
-        
+			info: '<span class="dashicons dashicons-info"></span>'
 
-        const icons = {
+		};
 
-            success: '<span class="dashicons dashicons-yes-alt"></span>',
+		const $notification = $(
+			'<div class="hng-notification ' + type + '">' +
 
-            error: '<span class="dashicons dashicons-no-alt"></span>',
+			'<div class="hng-notification-icon">' + (icons[type] || icons.info) + '</div>' +
 
-            warning: '<span class="dashicons dashicons-warning"></span>',
+			'<div class="hng-notification-content">' + message + '</div>' +
 
-            info: '<span class="dashicons dashicons-info"></span>'
+			'<div class="hng-notification-close">✕</div>' +
 
-        };
+			'</div>'
+		);
 
-        
+		$( 'body' ).append( $notification );
 
-        const $notification = $('<div class="hng-notification ' + type + '">' +
+		const closeNotification = function () {
 
-            '<div class="hng-notification-icon">' + (icons[type] || icons.info) + '</div>' +
+			$notification.addClass( 'removing' );
 
-            '<div class="hng-notification-content">' + message + '</div>' +
+			setTimeout(
+				function () {
 
-            '<div class="hng-notification-close">✕</div>' +
+					$notification.remove();
 
-            '</div>');
+				},
+				300
+			);
 
-        
+		};
 
-        $('body').append($notification);
+		$notification.find( '.hng-notification-close' ).on( 'click', closeNotification );
 
-        
+		if (duration > 0) {
 
-        const closeNotification = function() {
+			setTimeout( closeNotification, duration );
 
-            $notification.addClass('removing');
+		}
 
-            setTimeout(function() {
+		return $notification;
 
-                $notification.remove();
+	};
 
-            }, 300);
+	$( document ).ready(
+		function () {
 
-        };
+			const ajaxUrl = hngGatewaysPage.ajaxUrl;
 
-        
+			const nonce = hngGatewaysPage.nonce;
 
-        $notification.find('.hng-notification-close').on('click', closeNotification);
+			// Toggle do card de taxas HNG Commerce
 
-        
+			$( '.fees-card-header' ).on(
+				'click',
+				function (e) {
+					// Ignorar cliques no botão de refresh
+					if ($( e.target ).closest( '.refresh-fees-btn' ).length) {
+						return;
+					}
 
-        if (duration > 0) {
+					const $content = $( this ).siblings( '.fees-card-content' );
 
-            setTimeout(closeNotification, duration);
+					const $icon = $( this ).find( '.fees-card-toggle .dashicons' );
 
-        }
+					$content.slideToggle( 300 );
 
-        
+					if ($icon.hasClass( 'dashicons-arrow-down-alt2' )) {
 
-        return $notification;
+						$icon.removeClass( 'dashicons-arrow-down-alt2' ).addClass( 'dashicons-arrow-up-alt2' );
 
-    };
+					} else {
 
+						$icon.removeClass( 'dashicons-arrow-up-alt2' ).addClass( 'dashicons-arrow-down-alt2' );
 
+					}
 
-    $(document).ready(function() {
+				}
+			);
 
-        const ajaxUrl = hngGatewaysPage.ajaxUrl;
+			// Debug: Check if nonce is available
 
-        const nonce = hngGatewaysPage.nonce;
+			console.log( 'HNG Gateways Page loaded' );
 
-        
+			console.log( 'Ajax URL:', ajaxUrl );
 
-        // Toggle do card de taxas HNG Commerce
+			console.log( 'Nonce:', nonce ? 'Present (' + nonce.substring( 0, 10 ) + '...)' : 'MISSING!' );
 
-        $('.fees-card-header').on('click', function(e) {
-            // Ignorar cliques no botão de refresh
-            if ($(e.target).closest('.refresh-fees-btn').length) {
-                return;
-            }
+			// Category filter functionality
 
-            const $content = $(this).siblings('.fees-card-content');
+			$( document ).on(
+				'click',
+				'.filter-btn',
+				function () {
 
-            const $icon = $(this).find('.fees-card-toggle .dashicons');
+					const filter = $( this ).data( 'filter' );
 
-            
+					// Update active button
 
-            $content.slideToggle(300);
+					$( '.filter-btn' ).removeClass( 'active' );
 
-            
+					$( this ).addClass( 'active' );
 
-        if ($icon.hasClass('dashicons-arrow-down-alt2')) {
+					// Filter gateways
 
-                $icon.removeClass('dashicons-arrow-down-alt2').addClass('dashicons-arrow-up-alt2');
+					if (filter === 'all') {
 
-            } else {
+						$( '.hng-gateway-item' ).show();
 
-                $icon.removeClass('dashicons-arrow-up-alt2').addClass('dashicons-arrow-down-alt2');
+					} else {
 
-            }
+						$( '.hng-gateway-item' ).hide();
 
-        });
+						$( '.hng-gateway-item[data-category="' + filter + '"]' ).show();
 
-        
+					}
 
-        // Debug: Check if nonce is available
+				}
+			);
 
-        console.log('HNG Gateways Page loaded');
+			// Toggle configuration panel visibility
 
-        console.log('Ajax URL:', ajaxUrl);
+			$( document ).on(
+				'click',
+				'.hng-toggle-config',
+				function (e) {
 
-        console.log('Nonce:', nonce ? 'Present (' + nonce.substring(0, 10) + '...)' : 'MISSING!');
+					e.preventDefault();
 
+					// Block coming-soon gateways
+					if ($( this ).closest( '.hng-gateway-item' ).data( 'coming-soon' )) {
+						return;
+					}
 
+					const gateway = $( this ).data( 'gateway' );
 
-        // Category filter functionality
+					const wrapper = $( ".hng-gateway-config-wrapper[data-gateway='" + gateway + "']" );
 
-        $(document).on('click', '.filter-btn', function() {
+					wrapper.slideToggle(
+						300,
+						function () {
 
-            const filter = $(this).data('filter');
+							if (wrapper.hasClass( 'show' )) {
 
-            
+								wrapper.removeClass( 'show' );
 
-            // Update active button
+								$( this ).siblings( '.hng-toggle-config' ).html( '<span class="dashicons dashicons-admin-settings"></span> Configurar' );
 
-            $('.filter-btn').removeClass('active');
+							} else {
 
-            $(this).addClass('active');
+								wrapper.addClass( 'show' );
 
-            
+								$( this ).siblings( '.hng-toggle-config' ).html( '<span class="dashicons dashicons-arrow-up-alt2"></span> Ocultar Configuração' );
 
-            // Filter gateways
+							}
 
-            if (filter === 'all') {
+						}
+					);
 
-                $('.hng-gateway-item').show();
+				}
+			);
 
-            } else {
+			// Save gateway config
 
-                $('.hng-gateway-item').hide();
+			$( document ).on(
+				'click',
+				'.gateway-config-form-inner .save-gateway-config',
+				function () {
 
-                $('.hng-gateway-item[data-category="' + filter + '"]').show();
+					const $form = $( this ).closest( '.gateway-config-form-inner' );
 
-            }
+					const gateway = $form.data( 'gateway' );
 
-        });
+					const $btn = $( this );
 
+					const formData = new FormData( $form[0] );
 
+					// Encontra o nonce correto do formulário
 
-        // Toggle configuration panel visibility
+					const $nonceField = $form.find( 'input[name^="_wpnonce_"]' );
 
-        $(document).on('click', '.hng-toggle-config', function(e) {
+					if ($nonceField.length === 0) {
 
-            e.preventDefault();
+						window.hngShowNotification( 'Erro: Nonce não encontrado no formulário', 'error' );
 
-            const gateway = $(this).data('gateway');
+						return;
 
-            const wrapper = $(".hng-gateway-config-wrapper[data-gateway='" + gateway + "']");
+					}
 
-            
+					// Adiciona action e gateway
 
-            wrapper.slideToggle(300, function() {
+					formData.append( 'action', 'hng_save_gateway_config' );
 
-                if (wrapper.hasClass('show')) {
+					formData.append( 'gateway', gateway );
 
-                    wrapper.removeClass('show');
+					$btn.prop( 'disabled', true );
 
-                    $(this).siblings('.hng-toggle-config').html('<span class="dashicons dashicons-admin-settings"></span> Configurar');
+					$.ajax(
+						{
 
-                } else {
+							url: ajaxUrl,
 
-                    wrapper.addClass('show');
+							type: 'POST',
 
-                    $(this).siblings('.hng-toggle-config').html('<span class="dashicons dashicons-arrow-up-alt2"></span> Ocultar Configuração');
+							data: formData,
 
-                }
+							processData: false,
 
-            });
+							contentType: false,
 
-        });
+							success: function (resp) {
 
+								const msg = resp && resp.data && resp.data.message ? resp.data.message : 'Salvo com sucesso!';
 
+								window.hngShowNotification( msg, 'success' );
 
-        // Save gateway config
+							},
 
-        $(document).on('click', '.gateway-config-form-inner .save-gateway-config', function() {
+							error: function (jqXHR) {
 
-            const $form = $(this).closest('.gateway-config-form-inner');
+								let msg = 'Erro desconhecido';
 
-            const gateway = $form.data('gateway');
+								if (jqXHR.status === 400) {
 
-            const $btn = $(this);
+									msg = 'Erro: Validação falhou (400)';
 
-            const formData = new FormData($form[0]);
+								} else if (jqXHR.responseJSON && jqXHR.responseJSON.data) {
 
-            
+									msg = jqXHR.responseJSON.data.message || msg;
 
-            // Encontra o nonce correto do formulário
+								}
 
-            const $nonceField = $form.find('input[name^="_wpnonce_"]');
+								window.hngShowNotification( msg, 'error' );
 
-            if ($nonceField.length === 0) {
+								console.error( 'Save error:', jqXHR.status, jqXHR.responseJSON );
 
-                window.hngShowNotification('Erro: Nonce não encontrado no formulário', 'error');
+							},
 
-                return;
+							complete: function () {
 
-            }
+								$btn.prop( 'disabled', false );
 
-            
+							}
 
-            // Adiciona action e gateway
+						}
+					);
 
-            formData.append('action', 'hng_save_gateway_config');
+				}
+			);
 
-            formData.append('gateway', gateway);
+			// Test gateway connection (inline button inside form)
 
-            
+			$( document ).on(
+				'click',
+				'.test-gateway-inline',
+				function () {
 
-            $btn.prop('disabled', true);
+					const $form = $( this ).closest( '.gateway-config-form-inner' );
 
-            
+					const gateway = $form.data( 'gateway' );
 
-            $.ajax({
+					const $btn = $( this );
 
-                url: ajaxUrl,
+					$btn.prop( 'disabled', true );
 
-                type: 'POST',
+					// Usar a mesma ação que o auto-check, mas com full_test=1
 
-                data: formData,
+					$.ajax(
+						{
 
-                processData: false,
+							url: ajaxUrl,
 
-                contentType: false,
+							type: 'POST',
 
-                success: function(resp) {
+							data: {
 
-                    const msg = resp && resp.data && resp.data.message ? resp.data.message : 'Salvo com sucesso!';
+								action: 'hng_check_gateway_status',
 
-                    window.hngShowNotification(msg, 'success');
+								gateway: gateway,
 
-                },
+								full_test: 1,  // Indicador para teste completo
+								nonce: nonce
 
-                error: function(jqXHR) {
+							},
 
-                    let msg = 'Erro desconhecido';
+							headers: {
 
-                    if (jqXHR.status === 400) {
+								'X-Requested-With': 'XMLHttpRequest',
 
-                        msg = 'Erro: Validação falhou (400)';
+								'X-WP-Nonce': nonce
 
-                    } else if (jqXHR.responseJSON && jqXHR.responseJSON.data) {
+							},
 
-                        msg = jqXHR.responseJSON.data.message || msg;
+							dataType: 'json'
 
-                    }
+						}
+					)
 
-                    window.hngShowNotification(msg, 'error');
+					.done(
+						function (resp) {
 
-                    console.error('Save error:', jqXHR.status, jqXHR.responseJSON);
+							console.log( 'Inline test response for ' + gateway + ':', resp );
 
-                },
+							if (resp && resp.success && resp.data) {
 
-                complete: function() {
+								const msg = resp.data.message || 'Teste concluído';
 
-                    $btn.prop('disabled', false);
+								const notificationType = resp.data.status === 'error' ? 'error' : (resp.data.status === 'warning' ? 'warning' : 'success');
 
-                }
+								window.hngShowNotification( msg, notificationType );
 
-            });
+							} else {
 
-        });
+								window.hngShowNotification( 'Erro: Credenciais não configuradas', 'error' );
 
+							}
 
+						}
+					)
 
-        // Test gateway connection (inline button inside form)
+					.fail(
+						function (jqXHR) {
 
-        $(document).on('click', '.test-gateway-inline', function() {
+							console.error( 'Inline test error:', jqXHR );
 
-            const $form = $(this).closest('.gateway-config-form-inner');
+							console.log( 'Status:', jqXHR.status );
 
-            const gateway = $form.data('gateway');
+							console.log( 'Response:', jqXHR.responseJSON );
 
-            const $btn = $(this);
+							let message = 'Erro ao testar gateway';
 
-            
+							if (jqXHR.status === 403) {
 
-            $btn.prop('disabled', true);
+								message = 'Acesso negado. Verifique suas permissões de administrador.';
 
-            
+							} else if (jqXHR.status === 429) {
 
-            // Usar a mesma ação que o auto-check, mas com full_test=1
+								message = 'Muitas tentativas. Aguarde 30 segundos e tente novamente.';
 
-            $.ajax({
+							} else if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message) {
 
-                url: ajaxUrl,
+								message = jqXHR.responseJSON.data.message;
 
-                type: 'POST',
+							}
 
-                data: {
+							window.hngShowNotification( message, 'error', 5000 );
 
-                    action: 'hng_check_gateway_status',
+						}
+					)
 
-                    gateway: gateway,
+					.always(
+						function () {
 
-                    full_test: 1,  // Indicador para teste completo
-                    nonce: nonce
+							$btn.prop( 'disabled', false );
 
-                },
+						}
+					);
 
-                headers: {
+				}
+			);
 
-                    'X-Requested-With': 'XMLHttpRequest',
+			// Test gateway connection (card button)
 
-                    'X-WP-Nonce': nonce
+			$( document ).on(
+				'click',
+				'.gateway-test-btn',
+				function () {
 
-                },
+					const $btn = $( this );
 
-                dataType: 'json'
+					const gateway = $btn.data( 'gateway' );
 
-            })
+					const $item = $btn.closest( '.hng-gateway-item' );
 
-                .done(function(resp) {
+					const $statusElement = $item.find( '.gateway-api-status' );
 
-                    console.log('Inline test response for ' + gateway + ':', resp);
+					// Show loading state
 
-                    
+					$btn.prop( 'disabled', true );
 
-                    if (resp && resp.success && resp.data) {
+					$statusElement.find( '.status-dot' ).removeClass( 'status-unknown status-green status-yellow status-red' ).addClass( 'status-unknown' );
 
-                        const msg = resp.data.message || 'Teste concluído';
+					$statusElement.find( '.status-text' ).text( 'Testando...' );
 
-                        const notificationType = resp.data.status === 'error' ? 'error' : (resp.data.status === 'warning' ? 'warning' : 'success');
+					// Usar a mesma ação que o auto-check, mas com full_test=1
 
-                        window.hngShowNotification(msg, notificationType);
+					$.ajax(
+						{
 
-                    } else {
+							url: ajaxUrl,
 
-                        window.hngShowNotification('Erro: Credenciais não configuradas', 'error');
+							type: 'POST',
 
-                    }
+							data: {
 
-                })
+								action: 'hng_check_gateway_status',
 
-                .fail(function(jqXHR) {
+								gateway: gateway,
 
-                    console.error('Inline test error:', jqXHR);
+								full_test: 1,  // Indicador para teste completo
+								nonce: nonce
 
-                    console.log('Status:', jqXHR.status);
+							},
 
-                    console.log('Response:', jqXHR.responseJSON);
+							headers: {
 
-                    
+								'X-Requested-With': 'XMLHttpRequest',
 
-                    let message = 'Erro ao testar gateway';
+								'X-WP-Nonce': nonce
 
-                    if (jqXHR.status === 403) {
+							},
 
-                        message = 'Acesso negado. Verifique suas permissões de administrador.';
+							dataType: 'json'
 
-                    } else if (jqXHR.status === 429) {
+						}
+					)
 
-                        message = 'Muitas tentativas. Aguarde 30 segundos e tente novamente.';
+					.done(
+						function (resp) {
 
-                    } else if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message) {
+							console.log( 'Test response for ' + gateway + ':', resp );
 
-                        message = jqXHR.responseJSON.data.message;
+							// Simular diferentes status baseado na resposta
 
-                    }
+							let statusClass = 'status-green';
 
-                    
+							let statusText = 'Funcional';
 
-                    window.hngShowNotification(message, 'error', 5000);
+							let notificationType = 'success';
 
-                })
+							let message = 'Gateway ' + gateway + ' está funcionando corretamente!';
 
-                .always(function() {
+							if (resp && resp.data && resp.data.message) {
 
-                    $btn.prop('disabled', false);
+								message = resp.data.message;
 
-                });
+								// Determinar status baseado na resposta
 
-        });
+								if (resp.data.status === 'error') {
 
+									statusClass = 'status-red';
 
+									statusText = 'Indisponível';
 
-        // Test gateway connection (card button)
+									notificationType = 'error';
 
-        $(document).on('click', '.gateway-test-btn', function() {
+								} else if (resp.data.status === 'warning') {
 
-            const $btn = $(this);
+									statusClass = 'status-yellow';
 
-            const gateway = $btn.data('gateway');
+									statusText = 'Instabilidade';
 
-            const $item = $btn.closest('.hng-gateway-item');
+									notificationType = 'warning';
 
-            const $statusElement = $item.find('.gateway-api-status');
+								} else if (resp.data.status === 'success') {
 
-            
+									statusClass = 'status-green';
 
-            // Show loading state
+									statusText = 'Funcional';
 
-            $btn.prop('disabled', true);
+									notificationType = 'success';
 
-            $statusElement.find('.status-dot').removeClass('status-unknown status-green status-yellow status-red').addClass('status-unknown');
+								}
 
-            $statusElement.find('.status-text').text('Testando...');
+							} else if ( ! resp.success) {
 
-            
+								// Se não foi sucesso e não tem status field
 
-            // Usar a mesma ação que o auto-check, mas com full_test=1
+								statusClass = 'status-red';
 
-            $.ajax({
+								statusText = 'Indisponível';
 
-                url: ajaxUrl,
+								notificationType = 'error';
 
-                type: 'POST',
+								message = 'Erro: Credenciais não configuradas ou serviço indisponível';
 
-                data: {
+							}
 
-                    action: 'hng_check_gateway_status',
+							// Atualizar status visual
 
-                    gateway: gateway,
+							$statusElement.find( '.status-dot' ).removeClass( 'status-unknown status-green status-yellow status-red' ).addClass( statusClass );
 
-                    full_test: 1,  // Indicador para teste completo
-                    nonce: nonce
+							$statusElement.find( '.status-text' ).text( statusText );
 
-                },
+							// Mostrar notificação
 
-                headers: {
+							window.hngShowNotification( message, notificationType );
 
-                    'X-Requested-With': 'XMLHttpRequest',
+						}
+					)
 
-                    'X-WP-Nonce': nonce
+					.fail(
+						function (jqXHR) {
 
-                },
+							console.error( 'Test error for ' + gateway + ':', jqXHR );
 
-                dataType: 'json'
+							console.log( 'Status:', jqXHR.status );
 
-            })
+							console.log( 'Response:', jqXHR.responseJSON );
 
-                .done(function(resp) {
+							let message = 'Erro ao conectar com o gateway ' + gateway;
 
-                    console.log('Test response for ' + gateway + ':', resp);
+							if (jqXHR.status === 403) {
 
-                    
+								message = 'Acesso negado. Verifique suas permissões de administrador.';
 
-                    // Simular diferentes status baseado na resposta
+							} else if (jqXHR.status === 429) {
 
-                    let statusClass = 'status-green';
+								message = 'Muitas tentativas. Aguarde 30 segundos e tente novamente.';
 
-                    let statusText = 'Funcional';
+							} else if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message) {
 
-                    let notificationType = 'success';
+								message = jqXHR.responseJSON.data.message;
 
-                    let message = 'Gateway ' + gateway + ' está funcionando corretamente!';
+							}
 
-                    
+							// Marcar como indisponível
 
-                    if (resp && resp.data && resp.data.message) {
+							$statusElement.find( '.status-dot' ).removeClass( 'status-unknown status-green status-yellow status-red' ).addClass( 'status-red' );
 
-                        message = resp.data.message;
+							$statusElement.find( '.status-text' ).text( 'Indisponível' );
 
-                        
+							// Mostrar notificação de erro
 
-                        // Determinar status baseado na resposta
+							window.hngShowNotification( message, 'error', 5000 );
 
-                        if (resp.data.status === 'error') {
+						}
+					)
 
-                            statusClass = 'status-red';
+					.always(
+						function () {
 
-                            statusText = 'Indisponível';
+							$btn.prop( 'disabled', false );
 
-                            notificationType = 'error';
+						}
+					);
 
-                        } else if (resp.data.status === 'warning') {
+				}
+			);
 
-                            statusClass = 'status-yellow';
+			// Toggle gateway enable/disable
 
-                            statusText = 'Instabilidade';
+			$( document ).on(
+				'change',
+				'.gateway-toggle',
+				function () {
 
-                            notificationType = 'warning';
+					const $checkbox = $( this );
 
-                        } else if (resp.data.status === 'success') {
+					const gateway = $checkbox.data( 'gateway' );
 
-                            statusClass = 'status-green';
+					// Block coming-soon gateways
+					if ($checkbox.closest( '.hng-gateway-item' ).data( 'coming-soon' )) {
+						$checkbox.prop( 'checked', false );
+						return;
+					}
 
-                            statusText = 'Funcional';
+					const enabled = $checkbox.is( ':checked' );
 
-                            notificationType = 'success';
+					// If enabling, disable all others immediately
 
-                        }
+					if (enabled) {
 
-                    } else if (!resp.success) {
+						$( '.gateway-toggle' ).not( $checkbox ).each(
+							function () {
 
-                        // Se não foi sucesso e não tem status field
+								if ($( this ).is( ':checked' )) {
 
-                        statusClass = 'status-red';
+									$( this ).prop( 'checked', false );
 
-                        statusText = 'Indisponível';
+								}
 
-                        notificationType = 'error';
+							}
+						);
 
-                        message = 'Erro: Credenciais não configuradas ou serviço indisponível';
+					}
 
-                    }
+					$.post(
+						ajaxUrl,
+						{
 
-                    
+							action: 'hng_toggle_gateway',
 
-                    // Atualizar status visual
+							gateway: gateway,
 
-                    $statusElement.find('.status-dot').removeClass('status-unknown status-green status-yellow status-red').addClass(statusClass);
+							enabled: String( enabled ),
 
-                    $statusElement.find('.status-text').text(statusText);
+							nonce: nonce
 
-                    
+						}
+					).done(
+						function (resp) {
 
-                    // Mostrar notificação
+							try {
 
-                    window.hngShowNotification(message, notificationType);
+								const data = resp && resp.data ? resp.data : {};
 
-                })
+								// Ensure all disabled gateways are unchecked
 
-                .fail(function(jqXHR) {
+								if (enabled && Array.isArray( data.disabledGateways )) {
 
-                    console.error('Test error for ' + gateway + ':', jqXHR);
+									data.disabledGateways.forEach(
+										function (id) {
 
-                    console.log('Status:', jqXHR.status);
+											$( ".gateway-toggle[data-gateway='" + id + "']" ).prop( 'checked', false );
 
-                    console.log('Response:', jqXHR.responseJSON);
+										}
+									);
 
-                    
+								}
 
-                    let message = 'Erro ao conectar com o gateway ' + gateway;
+								// Show success message
 
-                    if (jqXHR.status === 403) {
+								if (data.message) {
 
-                        message = 'Acesso negado. Verifique suas permissões de administrador.';
+									const notificationType = enabled ? 'success' : 'info';
 
-                    } else if (jqXHR.status === 429) {
+									window.hngShowNotification( data.message, notificationType );
 
-                        message = 'Muitas tentativas. Aguarde 30 segundos e tente novamente.';
+								}
 
-                    } else if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message) {
+							} catch (e) {
 
-                        message = jqXHR.responseJSON.data.message;
+								console.error( 'Toggle gateway error:', e );
 
-                    }
+							}
 
-                    
+						}
+					).fail(
+						function () {
 
-                    // Marcar como indisponível
+							// Revert checkbox on error
 
-                    $statusElement.find('.status-dot').removeClass('status-unknown status-green status-yellow status-red').addClass('status-red');
+							$checkbox.prop( 'checked', ! enabled );
 
-                    $statusElement.find('.status-text').text('Indisponível');
+							window.hngShowNotification( 'Erro ao atualizar gateway', 'error' );
 
-                    
+						}
+					);
 
-                    // Mostrar notificação de erro
+				}
+			);
 
-                    window.hngShowNotification(message, 'error', 5000);
+			// Test all gateways
 
-                })
+			$( '#hng-test-all-gateways' ).on(
+				'click',
+				function () {
 
-                .always(function() {
+					window.hngShowNotification( 'Iniciando teste de todos os gateways...', 'info', 5000 );
 
-                    $btn.prop('disabled', false);
+					$.post(
+						ajaxUrl,
+						{
 
-                });
+							action: 'hng_test_all_gateways',
 
-        });
+							nonce: nonce
 
+						}
+					)
 
+					.done(
+						function (resp) {
 
-        // Toggle gateway enable/disable
+							const msg = resp && resp.data && resp.data.message ? resp.data.message : 'Testes iniciados!';
 
-        $(document).on('change', '.gateway-toggle', function() {
+							window.hngShowNotification( msg, 'success' );
 
-            const $checkbox = $(this);
+						}
+					)
 
-            const gateway = $checkbox.data('gateway');
+					.fail(
+						function () {
 
-            const enabled = $checkbox.is(':checked');
+							window.hngShowNotification( 'Erro ao testar gateways', 'error' );
 
-            
+						}
+					);
 
-            // If enabling, disable all others immediately
+				}
+			);
 
-            if (enabled) {
+			// Toggle advanced integration
 
-                $('.gateway-toggle').not($checkbox).each(function() {
+			$( document ).on(
+				'change',
+				'.advanced-toggle',
+				function () {
 
-                    if ($(this).is(':checked')) {
+					const gateway = $( this ).data( 'gateway' );
 
-                        $(this).prop('checked', false);
+					const enabled = $( this ).is( ':checked' );
 
-                    }
+					const $form = $( this ).closest( '.gateway-config-form-inner' );
 
-                });
+					$.post(
+						ajaxUrl,
+						{
 
-            }
+							action: 'hng_toggle_advanced_integration',
 
-            
+							gateway: gateway,
 
-            $.post(ajaxUrl, {
+							enabled: String( enabled ),
 
-                action: 'hng_toggle_gateway',
+							nonce: nonce
 
-                gateway: gateway,
+						}
+					).done(
+						function (resp) {
 
-                enabled: String(enabled),
+							const msg = resp && resp.data && resp.data.message ? resp.data.message : (enabled ? 'Ativado' : 'Desativado');
 
-                nonce: nonce
+							window.hngShowNotification( msg, 'success' );
 
-            }).done(function(resp){
+						}
+					).fail(
+						function () {
 
-                try {
+							window.hngShowNotification( 'Erro ao atualizar integração avançada', 'error' );
 
-                    const data = resp && resp.data ? resp.data : {};
+						}
+					);
 
-                    // Ensure all disabled gateways are unchecked
+				}
+			);
 
-                    if (enabled && Array.isArray(data.disabledGateways)) {
+			// ==========================================
 
-                        data.disabledGateways.forEach(function(id){
+			// AUTO-CHECK DESABILITADO: O status agora é carregado do banco de dados
+			// e não precisa mais fazer requisições AJAX ao carregar a página.
+			// O status é salvo quando o usuário clica em "Testar Conexão".
+			// ==========================================
 
-                            $(".gateway-toggle[data-gateway='" + id + "']").prop('checked', false);
+			// OAuth Mercado Pago - Disconnect handler
+			$( document ).on(
+				'click',
+				'.mp-oauth-disconnect',
+				function (e) {
+					e.preventDefault();
 
-                        });
+					if ( ! confirm( 'Tem certeza que deseja desconectar sua conta Mercado Pago?\n\nIsso desabilitará o Split Payment automático.' )) {
+						return;
+					}
 
-                    }
+					var $btn       = $( this );
+					var merchantId = $btn.data( 'merchant' );
 
-                    // Show success message
+					$btn.prop( 'disabled', true ).text( 'Desconectando...' );
 
-                    if (data.message) {
+					$.ajax(
+						{
+							url: 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/disconnect',
+							method: 'POST',
+							contentType: 'application/json',
+							data: JSON.stringify( { merchant_id: merchantId } ),
+							success: function (response) {
+								if (response.success) {
+									hngShowNotification( 'Mercado Pago desconectado com sucesso!', 'success' );
+									// Reload para atualizar a seção OAuth
+									setTimeout(
+										function () {
+											window.location.reload();
+										},
+										1500
+									);
+								} else {
+									hngShowNotification( 'Erro: ' + (response.error || 'Falha ao desconectar'), 'error' );
+									$btn.prop( 'disabled', false ).text( 'Desconectar' );
+								}
+							},
+							error: function () {
+								hngShowNotification( 'Erro de conexão com a API', 'error' );
+								$btn.prop( 'disabled', false ).text( 'Desconectar' );
+							}
+						}
+					);
+				}
+			);
 
-                        const notificationType = enabled ? 'success' : 'info';
+			// Check for OAuth callback messages
+			var urlParams = new URLSearchParams( window.location.search );
+			if (urlParams.get( 'oauth_success' ) === 'mercadopago') {
+				var mpUser = urlParams.get( 'mp_user' );
+				hngShowNotification( 'Mercado Pago conectado com sucesso!' + (mpUser ? ' (' + mpUser + ')' : ''), 'success', 5000 );
+				// Clean URL
+				window.history.replaceState( {}, document.title, window.location.pathname + '?page=hng-gateways' );
+			}
+			if (urlParams.get( 'oauth_error' )) {
+				hngShowNotification( 'Erro ao conectar Mercado Pago: ' + urlParams.get( 'oauth_error' ), 'error', 5000 );
+				window.history.replaceState( {}, document.title, window.location.pathname + '?page=hng-gateways' );
+			}
 
-                        window.hngShowNotification(data.message, notificationType);
+			// Refresh fees button handler
+			$( document ).on(
+				'click',
+				'.refresh-fees-btn',
+				function (e) {
+					e.preventDefault();
+					e.stopPropagation();
 
-                    }
+					var $btn  = $( this );
+					var $icon = $btn.find( '.dashicons' );
 
-                } catch (e) {
+					// Animate icon
+					$icon.addClass( 'spin' );
+					$btn.prop( 'disabled', true );
 
-                    console.error('Toggle gateway error:', e);
+					$.ajax(
+						{
+							url: ajaxUrl,
+							method: 'POST',
+							data: {
+								action: 'hng_refresh_fees',
+								nonce: nonce
+							},
+							success: function (response) {
+								$icon.removeClass( 'spin' );
+								$btn.prop( 'disabled', false );
 
-                }
+								if (response.success) {
+									hngShowNotification( 'Taxas atualizadas com sucesso!', 'success' );
+									// Reload page to show new fees
+									setTimeout(
+										function () {
+											window.location.reload();
+										},
+										1000
+									);
+								} else {
+									hngShowNotification( 'Erro: ' + (response.data.message || 'Falha ao atualizar taxas'), 'error' );
+								}
+							},
+							error: function () {
+								$icon.removeClass( 'spin' );
+								$btn.prop( 'disabled', false );
+								hngShowNotification( 'Erro de conexão ao atualizar taxas', 'error' );
+							}
+						}
+					);
+				}
+			);
+		}
+	);
 
-            }).fail(function() {
-
-                // Revert checkbox on error
-
-                $checkbox.prop('checked', !enabled);
-
-                window.hngShowNotification('Erro ao atualizar gateway', 'error');
-
-            });
-
-        });
-
-
-
-        // Test all gateways
-
-        $('#hng-test-all-gateways').on('click', function() {
-
-            window.hngShowNotification('Iniciando teste de todos os gateways...', 'info', 5000);
-
-            
-
-            $.post(ajaxUrl, {
-
-                action: 'hng_test_all_gateways',
-
-                nonce: nonce
-
-            })
-
-                .done(function(resp) {
-
-                    const msg = resp && resp.data && resp.data.message ? resp.data.message : 'Testes iniciados!';
-
-                    window.hngShowNotification(msg, 'success');
-
-                })
-
-                .fail(function() {
-
-                    window.hngShowNotification('Erro ao testar gateways', 'error');
-
-                });
-
-        });
-
-
-
-        // Toggle advanced integration
-
-        $(document).on('change', '.advanced-toggle', function(){
-
-            const gateway = $(this).data('gateway');
-
-            const enabled = $(this).is(':checked');
-
-            const $form = $(this).closest('.gateway-config-form-inner');
-
-            $.post(ajaxUrl, {
-
-                action: 'hng_toggle_advanced_integration',
-
-                gateway: gateway,
-
-                enabled: String(enabled),
-
-                nonce: nonce
-
-            }).done(function(resp){
-
-                const msg = resp && resp.data && resp.data.message ? resp.data.message : (enabled ? 'Ativado' : 'Desativado');
-
-                window.hngShowNotification(msg, 'success');
-
-            }).fail(function(){
-
-                window.hngShowNotification('Erro ao atualizar integração avançada', 'error');
-
-            });
-
-        });
-
-
-
-    // ==========================================
-
-    // AUTO-CHECK DESABILITADO: O status agora é carregado do banco de dados
-    // e não precisa mais fazer requisições AJAX ao carregar a página.
-    // O status é salvo quando o usuário clica em "Testar Conexão".
-    // ==========================================
-    
-    // OAuth Mercado Pago - Disconnect handler
-    $(document).on('click', '.mp-oauth-disconnect', function(e) {
-        e.preventDefault();
-        
-        if (!confirm('Tem certeza que deseja desconectar sua conta Mercado Pago?\n\nIsso desabilitará o Split Payment automático.')) {
-            return;
-        }
-        
-        var $btn = $(this);
-        var merchantId = $btn.data('merchant');
-        
-        $btn.prop('disabled', true).text('Desconectando...');
-        
-        $.ajax({
-            url: 'https://api.hngdesenvolvimentos.com.br/oauth/mercadopago/disconnect',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ merchant_id: merchantId }),
-            success: function(response) {
-                if (response.success) {
-                    hngShowNotification('Mercado Pago desconectado com sucesso!', 'success');
-                    // Reload para atualizar a seção OAuth
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    hngShowNotification('Erro: ' + (response.error || 'Falha ao desconectar'), 'error');
-                    $btn.prop('disabled', false).text('Desconectar');
-                }
-            },
-            error: function() {
-                hngShowNotification('Erro de conexão com a API', 'error');
-                $btn.prop('disabled', false).text('Desconectar');
-            }
-        });
-    });
-    
-    // Check for OAuth callback messages
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('oauth_success') === 'mercadopago') {
-        var mpUser = urlParams.get('mp_user');
-        hngShowNotification('Mercado Pago conectado com sucesso!' + (mpUser ? ' (' + mpUser + ')' : ''), 'success', 5000);
-        // Clean URL
-        window.history.replaceState({}, document.title, window.location.pathname + '?page=hng-gateways');
-    }
-    if (urlParams.get('oauth_error')) {
-        hngShowNotification('Erro ao conectar Mercado Pago: ' + urlParams.get('oauth_error'), 'error', 5000);
-        window.history.replaceState({}, document.title, window.location.pathname + '?page=hng-gateways');
-    }
-    
-    // Refresh fees button handler
-    $(document).on('click', '.refresh-fees-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        var $btn = $(this);
-        var $icon = $btn.find('.dashicons');
-        
-        // Animate icon
-        $icon.addClass('spin');
-        $btn.prop('disabled', true);
-        
-        $.ajax({
-            url: ajaxUrl,
-            method: 'POST',
-            data: {
-                action: 'hng_refresh_fees',
-                nonce: nonce
-            },
-            success: function(response) {
-                $icon.removeClass('spin');
-                $btn.prop('disabled', false);
-                
-                if (response.success) {
-                    hngShowNotification('Taxas atualizadas com sucesso!', 'success');
-                    // Reload page to show new fees
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    hngShowNotification('Erro: ' + (response.data.message || 'Falha ao atualizar taxas'), 'error');
-                }
-            },
-            error: function() {
-                $icon.removeClass('spin');
-                $btn.prop('disabled', false);
-                hngShowNotification('Erro de conexão ao atualizar taxas', 'error');
-            }
-        });
-    });
-    });
-
-
-
-})(jQuery);
-
+})( jQuery );
