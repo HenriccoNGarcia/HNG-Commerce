@@ -3,7 +3,7 @@
  * Plugin Name: HNG Commerce
  * Plugin URI: https://hngdesenvolvimentos.com.br/plugins/hng-commerce/
  * Description: Solução completa de e-commerce para WordPress focada no mercado brasileiro, com integrações nativas de pagamento e frete.
- * Version: 1.2.32
+ * Version: 1.2.18
  * Author: HNG Desenvolvimentos
  * Author URI: https://hngdesenvolvimentos.com.br
  * License: GPL v2 or later
@@ -45,7 +45,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Define constantes do plugin
 
-define( 'HNG_COMMERCE_VERSION', '1.2.21' );
+define( 'HNG_COMMERCE_VERSION', '1.2.18' );
 
 define( 'HNG_COMMERCE_FILE', __FILE__ );
 
